@@ -1,0 +1,77 @@
+plugins {
+    id 'com.android.library'
+    id 'kotlin-android'
+    id 'jacoco'
+}
+
+ext.group = 'com.alexvasilkov'
+ext.artifactId = 'inflow'
+ext.version = '0.1.0'
+ext.name = 'Inflow'
+
+android {
+    compileSdkVersion 30
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 30
+        versionName project.ext.version
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin/'
+        test.java.srcDirs += 'src/test/kotlin/'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+        freeCompilerArgs += ['-Xopt-in=kotlin.RequiresOptIn']
+    }
+
+    // No debug build type
+    android.variantFilter { variant ->
+        if (variant.buildType.name == 'debug') variant.setIgnore(true)
+    }
+}
+
+jacoco {
+    toolVersion = '0.8.5'
+}
+
+task jacocoCoverage(type: JacocoReport, dependsOn: 'test') {
+    group = 'Verification'
+    description = 'Generate Jacoco coverage reports'
+
+    check.dependsOn name
+
+    def classesFilter = ['**/*$inlined$*.*']
+    def classes = fileTree(dir: "$buildDir/tmp/kotlin-classes/release", excludes: classesFilter)
+    def sources = files(new File(projectDir, 'src/main/kotlin'))
+    def coverageData = fileTree(dir: new File(buildDir, 'jacoco'), include: '*.exec')
+
+    classDirectories.setFrom classes
+    additionalSourceDirs.setFrom sources
+    sourceDirectories.setFrom sources
+    executionData.setFrom coverageData
+
+    reports {
+        xml.enabled = true
+        xml.destination = file("$buildDir/reports/jacoco/report.xml")
+        html.enabled = true
+        html.destination = file("$buildDir/reports/jacoco/html/")
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.1'
+
+    testImplementation 'junit:junit:4.13.1'
+    testImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.4.1"
+}

@@ -1,0 +1,28 @@
+buildscript {
+    ext.kotlin_version = '1.4.20'
+
+    repositories {
+        google()
+        gradlePluginPortal()
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:4.1.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'org.jlleitschuh.gradle:ktlint-gradle:9.1.1'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        jcenter()
+    }
+
+    apply plugin: 'org.jlleitschuh.gradle.ktlint'
+    ktlint {
+        version = '0.39.0'
+        disabledRules = ['no-consecutive-blank-lines', 'no-blank-line-before-rbrace']
+    }
+}
