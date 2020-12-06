@@ -62,7 +62,7 @@ internal fun <T> SharedFlow<T>.trackSubscriptions(
  * Runs provided action if it is not running yet and keeps execution and error states.
  */
 internal suspend fun runWithState(
-    caller: String,
+    logId: String,
     loading: MutableStateFlow<Boolean>,
     error: MutableStateFlow<Throwable?>,
     retryForced: MutableStateFlow<Boolean>,
@@ -75,18 +75,18 @@ internal suspend fun runWithState(
         if (force) {
             val wasForced = retryForced.compareAndSet(expect = false, update = true)
             if (wasForced) {
-                log(caller) { "Refresh is already in progress, scheduling extra refresh" }
+                log(logId) { "Refresh is already in progress, scheduling extra refresh" }
             } else {
-                log(caller) { "Refresh is already in progress, extra refresh is already scheduled" }
+                log(logId) { "Refresh is already in progress, extra refresh is already scheduled" }
             }
         } else {
-            log(caller) { "Refresh is already in progress, skipping refresh" }
+            log(logId) { "Refresh is already in progress, skipping refresh" }
         }
 
         return false
     }
 
-    log(caller) { "Refreshing..." }
+    log(logId) { "Refreshing..." }
 
     error.emit(null) // Clearing old error before start
     var caughtError: Throwable? = null
@@ -96,14 +96,14 @@ internal suspend fun runWithState(
 
         try {
             action()
-            log(caller) { "Refresh successful" }
+            log(logId) { "Refresh successful" }
         } catch (ae: AssertionError) {
             throw ae // Just throw as is
         } catch (ce: CancellationException) {
-            log(caller) { "Refresh is cancelled: ${ce.message}" }
+            log(logId) { "Refresh is cancelled: ${ce.message}" }
             throw ce // Rethrowing cancellation
         } catch (th: Throwable) {
-            log(caller) { "Refresh error: ${th::class.java.simpleName} - ${th.message}" }
+            log(logId) { "Refresh error: ${th::class.java.simpleName} - ${th.message}" }
             caughtError = th // We'll only emit latest error if extra refresh is scheduled
         }
 
@@ -112,7 +112,7 @@ internal suspend fun runWithState(
 
     // Handling coroutine cancellation before emitting results
     if (!coroutineContext.isActive) {
-        log(caller) { "Refresh was cancelled" }
+        log(logId) { "Refresh was cancelled" }
         throw CancellationException("Loader scope is not active")
     }
 
@@ -137,7 +137,7 @@ internal suspend fun runWithState(
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal suspend fun scheduleUpdates(
-    id: Any,
+    logId: String,
     cacheExpiration: Flow<Long>,
     activation: Flow<Boolean>,
     retryTime: Long,
@@ -163,22 +163,22 @@ internal suspend fun scheduleUpdates(
             // to be sent to us and this flow will be cancelled and re-scheduled.
             flow {
                 if (expiration == Long.MAX_VALUE) {
-                    log(id) { "Cache never expires" }
+                    log(logId) { "Cache never expires" }
                     awaitCancellation() // Waiting for cancellation, it won't consume resources
                 }
 
                 if (expiration > 0L) {
-                    log(id) { "Cache is expiring in ${expiration}ms" }
+                    log(logId) { "Cache is expiring in ${expiration}ms" }
                     delay(expiration)
                 }
 
-                log(id) { "Cache is expired" }
+                log(logId) { "Cache is expired" }
                 emit(Unit)
 
                 while (true) { // Retrying until new data is loaded and this flow is cancelled
                     emit(null) // Suspend until prev emission is collected ('cause of 0 buffer size)
                     delay(retryTime)
-                    log(id) { "Cache refresh retry after ${retryTime}ms timeout" }
+                    log(logId) { "Cache refresh retry after ${retryTime}ms timeout" }
                     emit(Unit)
                 }
             }

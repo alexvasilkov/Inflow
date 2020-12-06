@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 @ExperimentalCoroutinesApi
 class OpRunWithStateTest : BaseTest() {
 
-    private val id = "TEST_ID"
+    private val logId = "TEST_ID"
 
     @Test
     fun `Only one action can run at a time`() = runBlockingTest {
@@ -34,16 +34,16 @@ class OpRunWithStateTest : BaseTest() {
         val retryForced = MutableStateFlow(false)
 
         launch {
-            val result = runWithState(id, loading, error, retryForced, force = false, action)
+            val result = runWithState(logId, loading, error, retryForced, force = false, action)
             assertTrue(result, "First action is called")
         }
         launch {
-            val result = runWithState(id, loading, error, retryForced, force = false, action)
+            val result = runWithState(logId, loading, error, retryForced, force = false, action)
             assertFalse(result, "Second action is not called")
         }
         delay(1000L)
         launch {
-            val result = runWithState(id, loading, error, retryForced, force = false, action)
+            val result = runWithState(logId, loading, error, retryForced, force = false, action)
             assertTrue(result, "Third action is called")
         }
     }
@@ -66,7 +66,7 @@ class OpRunWithStateTest : BaseTest() {
 
         // Launching regular refresh
         launch {
-            val result = runWithState(id, loading, error, retryForced, force = false, action)
+            val result = runWithState(logId, loading, error, retryForced, force = false, action)
             assertTrue(result, "First action is called")
         }
 
@@ -76,13 +76,13 @@ class OpRunWithStateTest : BaseTest() {
 
         // Forcing second refresh while the first one is in the middle
         launch {
-            val result = runWithState(id, loading, error, retryForced, force = true, action)
+            val result = runWithState(logId, loading, error, retryForced, force = true, action)
             assertFalse(result, "Second action is not called")
         }
 
         // Forcing third refresh while the first one is in the middle
         launch {
-            val result = runWithState(id, loading, error, retryForced, force = true, action)
+            val result = runWithState(logId, loading, error, retryForced, force = true, action)
             assertFalse(result, "Third action is not called")
         }
 
@@ -184,6 +184,6 @@ class OpRunWithStateTest : BaseTest() {
         retryForced: MutableStateFlow<Boolean> = MutableStateFlow(false),
         force: Boolean = false,
         action: suspend () -> Unit = suspend { delay(100L) }
-    ) = runWithState(id, loading, error, retryForced, force, action)
+    ) = runWithState(logId, loading, error, retryForced, force, action)
 
 }

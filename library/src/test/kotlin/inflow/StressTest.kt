@@ -17,10 +17,12 @@ class StressTest : BaseTest() {
 
     @Test(timeout = 10_000L)
     fun `Subscribe to cache and observe state`(): Unit = runBlocking(Dispatchers.IO) {
-        for (i in 0..100) {
+        for (i in 0..1000) {
             launch {
                 for (j in 0..10) {
-                    val inflow = inflow<Unit> {
+                    val inflow = inflow<Unit?> {
+                        logId = "$i/$j"
+                        cacheInMemory(null)
                         loader = {
                             delay(50L)
                             throw RuntimeException()
@@ -48,22 +50,31 @@ class StressTest : BaseTest() {
 
     @Test(timeout = 10_000L)
     fun `Can refresh the data blocking`(): Unit = runBlocking(Dispatchers.IO) {
-        for (i in 0..100) {
+        for (i in 0..1000) {
             launch {
                 for (j in 0..10) {
-                    val inflow = inflow<Unit> {
+                    val inflow = inflow<Unit?> {
+                        logId = "$i/$j"
+                        cacheInMemory(null)
+
+                        // Delaying memory cache writer
+                        val origWriter = requireNotNull(cacheWriter)
+                        cacheWriter = { delay(10L); origWriter.invoke(it) }
+
                         loader = { delay(50L) }
                     }
 
                     // Scheduling a new refresh, it will force extra refresh every second time
-                    launch {
+                    val job = launch {
                         delay(10L)
-                        inflow.refreshBlocking(repeatIfRunning = j % 2 == 0)
+                        inflow.refreshBlocking(repeatIfRunning = j % 2 == 1)
                     }
 
                     inflow.refreshBlocking()
-                    val item = inflow.data().first()
-                    assertNotNull(item, "Item is loaded: $i/$j")
+                    job.join()
+                    inflow.data(autoRefresh = false).first { it != null }
+
+                    assertFalse(inflow.loading().value, "Loading is finished $i/$j")
                 }
             }
         }
@@ -71,9 +82,10 @@ class StressTest : BaseTest() {
 
     @Test(timeout = 10_000L)
     fun `Can subscribe to inflow from several places`(): Unit = runBlocking(Dispatchers.IO) {
-        val runs = 1000
+        val runs = 1_000
 
-        val inflow = inflow<Unit> {
+        val inflow = inflow<Unit?> {
+            cacheInMemory(null)
             loader = { delay(50L) }
             loadRetryTime = Long.MAX_VALUE
         }
@@ -83,7 +95,7 @@ class StressTest : BaseTest() {
 
         for (i in 0 until runs) {
             launch(job) {
-                inflow.data().first()
+                inflow.data().first { it != null }
                 inflow.error().first { it == null }
                 inflow.loading().first { !it }
 

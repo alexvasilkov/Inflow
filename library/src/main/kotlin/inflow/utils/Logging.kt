@@ -7,7 +7,7 @@ var inflowVerbose: Boolean = false
 internal var logInTest = false
 internal var lastLogMessage: String? = null; private set
 
-internal fun log(id: Any, msg: () -> String) {
+internal fun log(id: String, msg: () -> String) {
     if (inflowVerbose) {
         val message = msg()
         if (logInTest) {

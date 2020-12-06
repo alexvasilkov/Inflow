@@ -16,8 +16,6 @@ import kotlin.test.assertEquals
 @ExperimentalCoroutinesApi
 class OpScheduleUpdatesTest : BaseTest() {
 
-    private val id = "ID"
-
     @Test
     fun `One update and few retries if cache never updated`() = runBlockingTestWithJob { job ->
         var counter = 0
@@ -170,6 +168,6 @@ class OpScheduleUpdatesTest : BaseTest() {
         activation: Flow<Boolean> = MutableStateFlow(true),
         retryTime: Long = 100L,
         loader: suspend (Boolean) -> Unit = {}
-    ) = scheduleUpdates(id, cacheExpiration, activation, retryTime) { loader(it); true }
+    ) = scheduleUpdates("ID", cacheExpiration, activation, retryTime) { loader(it); true }
 
 }

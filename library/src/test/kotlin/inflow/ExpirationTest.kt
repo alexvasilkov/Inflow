@@ -120,6 +120,7 @@ class ExpirationTest : BaseTest() {
         Thread.setDefaultUncaughtExceptionHandler { _, e -> error = e }
 
         val inflow = inflow<Unit?> {
+            cacheInMemory(null)
             loader = { null }
             cacheExpiration = ExpiresIn.IfNull()
         }

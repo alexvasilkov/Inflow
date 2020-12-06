@@ -127,9 +127,12 @@ fun <T> inflow(block: InflowConfig<T>.() -> Unit): Inflow<T> =
 suspend fun <T> Inflow<T>.refreshBlocking(repeatIfRunning: Boolean = false) =
     (this as InflowImpl).refreshBlockingInternal(repeatIfRunning)
 
-// TODO: Memory cache does not emit and will be an issue
 /**
- * Returns latest cached data. Shortcut for `data().first()`.
+ * Returns latest cached data. Shortcut for `data(autoRefresh = false).first()`.
+ *
+ * Note that there is no guarantee that this method will return newly cached item right after
+ * [refreshBlocking] because it will take time for the new data to propagate through the cache,
+ * even if it is in-memory cache.
  */
 suspend fun <T> Inflow<T>.get() = data(autoRefresh = false).first()
 

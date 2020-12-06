@@ -6,7 +6,6 @@ import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runBlockingTest
@@ -19,10 +18,9 @@ import kotlin.test.assertNull
 class CacheTest : BaseTest() {
 
     @Test(timeout = 1_000L)
-    fun `In-memory cache is used if no cache provided`() = runBlockingTestWithJob { job ->
+    fun `In-memory cache is working as expected`() = runBlockingTestWithJob { job ->
         val inflow = testInflow {
-            cache = null
-            cacheWriter = null
+            cacheInMemory(null)
         }
 
         var dataAuto: TestItem? = TestItem(Long.MIN_VALUE)
@@ -36,6 +34,8 @@ class CacheTest : BaseTest() {
             // Second cache listener, just to be sure
             inflow.data(autoRefresh = false).collect { dataCache = it }
         }
+
+        delay(100L)
 
         assertNotNull(dataAuto, "Data is loaded -- auto")
         assertNotNull(dataCache, "Data is loaded -- cache")
@@ -64,15 +64,13 @@ class CacheTest : BaseTest() {
 
         // Subscribing and getting first emitted item
         launch(job) {
-            val item = inflow.data(autoRefresh = false).first()
-            assertEquals(TestItem(-1), item, "Receiving first item")
+            assertEquals(TestItem(-1), inflow.get(), "Receiving first item")
         }
 
         // Subscribing and getting second emitted item after delay
         delay(100L)
         launch(job) {
-            val item = inflow.data(autoRefresh = false).first()
-            assertEquals(TestItem(-2), item, "Receiving second item")
+            assertEquals(TestItem(-2), inflow.get(), "Receiving second item")
         }
 
         // Un-subscribing to reset cold cache flow
@@ -81,15 +79,13 @@ class CacheTest : BaseTest() {
         // Re-subscribing withing timeout interval, original cold cache should still be subscribed
         delay(100L)
         launch(job) {
-            val item = inflow.data(autoRefresh = false).first()
-            assertEquals(TestItem(-3), item, "Receiving third item")
+            assertEquals(TestItem(-3), inflow.get(), "Receiving third item")
         }
 
         // Re-subscribing after timeout interval, original cold cache should be re-subscribed
         delay(200L)
         launch(job) {
-            val item = inflow.data(autoRefresh = false).first()
-            assertEquals(TestItem(-1), item, "Receiving first item again")
+            assertEquals(TestItem(-1), inflow.get(), "Receiving first item again")
         }
     }
 
@@ -106,9 +102,7 @@ class CacheTest : BaseTest() {
 
         var item: TestItem? = null
 
-        launch {
-            item = inflow.data(autoRefresh = false).first()
-        }
+        launch { item = inflow.get() }
 
         delay(500L)
         assertNull(item, "No item in the beginning")

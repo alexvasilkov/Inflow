@@ -3,6 +3,7 @@ package inflow
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 
 /**
  * Configuration params to create a new [Inflow], with default values.
@@ -50,21 +51,6 @@ import kotlinx.coroutines.flow.Flow
  * [connectivity] to `null`.
  */
 class InflowConfig<T> internal constructor(
-    /**
-     * Suspending function that will be called using [loadDispatcher] to load a new data.
-     */
-    var loader: (suspend () -> T)? = null,
-
-    /**
-     * Loading retry time if last attempt was not successful. Set to 1 minute by default.
-     */
-    var loadRetryTime: Long = 60_000,
-
-    /**
-     * Coroutine dispatcher that will be used when calling [loader].
-     * Uses [Dispatchers.IO] by default.
-     */
-    var loadDispatcher: CoroutineDispatcher = Dispatchers.IO,
 
     /**
      * Flow of cached data. This flow should always emit `null` (or empty) value if no data is
@@ -97,13 +83,29 @@ class InflowConfig<T> internal constructor(
      *
      * Set to 1 second by default.
      */
-    var cacheKeepSubscribedTimeout: Long = 1_000L, // 1 sec
+    var cacheKeepSubscribedTimeout: Long = 1_000L,
 
     /**
      * Coroutine dispatcher that will be used to subscribe to [cache] and save new data using
      * [cacheWriter]. Uses [Dispatchers.IO] by default.
      */
     var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO,
+
+    /**
+     * Suspending function that will be called using [loadDispatcher] to load a new data.
+     */
+    var loader: (suspend () -> T)? = null,
+
+    /**
+     * Loading retry time if last attempt was not successful. Set to 1 minute by default.
+     */
+    var loadRetryTime: Long = 60_000,
+
+    /**
+     * Coroutine dispatcher that will be used when calling [loader].
+     * Uses [Dispatchers.IO] by default.
+     */
+    var loadDispatcher: CoroutineDispatcher = Dispatchers.IO,
 
     /**
      * Connectivity state provider that will be used to automatically retry failed request when
@@ -113,6 +115,20 @@ class InflowConfig<T> internal constructor(
      * `null` unless explicitly initialized with a real provider such as
      * [InflowConnectivity.Network].
      */
-    var connectivity: InflowConnectivity? = InflowConnectivity.Default
+    var connectivity: InflowConnectivity? = InflowConnectivity.Default,
 
-)
+    /**
+     * Log id to distinguish this `Inflow` from others.
+     */
+    var logId: String = "NO_ID"
+
+) {
+
+    fun cacheInMemory(initialValue: T) {
+        val memoryCache = MutableSharedFlow<T>(replay = 1)
+        memoryCache.tryEmit(initialValue) // By contract the cache should always emit
+        cache = memoryCache
+        cacheWriter = { memoryCache.emit(it) }
+    }
+
+}

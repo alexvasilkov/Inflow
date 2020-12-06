@@ -10,23 +10,18 @@ import inflow.utils.trackSubscriptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 
-private val NULL = Any()
-
 internal class InflowImpl<T> : Inflow<T> {
 
-    private val tag = "NO_ID" // TODO: Should we allow the user to set log tag, or?
+    private val logId: String
 
     private val cache: Flow<T>
     private val auto: Flow<T>
@@ -42,50 +37,33 @@ internal class InflowImpl<T> : Inflow<T> {
 
 
     constructor(config: InflowConfig<T>) {
+        logId = config.logId
+
         /*
-           Config validations
+           Config validations.
         */
-        val configLoader = requireNotNull(config.loader) { "Loader is required" }
+        val cacheFromConfig = requireNotNull(config.cache) { "`cache` is required" }
+        val cacheWriter = requireNotNull(config.cacheWriter) { "`cacheWriter` is required" }
 
         val cacheTimeout = config.cacheKeepSubscribedTimeout
-        require(cacheTimeout >= 0L) {
-            "Cache subscription timeout (${cacheTimeout}ms) cannot be negative"
-        }
+        require(cacheTimeout >= 0L) { "`cacheKeepSubscribedTimeout` cannot be negative" }
+
+        val loaderFromConfig = requireNotNull(config.loader) { "`loader` is required" }
 
         val retryTime = config.loadRetryTime
-        require(retryTime > 0L) { "Loading retry time (${retryTime}ms) should be positive" }
+        require(retryTime > 0L) { "`loadRetryTime` should be positive" }
 
         /*
-           Defining scopes
+           Defining scopes.
         */
         cacheScope = CoroutineScope(config.cacheDispatcher)
         loadScope = CoroutineScope(config.loadDispatcher)
 
         /*
-           If cache is not provided then use custom in-memory cache
+           Sharing the cache to allow several subscribers.
+           Preparing `auto` cache that will track its subscribers.
         */
-        val cacheTmp: Flow<Any?> // T || NULL
-        val cacheWriterInternal: suspend (T) -> Unit
-
-        if (config.cache != null) {
-            cacheTmp = config.cache!!
-            cacheWriterInternal = requireNotNull(config.cacheWriter) {
-                "Cache writer must be provided along with cache flow"
-            }
-        } else {
-            val memoryCache = MutableSharedFlow<Any?>(replay = 1)
-            memoryCache.tryEmit(NULL) // Start with NULL, by contract the cache should always emit
-            cacheTmp = memoryCache
-            cacheWriterInternal = { memoryCache.emit(it) }
-            require(config.cacheWriter == null) {
-                "Cache writer must not be set if cache flow is not provided as well"
-            }
-        }
-
-        /*
-           Sharing the cache to allow several subscribers
-        */
-        val cacheInternal: SharedFlow<Any?> = cacheTmp // T || NULL
+        cache = cacheFromConfig
             .shareIn(
                 scope = cacheScope,
                 started = SharingStarted.WhileSubscribed(
@@ -96,21 +74,11 @@ internal class InflowImpl<T> : Inflow<T> {
                 replay = 1
             )
 
-        @Suppress("UNCHECKED_CAST")
-        cache = cacheInternal
-            .filter { it !== NULL } as Flow<T> // If not NULL then only T
-
-        /*
-           Preparing `auto` cache that will track its subscribers
-        */
         val cacheSubscribed = MutableStateFlow(false)
-        @Suppress("UNCHECKED_CAST")
-        auto = cacheInternal
-            .trackSubscriptions(cacheScope, cacheSubscribed)
-            .filter { it !== NULL } as Flow<T> // If not NULL then only T
+        auto = cache.trackSubscriptions(cacheScope, cacheSubscribed)
 
         /*
-           Preparing `loading` and `error` state flows
+           Preparing `loading` and `error` state flows.
         */
         val loadingInternal = MutableStateFlow(false)
         loading = loadingInternal.asStateFlow()
@@ -119,13 +87,13 @@ internal class InflowImpl<T> : Inflow<T> {
         error = errorInternal.asStateFlow()
 
         /*
-           Preparing loading action that will keep its state in `loading` and `error` flows
+           Preparing loading action that will keep its state in `loading` and `error` flows.
         */
         val loaderInternal: suspend () -> Unit = {
             // Loading data
-            val data = configLoader.invoke()
+            val data = loaderFromConfig.invoke()
             // Saving into cache using cache dispatcher
-            cacheScope.launch { cacheWriterInternal.invoke(data) }
+            cacheScope.launch { cacheWriter.invoke(data) }
 
             // Assert that loader does not return expired data to prevent endless loading
             val expiresIn = config.cacheExpiration.expiresIn(data)
@@ -138,23 +106,22 @@ internal class InflowImpl<T> : Inflow<T> {
 
         val retryForced = MutableStateFlow(false)
         loadAction = { force ->
-            runWithState(tag, loadingInternal, errorInternal, retryForced, force, loaderInternal)
+            runWithState(logId, loadingInternal, errorInternal, retryForced, force, loaderInternal)
         }
 
         /*
-           Scheduling loader action to run when `auto` cache is subscribed and the data is expired
+           Scheduling loader action to run when `auto` cache is subscribed and the data is expired.
         */
-        @Suppress("UNCHECKED_CAST")
-        val cacheExpiration = cacheInternal
-            .map { if (it === NULL) 0L else config.cacheExpiration.expiresIn(it as T) }
+        val cacheExpiration = cache.map(config.cacheExpiration::expiresIn)
         val activation = cacheSubscribed.repeatWhenConnected(config.connectivity)
 
         loadScope.launch {
-            scheduleUpdates(tag, cacheExpiration, activation, retryTime, loadAction)
+            scheduleUpdates(logId, cacheExpiration, activation, retryTime, loadAction)
         }
     }
 
     private constructor(
+        logId: String,
         cache: Flow<T>,
         auto: Flow<T>,
         loading: StateFlow<Boolean>,
@@ -163,6 +130,7 @@ internal class InflowImpl<T> : Inflow<T> {
         cacheScope: CoroutineScope,
         loadScope: CoroutineScope
     ) {
+        this.logId = logId
         this.cache = cache
         this.auto = auto
         this.loading = loading
@@ -198,8 +166,8 @@ internal class InflowImpl<T> : Inflow<T> {
         val called = loadAction(repeatIfRunning)
 
         if (!called) {
-            // The loadAction itself didn't block because another refresh is currently in place.
-            // We'll block by waiting for the refresh to finish.
+            // The loadAction itself didn't suspend because another refresh is currently in place.
+            // We'll suspend by waiting for the refresh to finish.
             // Very unlikely but it can happen that loading state was already concurrently set to
             // `false`, we are fine with it. It can also happen that it was both set to `false` and
             // to `true` again, then we'll just wait for this new request to finish, not a big deal.
@@ -216,7 +184,7 @@ internal class InflowImpl<T> : Inflow<T> {
     private fun closeInternal(byUser: Boolean) {
         if (!closed) {
             closed = true
-            log(tag) { if (byUser) "Inflow is closed" else "Inflow is garbage-collected" }
+            log(logId) { if (byUser) "Inflow is closed" else "Inflow is garbage-collected" }
             cacheScope.cancel("Inflow is closed")
             loadScope.cancel("Inflow is closed")
         }
@@ -230,6 +198,7 @@ internal class InflowImpl<T> : Inflow<T> {
     fun <R> mapInternal(mapper: suspend (T) -> R): Inflow<R> {
         ensureNotClosed()
         return InflowImpl(
+            logId = "$logId-mapped",
             cache = cache.map(mapper),
             auto = auto.map(mapper),
             loading = loading,

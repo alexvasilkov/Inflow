@@ -5,7 +5,6 @@ import inflow.utils.testInflow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Test
@@ -22,12 +21,10 @@ class RefreshTest : BaseTest() {
 
         inflow.refresh()
 
-        val item1 = inflow.data().first()
-        assertNull(item1, "Starts with null")
+        assertNull(inflow.get(), "Starts with null")
 
         delay(100L)
-        val item2 = inflow.data().first()
-        assertNotNull(item2, "Item is loaded")
+        assertNotNull(inflow.get(), "Item is loaded")
     }
 
     @Test
@@ -40,18 +37,17 @@ class RefreshTest : BaseTest() {
         delay(50L)
         inflow.refresh(repeatIfRunning = true)
 
-        val item1 = inflow.data().first()
-        assertNull(item1, "Starts with null")
+        assertNull(inflow.get(), "Starts with null")
 
         // First item is loaded
         delay(50L)
-        val item2 = inflow.data().first()
+        val item2 = inflow.get()
         assertNotNull(item2, "Item is loaded")
         assertEquals(expected = currentTime, item2.loadedAt, "Fresh item is loaded")
 
         // Second item is loaded
         delay(100L)
-        val item3 = inflow.data().first()
+        val item3 = inflow.get()
         assertNotNull(item3, "Item is loaded")
         assertEquals(expected = currentTime, item3.loadedAt, "Fresh item is loaded")
     }
@@ -59,15 +55,16 @@ class RefreshTest : BaseTest() {
     @Test(timeout = 1_000L)
     fun `Can refresh the data blocking -- real threading`(): Unit = runBlocking(Dispatchers.IO) {
         val inflow = inflow<TestItem> {
+            cacheInMemory(TestItem(0L))
             loader = {
                 Thread.sleep(50L)
-                TestItem(0L)
+                TestItem(1L)
             }
         }
 
         inflow.refreshBlocking()
-        val item = inflow.data(autoRefresh = false).first()
-        assertNotNull(item, "Item is loaded")
+        delay(10L) // We have to delay to ensure cache data is propagated
+        assertEquals(expected = TestItem(1L), actual = inflow.get(), "New item is loaded")
 
         inflow.close()
     }

@@ -33,8 +33,9 @@ class TestActivity : AppCompatActivity() {
         setContentView(text, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
 
         val timer = inflow<Long> {
-            loader = { System.currentTimeMillis() }
+            cacheInMemory(0L)
             cacheExpiration = ExpiresIn.Duration(1000L) { this }
+            loader = { System.currentTimeMillis() }
         }
 
         lifecycleScope.launch {

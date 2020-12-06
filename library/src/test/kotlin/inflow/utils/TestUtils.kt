@@ -35,9 +35,7 @@ internal fun runBlockingTestWithJob(testBody: suspend TestCoroutineScope.(Job) -
 internal fun TestCoroutineScope.testInflow(
     block: InflowConfig<TestItem?>.() -> Unit
 ): Inflow<TestItem?> = inflow {
-    val localCache = MutableStateFlow<TestItem?>(null)
-    cache = localCache
-    cacheWriter = { localCache.emit(it) }
+    cacheInMemory(null)
     connectivity = object : InflowConnectivity {
         override val connected = MutableStateFlow(true)
     }

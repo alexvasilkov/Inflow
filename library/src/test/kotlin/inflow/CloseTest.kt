@@ -169,6 +169,7 @@ class CloseTest : BaseTest() {
 
     private fun startInflowAsReference(): WeakReference<Inflow<TestItem>> {
         val inflow = inflow<TestItem> {
+            cacheInMemory(TestItem(0L))
             loader = {
                 Thread.sleep(100L)
                 throw RuntimeException()
