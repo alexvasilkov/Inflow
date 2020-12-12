@@ -161,6 +161,7 @@ internal class InflowImpl<T> : Inflow<T> {
         loadScope.launch { loadAction(repeatIfRunning) }
     }
 
+    // TODO: Return result / throw exception as if it was a real network call
     suspend fun refreshBlockingInternal(repeatIfRunning: Boolean) {
         ensureNotClosed()
         val called = loadAction(repeatIfRunning)

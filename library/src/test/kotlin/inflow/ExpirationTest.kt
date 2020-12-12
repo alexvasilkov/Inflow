@@ -19,72 +19,75 @@ import kotlin.test.assertTrue
 class ExpirationTest : BaseTest() {
 
     @Test
-    fun `IfNull -- One update and few retries for null value`() = runBlockingTestWithJob { job ->
-        var counter = 0
-        val inflow = testInflow {
-            loader = {
-                counter++
-                throw RuntimeException()
+    fun `ExpiresIfNull -- One update and few retries for null value`() =
+        runBlockingTestWithJob { job ->
+            var counter = 0
+            val inflow = testInflow {
+                loader {
+                    counter++
+                    throw RuntimeException()
+                }
+                cacheExpiration(ExpiresIfNull())
             }
-            cacheExpiration = ExpiresIn.IfNull()
+
+            launch(job) { inflow.data().collect() }
+
+            delay(300L)
+            assertEquals(expected = 3, counter, "1 update and 2 retries")
         }
-
-        launch(job) { inflow.data().collect() }
-
-        delay(300L)
-        assertEquals(expected = 3, counter, "1 update and 2 retries")
-    }
 
     @Test(timeout = 1_000L)
-    fun `IfNull -- One update and no retries for null value`() = runBlockingTestWithJob { job ->
-        var counter = 0
-        val inflow = testInflow {
-            loader = {
-                counter++
-                TestItem(0L)
+    fun `ExpiresIfNull -- One update and no retries for null value`() =
+        runBlockingTestWithJob { job ->
+            var counter = 0
+            val inflow = testInflow {
+                loader {
+                    counter++
+                    TestItem(0L)
+                }
+                cacheExpiration(ExpiresIfNull())
             }
-            cacheExpiration = ExpiresIn.IfNull()
+
+            launch(job) { inflow.data().collect() }
+
+            delay(Long.MAX_VALUE - 1L)
+            assertEquals(expected = 1, counter, "1 update and no retries")
         }
-
-        launch(job) { inflow.data().collect() }
-
-        delay(Long.MAX_VALUE - 1L)
-        assertEquals(expected = 1, counter, "1 update and no retries")
-    }
 
     @Test(timeout = 1_000L)
-    fun `IfNull -- No update and no retries for non-null value`() = runBlockingTestWithJob { job ->
-        var counter = 0
-        val inflow = testInflow {
-            cache = MutableStateFlow(TestItem(0L))
-            loader = {
-                counter++
-                throw RuntimeException()
+    fun `ExpiresIfNull -- No update and no retries for non-null value`() =
+        runBlockingTestWithJob { job ->
+            var counter = 0
+            val inflow = testInflow {
+                cache(MutableStateFlow(TestItem(0L)))
+                loader {
+                    counter++
+                    throw RuntimeException()
+                }
+                cacheExpiration(ExpiresIfNull())
             }
-            cacheExpiration = ExpiresIn.IfNull()
+
+            launch(job) { inflow.data().collect() }
+
+            delay(Long.MAX_VALUE - 1L)
+            assertEquals(expected = 0, counter, "No update and no retries")
         }
-
-        launch(job) { inflow.data().collect() }
-
-        delay(Long.MAX_VALUE - 1L)
-        assertEquals(expected = 0, counter, "No update and no retries")
-    }
 
 
     @Test(expected = IllegalArgumentException::class)
-    fun `Duration -- Duration cannot be zero`() = runBlockingTest {
-        ExpiresIn.Duration<TestItem?>(0L)
+    fun `ExpiresIn -- Duration cannot be zero`() = runBlockingTest {
+        ExpiresIn<TestItem?>(0L)
     }
 
     @Test
-    fun `Duration -- Expiration updates are called`() = runBlockingTestWithJob { job ->
+    fun `ExpiresIn -- Expiration updates are called`() = runBlockingTestWithJob { job ->
         var counter = 0
         val inflow = testInflow {
-            loader = {
+            loader {
                 counter++
                 TestItem(now())
             }
-            cacheExpiration = ExpiresIn.Duration(50L) { this?.loadedAt ?: 0L }
+            cacheExpiration(ExpiresIn(duration = 50L, loadedAt = { this?.loadedAt ?: 0L }))
         }
 
         launch(job) { inflow.data().collect() }
@@ -99,15 +102,15 @@ class ExpirationTest : BaseTest() {
     }
 
     @Test
-    fun `Duration -- 'LoadedAt' variant is identical`() = runBlockingTest {
-        val strategy = ExpiresIn.Duration<TestItem?>(200L)
+    fun `ExpiresIn -- 'LoadedAt' variant uses loadedAt value`() = runBlockingTest {
+        val strategy = ExpiresIn<TestItem?>(200L)
 
         // Nullable strategy
         assertEquals(expected = 0L, strategy.expiresIn(null), "Expired if null")
 
         // Expiration time, fuzzy check because of possible timing issues
         val expiresIn = strategy.expiresIn(TestItem(now() - 100L))
-        assertTrue(expiresIn in 95..105, "Uses loadedAt")
+        assertTrue(expiresIn in 95..105, "Uses loadedAt value")
     }
 
 
@@ -121,8 +124,8 @@ class ExpirationTest : BaseTest() {
 
         val inflow = inflow<Unit?> {
             cacheInMemory(null)
-            loader = { null }
-            cacheExpiration = ExpiresIn.IfNull()
+            loader { null }
+            cacheExpiration(ExpiresIfNull())
         }
         inflow.refresh()
 

@@ -36,19 +36,20 @@ internal fun TestCoroutineScope.testInflow(
     block: InflowConfig<TestItem?>.() -> Unit
 ): Inflow<TestItem?> = inflow {
     cacheInMemory(null)
-    connectivity = object : InflowConnectivity {
-        override val connected = MutableStateFlow(true)
-    }
-    loader = {
+    loader {
         delay(100L)
         TestItem(currentTime)
     }
-    loadRetryTime = 100L
+    loadRetryTime(100L)
+
+    connectivity(object : InflowConnectivity {
+        override val connected = MutableStateFlow(true)
+    })
 
     block()
 
-    cacheDispatcher = testDispatcher
-    loadDispatcher = testDispatcher
+    cacheDispatcher(testDispatcher)
+    loadDispatcher(testDispatcher)
 }
 
 internal suspend fun Flow<Boolean>.track(tracker: TestTracker) {
@@ -57,7 +58,7 @@ internal suspend fun Flow<Boolean>.track(tracker: TestTracker) {
 
 @OptIn(ExperimentalStdlibApi::class)
 @ExperimentalCoroutinesApi
-internal val TestCoroutineScope.testDispatcher: CoroutineDispatcher
+private val TestCoroutineScope.testDispatcher: CoroutineDispatcher
     get() = coroutineContext[CoroutineDispatcher.Key] as CoroutineDispatcher
 
 

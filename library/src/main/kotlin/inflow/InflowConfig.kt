@@ -1,9 +1,11 @@
 package inflow
 
+import inflow.utils.inflowVerbose
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.onSubscription
 
 /**
  * Configuration params to create a new [Inflow], with default values.
@@ -17,8 +19,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
  * newly loaded data into the cache. The newly cached data is expected to be observed by [cache]
  * flow shortly after it was saved by [cacheWriter].
  *
- * If [cache] and [cacheWriter] values are set to `null` (which is by default) then a fallback
- * in-memory cache will be used to store a newly loaded data.
+ * In-memory cache can be configured using [cacheInMemory] instead of defining custom [cache] and
+ * [cacheWriter] values.
  *
  * If non-null [cache] flow is provided then it is expected to always emit an empty value
  * (e.g. `null`) if the cache is currently empty. This empty value will be a trigger for an
@@ -50,30 +52,67 @@ import kotlinx.coroutines.flow.MutableSharedFlow
  * Automatic retries can be disabled by setting [loadRetryTime] to [Long.MAX_VALUE] and
  * [connectivity] to `null`.
  */
-class InflowConfig<T> internal constructor(
+class InflowConfig<T> internal constructor() {
+    internal var cache: Flow<T>? = null; private set
+    internal var cacheWriter: (suspend (T) -> Unit)? = null; private set
+    internal var cacheExpiration: ExpirationProvider<T> = ExpiresIfNull(); private set
+    internal var cacheInvalidation: ExpirationProvider<T> = ExpiresIfNull(); private set
+    internal var cacheKeepSubscribedTimeout: Long = 1_000L; private set // 1 sec
+    internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
+    internal var loader: (suspend () -> T)? = null; private set
+    internal var loadRetryTime: Long = 60_000; private set // 1 min
+    internal var loadDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
+    internal var connectivity: InflowConnectivity? = InflowConnectivity.Default; private set
+    internal var logId: String = "NO_ID"; private set
 
     /**
      * Flow of cached data. This flow should always emit `null` (or empty) value if no data is
      * cached yet to trigger the loading process. The cache will be subscribed using
      * [cacheDispatcher] to allow sharing it between several subscribers.
      */
-    var cache: Flow<T>? = null,
+    fun cache(flow: Flow<T>) {
+        cache = flow
+    }
 
     /**
      * Suspending function that will be called using [cacheDispatcher] to save newly loaded data
      * into the cache.
      */
-    var cacheWriter: (suspend (T) -> Unit)? = null,
+    fun cacheWriter(action: suspend (T) -> Unit) {
+        cacheWriter = action
+    }
 
     /**
-     * Cache expiration provider.
-     * Uses [ExpiresIn.IfNull] strategy be default but should be set explicitly (e.g. using
-     * [ExpiresIn.Duration]) if a more advanced strategy is needed.
+     * Uses in-memory cache that will start with a value provided by [initialValue].
+     * Both [cache] and [cacheWriter] will be set up to use the memory cache.
      */
-    var cacheExpiration: ExpiresIn<T> = ExpiresIn.IfNull(),
+    fun cacheInMemoryDeferred(initialValue: suspend () -> T) {
+        val mem = MutableSharedFlow<T>(replay = 1)
+        // By contract the cache should always emit, we need to initialize it if not yet
+        cache = mem.onSubscription { if (mem.replayCache.isEmpty()) mem.tryEmit(initialValue()) }
+        cacheWriter = { mem.emit(it) }
+    }
 
-    // TODO
-    var cacheInvalidation: ExpiresIn<T> = ExpiresIn.IfNull(),
+    /**
+     * Uses in-memory cache that will start with [initialValue].
+     * Both [cache] and [cacheWriter] will be set up to use the memory cache.
+     */
+    fun cacheInMemory(initialValue: T) {
+        cacheInMemoryDeferred { initialValue }
+    }
+
+    /**
+     * Cache expiration provider. Uses [ExpiresIfNull] strategy by default but can be set to use a
+     * more advanced strategy if needed (e.g. using [ExpiresIn]).
+     */
+    fun cacheExpiration(expiresIn: ExpirationProvider<T>) {
+        cacheExpiration = expiresIn
+    }
+
+    // TODO: not implemented
+    fun cacheInvalidation(invalidIn: ExpirationProvider<T>) {
+        cacheInvalidation = invalidIn
+    }
 
     /**
      * Time to keep active [cache] subscription even if there are no other subscribers currently.
@@ -83,29 +122,39 @@ class InflowConfig<T> internal constructor(
      *
      * Set to 1 second by default.
      */
-    var cacheKeepSubscribedTimeout: Long = 1_000L,
+    fun cacheKeepSubscribedTimeout(timeoutMillis: Long) {
+        cacheKeepSubscribedTimeout = timeoutMillis
+    }
 
     /**
      * Coroutine dispatcher that will be used to subscribe to [cache] and save new data using
      * [cacheWriter]. Uses [Dispatchers.IO] by default.
      */
-    var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    fun cacheDispatcher(dispatcher: CoroutineDispatcher) {
+        cacheDispatcher = dispatcher
+    }
 
     /**
      * Suspending function that will be called using [loadDispatcher] to load a new data.
      */
-    var loader: (suspend () -> T)? = null,
+    fun loader(action: suspend () -> T) {
+        loader = action
+    }
 
     /**
      * Loading retry time if last attempt was not successful. Set to 1 minute by default.
      */
-    var loadRetryTime: Long = 60_000,
+    fun loadRetryTime(retryTimeMillis: Long) {
+        loadRetryTime = retryTimeMillis
+    }
 
     /**
      * Coroutine dispatcher that will be used when calling [loader].
      * Uses [Dispatchers.IO] by default.
      */
-    var loadDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    fun loadDispatcher(dispatcher: CoroutineDispatcher) {
+        loadDispatcher = dispatcher
+    }
 
     /**
      * Connectivity state provider that will be used to automatically retry failed request when
@@ -115,20 +164,15 @@ class InflowConfig<T> internal constructor(
      * `null` unless explicitly initialized with a real provider such as
      * [InflowConnectivity.Network].
      */
-    var connectivity: InflowConnectivity? = InflowConnectivity.Default,
+    fun connectivity(provider: InflowConnectivity?) {
+        connectivity = provider
+    }
 
     /**
-     * Log id to distinguish this `Inflow` from others.
+     * Log id to distinguish this `Inflow` from others when in verbose mode ([inflowVerbose]).
      */
-    var logId: String = "NO_ID"
-
-) {
-
-    fun cacheInMemory(initialValue: T) {
-        val memoryCache = MutableSharedFlow<T>(replay = 1)
-        memoryCache.tryEmit(initialValue) // By contract the cache should always emit
-        cache = memoryCache
-        cacheWriter = { memoryCache.emit(it) }
+    fun logId(logId: String) {
+        this.logId = logId
     }
 
 }

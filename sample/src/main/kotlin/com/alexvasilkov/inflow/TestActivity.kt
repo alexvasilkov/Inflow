@@ -32,10 +32,10 @@ class TestActivity : AppCompatActivity() {
         text.setOnClickListener { Toast.makeText(this, "Clicked", Toast.LENGTH_SHORT).show() }
         setContentView(text, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
 
-        val timer = inflow<Long> {
-            cacheInMemory(0L)
-            cacheExpiration = ExpiresIn.Duration(1000L) { this }
-            loader = { System.currentTimeMillis() }
+        val timer = inflow {
+            cacheInMemory(initialValue = 0L)
+            cacheExpiration(ExpiresIn(duration = 1000L, loadedAt = { this }))
+            loader { System.currentTimeMillis() }
         }
 
         lifecycleScope.launch {

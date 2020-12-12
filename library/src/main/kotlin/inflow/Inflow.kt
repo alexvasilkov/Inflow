@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.Closeable
+import kotlin.experimental.ExperimentalTypeInference
 
 /**
  * An `Inflow` is a way to use cached data more effectively, automatically keep it up to date by
@@ -117,7 +118,8 @@ interface Inflow<T> : Closeable {
 /**
  * Creates a new [Inflow] using provided [InflowConfig] configuration.
  */
-fun <T> inflow(block: InflowConfig<T>.() -> Unit): Inflow<T> =
+@OptIn(ExperimentalTypeInference::class)
+fun <T> inflow(@BuilderInference block: InflowConfig<T>.() -> Unit): Inflow<T> =
     InflowImpl(InflowConfig<T>().apply(block))
 
 

@@ -2,6 +2,7 @@ package inflow
 
 import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Test
 
@@ -10,36 +11,39 @@ class ConfigTest : BaseTest() {
 
     @Test(expected = IllegalArgumentException::class)
     fun `Cache is required`() = runBlockingTest {
-        testInflow {
-            cache = null
+        inflow {
+            cacheWriter {}
+            loader {}
         }
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `Cache writer is required`() = runBlockingTest {
-        testInflow {
-            cacheWriter = null
+        inflow {
+            cache(emptyFlow())
+            loader {}
         }
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `Cache timeout is not negative`() = runBlockingTest {
         testInflow {
-            cacheKeepSubscribedTimeout = -1L
+            cacheKeepSubscribedTimeout(-1L)
         }
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `Loader is required`() = runBlockingTest {
-        testInflow {
-            loader = null
+        inflow {
+            cache(emptyFlow<Unit>())
+            cacheWriter {}
         }
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `Retry time is positive`() = runBlockingTest {
         testInflow {
-            loadRetryTime = 0L
+            loadRetryTime(0L)
         }
     }
 

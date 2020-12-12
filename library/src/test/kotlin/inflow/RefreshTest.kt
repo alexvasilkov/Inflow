@@ -54,9 +54,10 @@ class RefreshTest : BaseTest() {
 
     @Test(timeout = 1_000L)
     fun `Can refresh the data blocking -- real threading`(): Unit = runBlocking(Dispatchers.IO) {
-        val inflow = inflow<TestItem> {
-            cacheInMemory(TestItem(0L))
-            loader = {
+        val inflow = inflow {
+            cacheInMemory { TestItem(0L) }
+            @Suppress("BlockingMethodInNonBlockingContext")
+            loader {
                 Thread.sleep(50L)
                 TestItem(1L)
             }

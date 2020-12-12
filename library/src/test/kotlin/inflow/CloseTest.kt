@@ -105,7 +105,7 @@ class CloseTest : BaseTest() {
     @Test
     fun `Errors flow is stopped when inflow is closed`() = runBlockingTestWithJob { job ->
         val inflow = testInflow {
-            loader = {
+            loader {
                 delay(100L)
                 throw RuntimeException()
             }
@@ -168,9 +168,10 @@ class CloseTest : BaseTest() {
     }
 
     private fun startInflowAsReference(): WeakReference<Inflow<TestItem>> {
-        val inflow = inflow<TestItem> {
+        val inflow = inflow {
             cacheInMemory(TestItem(0L))
-            loader = {
+            loader {
+                @Suppress("BlockingMethodInNonBlockingContext")
                 Thread.sleep(100L)
                 throw RuntimeException()
             }

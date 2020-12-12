@@ -19,15 +19,15 @@ class StressTest : BaseTest() {
     fun `Subscribe to cache and observe state`(): Unit = runBlocking(Dispatchers.IO) {
         for (i in 0..1000) {
             launch {
-                for (j in 0..10) {
+                for (j in 0..4) {
                     val inflow = inflow<Unit?> {
-                        logId = "$i/$j"
+                        logId("$i/$j")
                         cacheInMemory(null)
-                        loader = {
+                        loader {
                             delay(50L)
                             throw RuntimeException()
                         }
-                        loadRetryTime = Long.MAX_VALUE
+                        loadRetryTime(Long.MAX_VALUE)
                     }
 
                     val job = Job()
@@ -52,16 +52,16 @@ class StressTest : BaseTest() {
     fun `Can refresh the data blocking`(): Unit = runBlocking(Dispatchers.IO) {
         for (i in 0..1000) {
             launch {
-                for (j in 0..10) {
+                for (j in 0..4) {
                     val inflow = inflow<Unit?> {
-                        logId = "$i/$j"
+                        logId("$i/$j")
                         cacheInMemory(null)
 
                         // Delaying memory cache writer
                         val origWriter = requireNotNull(cacheWriter)
-                        cacheWriter = { delay(10L); origWriter.invoke(it) }
+                        cacheWriter { delay(10L); origWriter.invoke(it) }
 
-                        loader = { delay(50L) }
+                        loader { delay(50L) }
                     }
 
                     // Scheduling a new refresh, it will force extra refresh every second time
@@ -84,10 +84,10 @@ class StressTest : BaseTest() {
     fun `Can subscribe to inflow from several places`(): Unit = runBlocking(Dispatchers.IO) {
         val runs = 1_000
 
-        val inflow = inflow<Unit?> {
+        val inflow = inflow {
             cacheInMemory(null)
-            loader = { delay(50L) }
-            loadRetryTime = Long.MAX_VALUE
+            loader { delay(50L) }
+            loadRetryTime(Long.MAX_VALUE)
         }
 
         val job = Job()

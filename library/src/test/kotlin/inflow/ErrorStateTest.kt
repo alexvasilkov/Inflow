@@ -17,7 +17,7 @@ class ErrorStateTest : BaseTest() {
     @Test
     fun `Error is propagated`() = runBlockingTestWithJob { job ->
         val inflow = testInflow {
-            loader = {
+            loader {
                 delay(100L)
                 throw RuntimeException()
             }
@@ -49,7 +49,7 @@ class ErrorStateTest : BaseTest() {
     @Test
     fun `Error is propagated only once if refresh is forced`() = runBlockingTestWithJob { job ->
         val inflow = testInflow {
-            loader = {
+            loader {
                 delay(100L)
                 throw RuntimeException()
             }
