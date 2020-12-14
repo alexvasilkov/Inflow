@@ -11,7 +11,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import inflow.ExpiresIn
+import inflow.android.InflowAndroid
 import inflow.inflow
+import inflow.utils.inflowVerbose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -20,13 +22,14 @@ import java.util.Locale
 
 class TestActivity : AppCompatActivity() {
 
-    private lateinit var text: TextView
-
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        text = TextView(this)
+        InflowAndroid.init(applicationContext)
+        inflowVerbose = true
+
+        val text = TextView(this)
         text.gravity = Gravity.CENTER
         text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
         text.setOnClickListener { Toast.makeText(this, "Clicked", Toast.LENGTH_SHORT).show() }

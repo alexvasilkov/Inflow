@@ -1,3 +1,5 @@
-include ':library', ':sample'
+include ':core', ':android', ':sample'
 
-rootProject.name = 'Inflow'
+rootProject.name = 'inflow'
+project(':core').projectDir = file("$rootDir/library/core")
+project(':android').projectDir = file("$rootDir/library/android")
