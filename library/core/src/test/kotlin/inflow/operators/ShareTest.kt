@@ -20,26 +20,26 @@ import kotlin.test.assertTrue
 
 class ShareTest : BaseTest() {
 
-    @Test(timeout = 10_000L)
+    @Test(timeout = 15_000L)
     fun `Infinite flow is subscribed only once if timeout == 100L`() {
         val count = testWithTimeout(100L)
         assertEquals(expected = 1, actual = count, "Cache should only be subscribed once")
     }
 
-    @Test(timeout = 10_000L)
+    @Test(timeout = 15_000L)
     fun `Finite flow is subscribed only once if timeout == 100L`() {
         val flow = flowOf(null)
         val count = testWithTimeout(100L, flow)
         assertEquals(expected = 1, actual = count, "Cache should only be subscribed once")
     }
 
-    @Test(timeout = 10_000L)
+    @Test(timeout = 15_000L)
     fun `Subscribed several times if timeout == 1L`() {
         val count = testWithTimeout(1L)
         assertTrue(count > 1, "Cache should be subscribed several times")
     }
 
-    @Test(timeout = 10_000L)
+    @Test(timeout = 15_000L)
     fun `Subscribed several times if timeout == 0L`() {
         val count = testWithTimeout(0L)
         assertTrue(count > 1, "Cache should be subscribed several times")
@@ -54,7 +54,7 @@ class ShareTest : BaseTest() {
         keepSubscribedTimeout: Long,
         flow: Flow<Unit?> = MutableStateFlow(null)
     ): Int = runBlocking(Dispatchers.IO) {
-        val runs = 10_000
+        val runs = 5_000
 
         val cacheState = AtomicInteger(0)
         val cacheCalls = AtomicInteger(0)
