@@ -8,7 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class LoaderStressTest : BaseTest() {
 
@@ -23,9 +23,9 @@ class LoaderStressTest : BaseTest() {
 
         runStressTest(logId, runs) { loader.load(repeatIfRunning = false).join() }
 
-        // There should be 25 actual loads: 10_000 / 4 (per millisecond) / 100
+        // There should be around 13 actual loads: 5_000 / 4 (per millisecond) / 100
         println("Loads: ${loads.get()}")
-        assertEquals(expected = 13, actual = loads.get(), "One action can run at a time")
+        assertTrue(loads.get() in 11..15, "One action can run at a time")
     }
 
     @Test(timeout = 15_000L)
@@ -40,12 +40,12 @@ class LoaderStressTest : BaseTest() {
         runStressTest(logId, runs) {
             val result = loader.load(repeatIfRunning = true).await()
             // All waiters should receive the latest loaded item
-            assertEquals(expected = 14, actual = result, "All waiters get same results")
+            assertTrue(result in 12..16, "All waiters get same results")
         }
 
-        // There should be 26 actual loads: (5_000 / 4 (per millisecond) / 100) + 1
+        // There should be around 14 actual loads: (5_000 / 4 (per millisecond) / 100) + 1
         println("Loads: ${loads.get()}")
-        assertEquals(expected = 14, actual = loads.get(), "One action can run at a time")
+        assertTrue(loads.get() in 12..16, "One action can run at a time")
     }
 
 }

@@ -17,7 +17,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
@@ -119,7 +118,7 @@ class ExpirationTest : BaseTest() {
     }
 
 
-    @Test
+    @Test(expected = AssertionError::class)
     fun `Loader cannot return stale data -- real threading`(): Unit = runBlocking {
         // Using real threading along with setDefaultUncaughtExceptionHandler to receive errors
         // thrown inside coroutines. There is no other way to get internal errors without changing
@@ -135,8 +134,7 @@ class ExpirationTest : BaseTest() {
         inflow.refresh()
 
         delay(25L)
-        assertNotNull(error, "Error is caught")
-        assertEquals(AssertionError::class, error!!::class, "Error is caught")
+        throw error!!
     }
 
 }
