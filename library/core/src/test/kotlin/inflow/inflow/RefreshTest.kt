@@ -1,8 +1,8 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.latest
 import inflow.inflow
+import inflow.latest
 import inflow.utils.TestItem
 import inflow.utils.testInflow
 import kotlinx.coroutines.Dispatchers
