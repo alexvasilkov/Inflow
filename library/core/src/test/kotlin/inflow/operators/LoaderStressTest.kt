@@ -25,7 +25,7 @@ class LoaderStressTest : BaseTest() {
 
         // There should be around 13 actual loads: 5_000 / 4 (per millisecond) / 100
         println("Loads: ${loads.get()}")
-        assertTrue(loads.get() in 11..15, "One action can run at a time")
+        assertTrue(loads.get() in 10..16, "One action can run at a time")
     }
 
     @Test(timeout = 15_000L)
@@ -40,12 +40,12 @@ class LoaderStressTest : BaseTest() {
         runStressTest(logId, runs) {
             val result = loader.load(repeatIfRunning = true).await()
             // All waiters should receive the latest loaded item
-            assertTrue(result in 12..16, "All waiters get same results")
+            assertTrue(result in 11..17, "All waiters get same results")
         }
 
         // There should be around 14 actual loads: (5_000 / 4 (per millisecond) / 100) + 1
         println("Loads: ${loads.get()}")
-        assertTrue(loads.get() in 12..16, "One action can run at a time")
+        assertTrue(loads.get() in 11..17, "One action can run at a time")
     }
 
 }

@@ -56,7 +56,7 @@ class StressTest : BaseTest() {
     fun `Can refresh the data blocking`(): Unit = runBlocking(Dispatchers.IO) {
         val runs = 5_000
         runStressTest(logId, runs) { i ->
-            for (j in 0 until 4) {
+            for (j in 0 until 2) {
                 val inflow = inflow<Unit?> {
                     logId("$i/$j")
                     cacheInMemory(null)
