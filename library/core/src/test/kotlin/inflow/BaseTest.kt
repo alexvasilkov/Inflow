@@ -9,7 +9,7 @@ open class BaseTest {
 
     @Before
     fun setup() {
-        inflowVerbose = true
+        inflowVerbose = false
     }
 
 }

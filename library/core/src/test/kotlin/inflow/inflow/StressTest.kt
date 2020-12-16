@@ -20,9 +20,9 @@ import kotlin.test.assertNotNull
 
 class StressTest : BaseTest() {
 
-    @Test(timeout = 10_000L)
+    @Test(timeout = 15_000L)
     fun `Subscribe to cache and observe state`(): Unit = runBlocking(Dispatchers.IO) {
-        val runs = 7_500 // A bit less than usually to better fit into test timeout
+        val runs = 5_000
         runStressTest(logId, runs) { i ->
             for (j in 0 until 4) {
                 val inflow = inflow {
@@ -52,9 +52,9 @@ class StressTest : BaseTest() {
         }
     }
 
-    @Test(timeout = 10_000L)
+    @Test(timeout = 15_000L)
     fun `Can refresh the data blocking`(): Unit = runBlocking(Dispatchers.IO) {
-        val runs = 10_000
+        val runs = 5_000
         runStressTest(logId, runs) { i ->
             for (j in 0 until 4) {
                 val inflow = inflow<Unit?> {
@@ -83,9 +83,9 @@ class StressTest : BaseTest() {
         }
     }
 
-    @Test(timeout = 10_000L)
+    @Test(timeout = 15_000L)
     fun `Can subscribe to inflow from several places`(): Unit = runBlocking(Dispatchers.IO) {
-        val runs = 10_000
+        val runs = 5_000
         val cacheState = AtomicInteger(0)
 
         val inflow = inflow<Unit?> {

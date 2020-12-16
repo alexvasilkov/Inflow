@@ -56,9 +56,9 @@ class DoWhileSubscribedTest : BaseTest() {
         assertFalse(subscribed, "Not subscribed in the end")
     }
 
-    @Test(timeout = 10_000L)
+    @Test(timeout = 15_000L)
     fun `Can track flow subscribers -- real threading`(): Unit = runBlocking(Dispatchers.IO) {
-        val runs = 10_000
+        val runs = 5_000
 
         val state = AtomicInteger(0)
         val flow = MutableStateFlow(0)
