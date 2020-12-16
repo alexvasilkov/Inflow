@@ -24,6 +24,7 @@ jobs:
         run: |
           ./gradlew check assembleDebug --stacktrace
           bash <(curl -s https://codecov.io/bash)
+
 #      - name: Publish sample app
 #        if: github.event_name == 'push'
 #        env:
