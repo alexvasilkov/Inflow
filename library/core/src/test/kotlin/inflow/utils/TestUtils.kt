@@ -5,14 +5,19 @@ import inflow.InflowConfig
 import inflow.InflowConnectivity
 import inflow.inflow
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.assertEquals
 
 /**
  * Runs a test with specific job that is guaranteed to be cancelled in the end.
@@ -66,3 +71,37 @@ internal data class TestTracker(
     var start: Int = 0,
     var end: Int = 0
 )
+
+
+internal suspend fun runStressTest(
+    logId: String,
+    runs: Int,
+    block: suspend CoroutineScope.(Int) -> Unit
+) {
+    val wasVerbose = inflowVerbose
+    inflowVerbose = false // Avoiding spamming in logs
+
+    val scope = CoroutineScope(Dispatchers.IO)
+    val counter = AtomicInteger(0)
+
+    val start = now()
+    for (i in 0 until runs) {
+        scope.launch {
+            delay(i / 4L - (now() - start)) // Running at specific rate to have more races
+            block(i)
+            counter.getAndIncrement()
+        }
+    }
+
+    while (counter.get() != runs) {
+        log(logId) { "Counter: ${counter.get()}" }
+        delay(100L)
+    }
+
+    // Give it extra time to finish unfinished jobs
+    delay(100L)
+
+    assertEquals(expected = runs, actual = counter.get(), "All tasks finished")
+
+    inflowVerbose = wasVerbose
+}

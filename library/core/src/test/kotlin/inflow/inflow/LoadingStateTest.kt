@@ -1,5 +1,6 @@
-package inflow
+package inflow.inflow
 
+import inflow.BaseTest
 import inflow.utils.TestTracker
 import inflow.utils.runBlockingTestWithJob
 import inflow.utils.testInflow

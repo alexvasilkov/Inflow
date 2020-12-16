@@ -1,6 +1,7 @@
-package inflow
+package inflow.inflow
 
-import inflow.utils.AtomicInt
+import inflow.BaseTest
+import inflow.latest
 import inflow.utils.TestItem
 import inflow.utils.runBlockingTestWithJob
 import inflow.utils.testInflow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -46,10 +48,10 @@ class CacheTest : BaseTest() {
 
     @Test(timeout = 1_000L)
     fun `Cache is subscribed if has subscribers`() = runBlockingTestWithJob { job ->
-        val cacheCalls = AtomicInt()
+        val cacheCalls = AtomicInteger(0)
 
         val cache = flow { // Cold cache flow
-            cacheCalls.getAndIncrement()
+            cacheCalls.incrementAndGet()
 
             emit(TestItem(-1))
             delay(100L)
@@ -71,13 +73,13 @@ class CacheTest : BaseTest() {
 
         // Getting first emitted item
         launch(job) {
-            assertEquals(TestItem(-1), inflow.get(), "Receiving first item")
+            assertEquals(TestItem(-1), inflow.latest(), "Receiving first item")
         }
 
         // Getting second emitted item after delay
         delay(100L)
         launch(job) {
-            assertEquals(TestItem(-2), inflow.get(), "Receiving second item")
+            assertEquals(TestItem(-2), inflow.latest(), "Receiving second item")
         }
 
         // Un-subscribing to reset cold cache flow
@@ -86,13 +88,13 @@ class CacheTest : BaseTest() {
         // Getting third item within timeout interval, original cold cache is still subscribed
         delay(100L)
         launch(job) {
-            assertEquals(TestItem(-3), inflow.get(), "Receiving third item")
+            assertEquals(TestItem(-3), inflow.latest(), "Receiving third item")
         }
 
         // Getting first item after timeout interval, original cold cache should be re-subscribed
         delay(200L)
         launch(job) {
-            assertEquals(TestItem(-1), inflow.get(), "Receiving first item again")
+            assertEquals(TestItem(-1), inflow.latest(), "Receiving first item again")
         }
 
         assertEquals(expected = 2, cacheCalls.get(), "Original cache is only subscribed twice")
@@ -111,7 +113,7 @@ class CacheTest : BaseTest() {
 
         var item: TestItem? = null
 
-        launch { item = inflow.get() }
+        launch { item = inflow.latest() }
 
         delay(500L)
         assertNull(item, "No item in the beginning")
@@ -119,7 +121,6 @@ class CacheTest : BaseTest() {
         delay(500L)
         assertNotNull(item, "Item is finally loaded")
     }
-
 
     @Test
     fun `In-memory cache initialized only once`() = runBlockingTest {
@@ -134,16 +135,16 @@ class CacheTest : BaseTest() {
         }
 
         var item1: TestItem? = null
-        launch { item1 = inflow.get() }
+        launch { item1 = inflow.latest() }
         delay(100L)
         assertNotNull(item1, "Item 1 is loaded")
 
         var item2: TestItem? = null
-        launch { item2 = inflow.get() }
+        launch { item2 = inflow.latest() }
         delay(100L)
         assertNotNull(item2, "Item 2 is loaded")
 
-        assertEquals(expected = 1, count, "Cache initialized is called only once")
+        assertEquals(expected = 1, count, "Cache initializer is called only once")
     }
 
     @Test(expected = RuntimeException::class, timeout = 1_000L)

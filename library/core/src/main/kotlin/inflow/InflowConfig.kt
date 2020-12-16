@@ -142,7 +142,13 @@ class InflowConfig<T> internal constructor() {
     }
 
     /**
-     * Loading retry time if last attempt was not successful. Set to 1 minute by default.
+     * The time to wait before repeating unsuccessful [loader] call.
+     * Set to 1 minute by default.
+     *
+     * Note that retry time should be greater than the time needed for the cache to propagate from
+     * [cacheWriter] call to emission from [cache], otherwise the [loader] will be called again
+     * even if the data was already successfully loaded which can end up in an infinite cycle.
+     * **It is advised to set retry time at least to a few seconds. Cannot be <= 0.**
      */
     fun loadRetryTime(retryTimeMillis: Long) {
         loadRetryTime = retryTimeMillis
@@ -161,8 +167,9 @@ class InflowConfig<T> internal constructor() {
      * internet connection is established.
      *
      * Set to global [InflowConnectivity.Default] provider by default, which in turn is set to
-     * `null` unless explicitly initialized with a real provider such as
-     * [InflowConnectivity.Network].
+     * `null` unless explicitly initialized with a real provider.
+     *
+     * Android library provides a default implementation for the network connectivity.
      */
     fun connectivity(provider: InflowConnectivity?) {
         connectivity = provider

@@ -1,5 +1,7 @@
-package inflow
+package inflow.inflow
 
+import inflow.BaseTest
+import inflow.inflow
 import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow

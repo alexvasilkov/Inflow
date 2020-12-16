@@ -1,8 +1,8 @@
 package inflow.operators
 
 import inflow.BaseTest
+import inflow.internal.scheduleUpdates
 import inflow.utils.runBlockingTestWithJob
-import inflow.utils.scheduleUpdates
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -14,10 +14,10 @@ import org.junit.Test
 import kotlin.test.assertEquals
 
 @ExperimentalCoroutinesApi
-class OpScheduleUpdatesTest : BaseTest() {
+class ScheduleUpdatesTest : BaseTest() {
 
     @Test
-    fun `One update and few retries if cache never updated`() = runBlockingTestWithJob { job ->
+    fun `One update and few retries if cache is never updated`() = runBlockingTestWithJob { job ->
         var counter = 0
         launch(job) {
             scheduleWithDefaults(loader = { counter++ })
@@ -28,7 +28,7 @@ class OpScheduleUpdatesTest : BaseTest() {
     }
 
     @Test(timeout = 1_000L)
-    fun `One update and no retries if new data not expired`() = runBlockingTestWithJob { job ->
+    fun `One update and no retries if new data is not expired`() = runBlockingTestWithJob { job ->
         val cacheExpiration = MutableStateFlow(0L)
 
         var counter = 0
@@ -110,9 +110,10 @@ class OpScheduleUpdatesTest : BaseTest() {
         launch(job) {
             scheduleWithDefaults(
                 cacheExpiration = cacheExpiration,
+                retryTime = 100L,
                 loader = {
                     counterStart++
-                    delay(190L) // Note: bigger than retry time (100)
+                    delay(190L) // Note: bigger than retry time
 
                     launch {
                         delay(10L) // Simulating cache delay
@@ -126,41 +127,26 @@ class OpScheduleUpdatesTest : BaseTest() {
         delay(50L)
         // State: loading is started but not finished yet, retry is not called as well.
         assertEquals(expected = 1, actual = counterStart, "First loading is started")
+        assertEquals(expected = 0, actual = counterEnd, "First loading is not finished")
 
         delay(100L)
         // State: loading is not finished yet, retry loading is not called yet.
         assertEquals(expected = 1, actual = counterStart, "No second loading started")
+        assertEquals(expected = 0, actual = counterEnd, "First loading is not finished")
 
         delay(100L)
         // State: loading is finished and newly loaded value should never expire,
         // no retry is called at this point even though loading time was bigger than retry time.
-        assertEquals(expected = 1, actual = counterEnd, "First loading finished")
         assertEquals(expected = 1, actual = counterStart, "No second loading started")
-    }
-
-
-    @Test
-    fun `Activation flow controls the loading`() = runBlockingTestWithJob { job ->
-        val activation = MutableSharedFlow<Unit>(replay = 1)
-        activation.emit(Unit)
-
-        var counter = 0
-        launch(job) {
-            scheduleWithDefaults(activation = activation, loader = { counter++ })
-        }
-
-        assertEquals(expected = 1, actual = counter, "Loading in the beginning")
-        activation.emit(Unit)
-        assertEquals(expected = 2, actual = counter, "Loading triggered")
+        assertEquals(expected = 1, actual = counterEnd, "First loading finished")
     }
 
 
     // Helper function to avoid defining same things in every test
     private suspend fun scheduleWithDefaults(
         cacheExpiration: Flow<Long> = MutableStateFlow(0L),
-        activation: Flow<Unit> = MutableStateFlow(Unit),
         retryTime: Long = 100L,
-        loader: suspend (Boolean) -> Unit = {}
-    ) = scheduleUpdates("ID", cacheExpiration, activation, retryTime) { loader(it); true }
+        loader: suspend () -> Unit = {}
+    ) = scheduleUpdates(logId, cacheExpiration, retryTime, loader)
 
 }

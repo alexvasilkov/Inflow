@@ -2,7 +2,7 @@ package inflow.operators
 
 import inflow.BaseTest
 import inflow.InflowConnectivity
-import inflow.utils.asSignalingFlow
+import inflow.internal.asSignalingFlow
 import inflow.utils.runBlockingTestWithJob
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -13,7 +13,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 
 @ExperimentalCoroutinesApi
-class OpAsSignalFlowTest : BaseTest() {
+class AsSignalFlowTest : BaseTest() {
 
     @Test(timeout = 1_000L)
     fun `Run offline and repeat when re-connected`() = runBlockingTestWithJob { job ->

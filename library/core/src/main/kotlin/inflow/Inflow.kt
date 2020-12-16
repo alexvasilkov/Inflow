@@ -1,6 +1,6 @@
 package inflow
 
-import inflow.impl.InflowImpl
+import inflow.internal.InflowImpl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -16,7 +16,9 @@ import kotlin.experimental.ExperimentalTypeInference
  * `Inflow` will make sure to keep the cache up to date and automatically refresh when it expires.
  * See [data] method for more details.
  *
- * Refresh can also be started manually by calling [refresh] or [refreshBlocking] methods.
+ * Refresh can also be started manually by calling [refresh] method, as an option it can be done in
+ * a suspending manner using [join][InflowDeferred.join] or [await][InflowDeferred.await] on the
+ * result of the [refresh] call.
  *
  * **State**
  *
@@ -83,7 +85,8 @@ interface Inflow<T> {
     fun error(): StateFlow<Throwable?>
 
     /**
-     * Manually requests data refresh from a remote source.
+     * Manually requests data refresh from a remote source. The request will start immediately
+     * but can be observed using returned deferred object.
      *
      * @param repeatIfRunning If set to true and another refresh is currently in place then extra
      * refresh will be done again right after the current one. No error or loading events will be
@@ -92,8 +95,12 @@ interface Inflow<T> {
      * It can be useful in situations when remote data was changed (e.g. because of POST or PUT
      * request) and we need to ensure that newly loaded data reflects that changes. Otherwise
      * previous refresh may return stale data.
+     *
+     * @return Deferred object with [join][InflowDeferred.join] and [await][InflowDeferred.await]
+     * methods to **optionally** observe the result of the call in a suspending manner. The result
+     * can still be observed with [data], [loading] and [error] flows as usual.
      */
-    fun refresh(repeatIfRunning: Boolean = false)
+    fun refresh(repeatIfRunning: Boolean = false): InflowDeferred<T>
 
 }
 
@@ -107,19 +114,7 @@ fun <T> inflow(@BuilderInference block: InflowConfig<T>.() -> Unit): Inflow<T> =
 
 
 /**
- * Similar to [refresh][Inflow.refresh] but will suspend until loading is finished.
+ * Returns latest cached data without trying to refresh it.
+ * Shortcut for `data(autoRefresh = false).first()`.
  */
-suspend fun <T> Inflow<T>.refreshBlocking(repeatIfRunning: Boolean = false) =
-    (this as InflowImpl).refreshBlockingInternal(repeatIfRunning)
-
-/**
- * Returns latest cached data. Shortcut for `data(autoRefresh = false).first()`.
- *
- * Note that there is no guarantee that this method will return newly cached item right after
- * [refreshBlocking] because it will take time for the new data to propagate through the cache,
- * even if it is in-memory cache.
- */
-suspend fun <T> Inflow<T>.get() = data(autoRefresh = false).first()
-
-fun <T, R> Inflow<T>.map(mapper: (T) -> R): Inflow<R> =
-    (this as InflowImpl).mapInternal { mapper(it) }
+suspend fun <T> Inflow<T>.latest() = data(autoRefresh = false).first()

@@ -1,11 +1,8 @@
 package inflow.operators
 
 import inflow.BaseTest
-import inflow.utils.AtomicInt
-import inflow.utils.inflowVerbose
-import inflow.utils.log
-import inflow.utils.now
-import inflow.utils.share
+import inflow.internal.SharedFlowProvider
+import inflow.utils.runStressTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -15,20 +12,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class OpShareTest : BaseTest() {
-
-    @Before
-    fun setupLocal() {
-        // Avoiding spamming in logs
-        inflowVerbose = true
-    }
+class ShareTest : BaseTest() {
 
     @Test(timeout = 10_000L)
     fun `Infinite flow is subscribed only once if timeout == 100L`() {
@@ -58,51 +48,37 @@ class OpShareTest : BaseTest() {
     /**
      * Subscribes to single shared flow from several threads.
      * Returns number of time the original cache was actually subscribed.
+     * Uses real blocking calls to catch race conditions.
      */
     private fun testWithTimeout(
         keepSubscribedTimeout: Long,
         flow: Flow<Unit?> = MutableStateFlow(null)
     ): Int = runBlocking(Dispatchers.IO) {
-        val scope = CoroutineScope(Dispatchers.IO)
-
         val runs = 10_000
-        val cacheState = AtomicInt()
-        val cacheCalls = AtomicInt()
+
+        val cacheState = AtomicInteger(0)
+        val cacheCalls = AtomicInteger(0)
 
         val cache = flow
             .onStart {
-                cacheState.getAndIncrement()
-                cacheCalls.getAndIncrement()
+                cacheState.incrementAndGet()
+                cacheCalls.incrementAndGet()
             }
             .onCompletion {
                 cacheState.decrementAndGet()
             }
 
-        val shared = cache.share(scope, keepSubscribedTimeout)
+        val scope = CoroutineScope(Dispatchers.IO)
+        val shared = SharedFlowProvider(cache, scope, keepSubscribedTimeout).shared
 
-        val counter = AtomicInt()
+        runStressTest(logId, runs) { shared.first() }
 
-        val start = now()
-        for (i in 0 until runs) {
-            launch {
-                delay(i / 4L - (now() - start)) // Running at specific time
-                shared.first()
-                counter.getAndIncrement()
-            }
-        }
+        // Give extra time to unsubscribe from the cache in the end
+        delay(keepSubscribedTimeout)
 
-        while (counter.get() != runs) {
-            log("TEST") { "Counter: ${counter.get()}" }
-            delay(200L)
-        }
-
-        // Give it some time to unsubscribe from the cache in the end
-        delay(keepSubscribedTimeout + 100L)
-
-        assertEquals(expected = runs, actual = counter.get(), "All tasks finished")
         assertEquals(expected = 0, actual = cacheState.get(), "Cache job is finished")
 
-        log("TEST") { "Cache subscribed ${cacheCalls.get()} time(s)" }
+        println("Cache subscribed ${cacheCalls.get()} time(s)")
         cacheCalls.get()
     }
 

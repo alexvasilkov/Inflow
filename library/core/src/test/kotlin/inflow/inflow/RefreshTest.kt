@@ -1,5 +1,8 @@
-package inflow
+package inflow.inflow
 
+import inflow.BaseTest
+import inflow.latest
+import inflow.inflow
 import inflow.utils.TestItem
 import inflow.utils.testInflow
 import kotlinx.coroutines.Dispatchers
@@ -21,10 +24,10 @@ class RefreshTest : BaseTest() {
 
         inflow.refresh()
 
-        assertNull(inflow.get(), "Starts with null")
+        assertNull(inflow.latest(), "Starts with null")
 
         delay(100L)
-        assertNotNull(inflow.get(), "Item is loaded")
+        assertNotNull(inflow.latest(), "Item is loaded")
     }
 
     @Test
@@ -37,17 +40,17 @@ class RefreshTest : BaseTest() {
         delay(50L)
         inflow.refresh(repeatIfRunning = true)
 
-        assertNull(inflow.get(), "Starts with null")
+        assertNull(inflow.latest(), "Starts with null")
 
         // First item is loaded
         delay(50L)
-        val item2 = inflow.get()
+        val item2 = inflow.latest()
         assertNotNull(item2, "Item is loaded")
         assertEquals(expected = currentTime, item2.loadedAt, "Fresh item is loaded")
 
         // Second item is loaded
         delay(100L)
-        val item3 = inflow.get()
+        val item3 = inflow.latest()
         assertNotNull(item3, "Item is loaded")
         assertEquals(expected = currentTime, item3.loadedAt, "Fresh item is loaded")
     }
@@ -63,9 +66,10 @@ class RefreshTest : BaseTest() {
             }
         }
 
-        inflow.refreshBlocking()
+        inflow.refresh().join()
+
         delay(10L) // We have to delay to ensure cache data is propagated
-        assertEquals(expected = TestItem(1L), actual = inflow.get(), "New item is loaded")
+        assertEquals(expected = TestItem(1L), actual = inflow.latest(), "New item is loaded")
     }
 
 }
