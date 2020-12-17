@@ -1,8 +1,10 @@
 package inflow.inflow
 
 import inflow.BaseTest
+import inflow.inflow
 import inflow.latest
 import inflow.utils.TestItem
+import inflow.utils.assertCrash
 import inflow.utils.runBlockingTestWithJob
 import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -11,9 +13,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
-import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -21,7 +24,7 @@ import kotlin.test.assertNull
 @ExperimentalCoroutinesApi
 class CacheTest : BaseTest() {
 
-    @Test(timeout = 1_000L)
+    @Test
     fun `In-memory cache is working as expected`() = runBlockingTestWithJob { job ->
         val inflow = testInflow {
             cacheInMemory(null)
@@ -46,7 +49,7 @@ class CacheTest : BaseTest() {
         assertEquals(dataAuto, dataCache, "Same data is loaded")
     }
 
-    @Test(timeout = 1_000L)
+    @Test
     fun `Cache is subscribed if has subscribers`() = runBlockingTestWithJob { job ->
         val cacheCalls = AtomicInteger(0)
 
@@ -100,7 +103,7 @@ class CacheTest : BaseTest() {
         assertEquals(expected = 2, cacheCalls.get(), "Original cache is only subscribed twice")
     }
 
-    @Test(timeout = 1_000L)
+    @Test
     fun `Cache can be slow`() = runBlockingTest {
         val flow = flow { // Cold cache flow
             delay(1000L)
@@ -147,13 +150,17 @@ class CacheTest : BaseTest() {
         assertEquals(expected = 1, count, "Cache initializer is called only once")
     }
 
-    @Test(expected = RuntimeException::class, timeout = 1_000L)
-    fun `Cache can throw uncaught exception`() = runBlockingTest {
-        val inflow = testInflow {
-            cache(flow { throw RuntimeException() })
-        }
+    @Test
+    fun `Cache can throw uncaught exception`() = runBlocking {
+        assertCrash<RuntimeException> {
+            val inflow = inflow {
+                cache(flow<Unit> { throw RuntimeException() })
+                cacheWriter {}
+                loader {}
+            }
 
-        inflow.data().collect()
+            inflow.refresh()
+        }
     }
 
 }

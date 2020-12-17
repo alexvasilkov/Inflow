@@ -10,8 +10,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runBlockingTest
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 @ExperimentalCoroutinesApi
 class ScheduleUpdatesTest : BaseTest() {
@@ -27,7 +28,7 @@ class ScheduleUpdatesTest : BaseTest() {
         assertEquals(expected = 3, counter, "1 update and 2 retries")
     }
 
-    @Test(timeout = 1_000L)
+    @Test
     fun `One update and no retries if new data is not expired`() = runBlockingTestWithJob { job ->
         val cacheExpiration = MutableStateFlow(0L)
 
@@ -83,12 +84,14 @@ class ScheduleUpdatesTest : BaseTest() {
     }
 
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `Retry time cannot be zero`() = runBlockingTest {
-        scheduleWithDefaults(retryTime = 0L)
+        assertFailsWith<java.lang.IllegalArgumentException> {
+            scheduleWithDefaults(retryTime = 0L)
+        }
     }
 
-    @Test(timeout = 1_000L)
+    @Test
     fun `Retry time can be set to never retry`() = runBlockingTestWithJob { job ->
         var counter = 0
         launch(job) {
@@ -101,7 +104,7 @@ class ScheduleUpdatesTest : BaseTest() {
         assertEquals(expected = 1, actual = counter, "No retries are called")
     }
 
-    @Test(timeout = 1_000L)
+    @Test
     fun `Retry is not called if slow loading is successful`() = runBlockingTestWithJob { job ->
         val cacheExpiration = MutableStateFlow(0L)
 

@@ -1,51 +1,61 @@
 package inflow.operators
 
 import inflow.BaseTest
+import inflow.STRESS_RUNS
+import inflow.STRESS_TAG
+import inflow.STRESS_TIMEOUT
 import inflow.internal.Loader
 import inflow.utils.runStressTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import org.junit.Test
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Timeout
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
 import kotlin.test.assertTrue
 
 class LoaderStressTest : BaseTest() {
 
-    @Test(timeout = 15_000L)
+    @Test
+    @Tag(STRESS_TAG)
+    @Timeout(STRESS_TIMEOUT)
     fun `Only one action can run at a time + join()`() = runBlocking(Dispatchers.IO) {
-        val runs = 5_000
         val loads = AtomicInteger(0)
         val loader = Loader(logId, this) {
             delay(100L)
             loads.incrementAndGet()
         }
 
-        runStressTest(logId, runs) { loader.load(repeatIfRunning = false).join() }
+        runStressTest(logId, STRESS_RUNS) { loader.load(repeatIfRunning = false).join() }
 
-        // There should be around 13 actual loads: 5_000 / 4 (per millisecond) / 100
         println("Loads: ${loads.get()}")
-        assertTrue(loads.get() in 10..16, "One action can run at a time")
+        val expected = STRESS_RUNS / 4 /* per ms */ / 100 /* ms */
+        val expectedRange = (expected - 3)..(expected + 1)
+        assertTrue(loads.get() in expectedRange, "One action can run at a time")
     }
 
-    @Test(timeout = 15_000L)
+    @Test
+    @Tag(STRESS_TAG)
+    @Timeout(STRESS_TIMEOUT)
     fun `Repeat-if-running results in a single item + await()`() = runBlocking(Dispatchers.IO) {
-        val runs = 5_000
         val loads = AtomicInteger(0)
         val loader = Loader(logId, this) {
             delay(100L)
             loads.incrementAndGet()
         }
 
-        runStressTest(logId, runs) {
+        val expected = STRESS_RUNS / 4 /* per ms */ / 100 /* ms */ + 1
+        val expectedRange = (expected - 3)..(expected + 1)
+
+        runStressTest(logId, STRESS_RUNS) {
             val result = loader.load(repeatIfRunning = true).await()
             // All waiters should receive the latest loaded item
-            assertTrue(result in 11..17, "All waiters get same results")
+            assertTrue(result in expectedRange, "All waiters get same results")
         }
 
-        // There should be around 14 actual loads: (5_000 / 4 (per millisecond) / 100) + 1
         println("Loads: ${loads.get()}")
-        assertTrue(loads.get() in 11..17, "One action can run at a time")
+        assertTrue(loads.get() in expectedRange, "One action can run at a time")
     }
 
 }

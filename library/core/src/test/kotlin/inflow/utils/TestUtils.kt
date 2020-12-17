@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 /**
  * Runs a test with specific job that is guaranteed to be cancelled in the end.
@@ -104,4 +105,23 @@ internal suspend fun runStressTest(
     assertEquals(expected = runs, actual = counter.get(), "All tasks finished")
 
     inflowVerbose = wasVerbose
+}
+
+
+internal suspend inline fun <reified T : Throwable> assertCrash(block: () -> Unit) {
+    // Using real threading along with setDefaultUncaughtExceptionHandler to receive errors
+    // thrown inside coroutines. There is no other way to get internal errors without changing
+    // Inflow API and allow setting custom coroutine context instead of just a dispatcher.
+    val handler = Thread.getDefaultUncaughtExceptionHandler()
+
+    var error: Throwable? = null
+    Thread.setDefaultUncaughtExceptionHandler { _, e -> error = e }
+
+    assertFailsWith(T::class) {
+        block()
+        delay(25L) // Waiting for error to propagate
+        throw error!!
+    }
+
+    Thread.setDefaultUncaughtExceptionHandler(handler)
 }

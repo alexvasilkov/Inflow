@@ -5,6 +5,7 @@ import inflow.ExpiresIfNull
 import inflow.ExpiresIn
 import inflow.inflow
 import inflow.utils.TestItem
+import inflow.utils.assertCrash
 import inflow.utils.now
 import inflow.utils.runBlockingTestWithJob
 import inflow.utils.testInflow
@@ -15,8 +16,9 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
@@ -40,7 +42,7 @@ class ExpirationTest : BaseTest() {
             assertEquals(expected = 3, counter, "1 update and 2 retries")
         }
 
-    @Test(timeout = 1_000L)
+    @Test
     fun `ExpiresIfNull -- One update and no retries for null value`() =
         runBlockingTestWithJob { job ->
             var counter = 0
@@ -58,7 +60,7 @@ class ExpirationTest : BaseTest() {
             assertEquals(expected = 1, counter, "1 update and no retries")
         }
 
-    @Test(timeout = 1_000L)
+    @Test
     fun `ExpiresIfNull -- No update and no retries for non-null value`() =
         runBlockingTestWithJob { job ->
             var counter = 0
@@ -78,9 +80,11 @@ class ExpirationTest : BaseTest() {
         }
 
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `ExpiresIn -- Duration cannot be zero`() = runBlockingTest {
-        ExpiresIn<TestItem?>(0L)
+        assertFailsWith<IllegalArgumentException> {
+            ExpiresIn<TestItem?>(0L)
+        }
     }
 
     @Test
@@ -118,23 +122,16 @@ class ExpirationTest : BaseTest() {
     }
 
 
-    @Test(expected = AssertionError::class)
+    @Test
     fun `Loader cannot return stale data -- real threading`(): Unit = runBlocking {
-        // Using real threading along with setDefaultUncaughtExceptionHandler to receive errors
-        // thrown inside coroutines. There is no other way to get internal errors without changing
-        // Inflow API and allow setting custom coroutine context instead of just a dispatcher.
-        var error: Throwable? = null
-        Thread.setDefaultUncaughtExceptionHandler { _, e -> error = e }
-
-        val inflow = inflow<Unit?> {
-            cacheInMemory(null)
-            loader { null }
-            cacheExpiration(ExpiresIfNull())
+        assertCrash<AssertionError> {
+            val inflow = inflow<Unit?> {
+                cacheInMemory(null)
+                loader { null }
+                cacheExpiration(ExpiresIfNull())
+            }
+            inflow.refresh()
         }
-        inflow.refresh()
-
-        delay(25L)
-        throw error!!
     }
 
 }

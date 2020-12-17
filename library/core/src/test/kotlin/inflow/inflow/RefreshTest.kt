@@ -10,7 +10,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -55,7 +55,7 @@ class RefreshTest : BaseTest() {
         assertEquals(expected = currentTime, item3.loadedAt, "Fresh item is loaded")
     }
 
-    @Test(timeout = 1_000L)
+    @Test
     fun `Can refresh the data blocking -- real threading`(): Unit = runBlocking(Dispatchers.IO) {
         val inflow = inflow {
             cacheInMemory { TestItem(0L) }

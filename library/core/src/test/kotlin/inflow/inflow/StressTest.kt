@@ -1,6 +1,9 @@
 package inflow.inflow
 
 import inflow.BaseTest
+import inflow.STRESS_RUNS
+import inflow.STRESS_TAG
+import inflow.STRESS_TIMEOUT
 import inflow.inflow
 import inflow.utils.runStressTest
 import kotlinx.coroutines.Dispatchers
@@ -12,18 +15,22 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.junit.Test
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Timeout
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 
 class StressTest : BaseTest() {
 
-    @Test(timeout = 15_000L)
+    @Test
+    @Tag(STRESS_TAG)
+    @Timeout(STRESS_TIMEOUT)
     fun `Subscribe to cache and observe state`(): Unit = runBlocking(Dispatchers.IO) {
-        val runs = 5_000
-        runStressTest(logId, runs) { i ->
+
+        runStressTest(logId, STRESS_RUNS) { i ->
             for (j in 0 until 2) {
                 val inflow = inflow {
                     logId("$i/$j")
@@ -52,10 +59,11 @@ class StressTest : BaseTest() {
         }
     }
 
-    @Test(timeout = 15_000L)
+    @Test
+    @Tag(STRESS_TAG)
+    @Timeout(STRESS_TIMEOUT)
     fun `Can refresh the data blocking`(): Unit = runBlocking(Dispatchers.IO) {
-        val runs = 5_000
-        runStressTest(logId, runs) { i ->
+        runStressTest(logId, STRESS_RUNS) { i ->
             for (j in 0 until 2) {
                 val inflow = inflow<Unit?> {
                     logId("$i/$j")
@@ -83,9 +91,10 @@ class StressTest : BaseTest() {
         }
     }
 
-    @Test(timeout = 15_000L)
+    @Test
+    @Tag(STRESS_TAG)
+    @Timeout(STRESS_TIMEOUT)
     fun `Can subscribe to inflow from several places`(): Unit = runBlocking(Dispatchers.IO) {
-        val runs = 5_000
         val cacheState = AtomicInteger(0)
 
         val inflow = inflow<Unit?> {
@@ -100,8 +109,8 @@ class StressTest : BaseTest() {
             loadRetryTime(Long.MAX_VALUE)
         }
 
-        runStressTest(logId, runs) {
-            inflow.data().first { it != null }
+        runStressTest(logId, STRESS_RUNS) {
+            inflow.data(autoRefresh = true).first { it != null }
             inflow.error().first { it == null }
             inflow.loading().first { !it }
 

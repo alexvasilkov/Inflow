@@ -6,46 +6,57 @@ import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runBlockingTest
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 
 @ExperimentalCoroutinesApi
 class ConfigTest : BaseTest() {
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `Cache is required`() = runBlockingTest {
-        inflow {
-            cacheWriter {}
-            loader {}
+        assertFailsWith<IllegalArgumentException> {
+            inflow {
+                cacheWriter {}
+                loader {}
+            }
         }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `Cache writer is required`() = runBlockingTest {
-        inflow {
-            cache(emptyFlow())
-            loader {}
+        assertFailsWith<IllegalArgumentException> {
+            inflow {
+                cache(emptyFlow())
+                loader {}
+            }
         }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `Cache timeout is not negative`() = runBlockingTest {
-        testInflow {
-            cacheKeepSubscribedTimeout(-1L)
+        assertFailsWith<IllegalArgumentException> {
+            testInflow {
+                cacheKeepSubscribedTimeout(-1L)
+            }
         }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `Loader is required`() = runBlockingTest {
-        inflow {
-            cache(emptyFlow<Unit>())
-            cacheWriter {}
+        assertFailsWith<IllegalArgumentException> {
+            inflow {
+                cache(emptyFlow<Unit>())
+                cacheWriter {}
+            }
         }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `Retry time is positive`() = runBlockingTest {
-        testInflow {
-            loadRetryTime(0L)
+        assertFailsWith<IllegalArgumentException> {
+            testInflow {
+                loadRetryTime(0L)
+            }
         }
     }
 
