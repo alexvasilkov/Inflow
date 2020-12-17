@@ -3,6 +3,7 @@ package inflow.inflow
 import inflow.BaseTest
 import inflow.inflow
 import inflow.latest
+import inflow.utils.AtomicInt
 import inflow.utils.TestItem
 import inflow.utils.assertCrash
 import inflow.utils.runBlockingTestWithJob
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -51,10 +51,10 @@ class CacheTest : BaseTest() {
 
     @Test
     fun `Cache is subscribed if has subscribers`() = runBlockingTestWithJob { job ->
-        val cacheCalls = AtomicInteger(0)
+        val cacheCalls = AtomicInt()
 
         val cache = flow { // Cold cache flow
-            cacheCalls.incrementAndGet()
+            cacheCalls.getAndIncrement()
 
             emit(TestItem(-1))
             delay(100L)

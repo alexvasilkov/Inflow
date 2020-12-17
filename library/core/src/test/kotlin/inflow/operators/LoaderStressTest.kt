@@ -5,13 +5,13 @@ import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.internal.Loader
+import inflow.utils.AtomicInt
 import inflow.utils.runStressTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -20,11 +20,11 @@ class LoaderStressTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `Only one action can run at a time + join()`() = runBlocking(Dispatchers.IO) {
-        val loads = AtomicInteger(0)
+    fun `Only one action can run at a time + join`() = runBlocking(Dispatchers.IO) {
+        val loads = AtomicInt()
         val loader = Loader(logId, this) {
             delay(100L)
-            loads.incrementAndGet()
+            loads.getAndIncrement()
         }
 
         runStressTest(logId, STRESS_RUNS) { loader.load(repeatIfRunning = false).join() }
@@ -38,11 +38,11 @@ class LoaderStressTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `Repeat-if-running results in a single item + await()`() = runBlocking(Dispatchers.IO) {
-        val loads = AtomicInteger(0)
+    fun `Repeat-if-running results in a single item + await`() = runBlocking(Dispatchers.IO) {
+        val loads = AtomicInt()
         val loader = Loader(logId, this) {
             delay(100L)
-            loads.incrementAndGet()
+            loads.getAndIncrement()
         }
 
         val expected = STRESS_RUNS / 4 /* per ms */ / 100 /* ms */ + 1

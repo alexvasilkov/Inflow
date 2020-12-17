@@ -1,5 +1,6 @@
 package inflow
 
+import inflow.utils.AtomicBoolean
 import inflow.utils.inflowVerbose
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -88,8 +89,13 @@ class InflowConfig<T> internal constructor() {
      */
     fun cacheInMemoryDeferred(initialValue: suspend () -> T) {
         val mem = MutableSharedFlow<T>(replay = 1)
+        val initialized = AtomicBoolean()
         // By contract the cache should always emit, we need to initialize it if not yet
-        cache = mem.onSubscription { if (mem.replayCache.isEmpty()) mem.tryEmit(initialValue()) }
+        cache = mem.onSubscription {
+            if (initialized.compareAndSet(expect = false, update = true)) {
+                mem.tryEmit(initialValue())
+            }
+        }
         cacheWriter = { mem.emit(it) }
     }
 

@@ -5,6 +5,7 @@ import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.internal.share
+import inflow.utils.AtomicInt
 import inflow.utils.runStressTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,6 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -67,13 +67,13 @@ class ShareTest : BaseTest() {
         keepSubscribedTimeout: Long,
         flow: Flow<Unit?> = MutableStateFlow(null)
     ): Int = runBlocking(Dispatchers.IO) {
-        val cacheState = AtomicInteger(0)
-        val cacheCalls = AtomicInteger(0)
+        val cacheState = AtomicInt()
+        val cacheCalls = AtomicInt()
 
         val cache = flow
             .onStart {
-                cacheState.incrementAndGet()
-                cacheCalls.incrementAndGet()
+                cacheState.getAndIncrement()
+                cacheCalls.getAndIncrement()
             }
             .onCompletion {
                 cacheState.decrementAndGet()

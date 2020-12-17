@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
@@ -83,7 +82,7 @@ internal suspend fun runStressTest(
     inflowVerbose = false // Avoiding spamming in logs
 
     val scope = CoroutineScope(Dispatchers.IO)
-    val counter = AtomicInteger(0)
+    val counter = AtomicInt()
 
     val start = now()
     for (i in 0 until runs) {

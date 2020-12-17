@@ -5,6 +5,7 @@ import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.internal.doWhileSubscribed
+import inflow.utils.AtomicInt
 import inflow.utils.runStressTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,7 +20,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -65,11 +65,11 @@ class DoWhileSubscribedTest : BaseTest() {
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
     fun `Can track flow subscribers -- real threading`(): Unit = runBlocking(Dispatchers.IO) {
-        val state = AtomicInteger(0)
+        val state = AtomicInt()
         val flow = MutableStateFlow(0)
         val tracked = flow.doWhileSubscribed {
             launch {
-                state.incrementAndGet()
+                state.getAndIncrement()
 
                 suspendCancellableCoroutine {
                     it.invokeOnCancellation {
