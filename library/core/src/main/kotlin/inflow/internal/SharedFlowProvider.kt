@@ -1,6 +1,8 @@
 package inflow.internal
 
 import kotlinx.atomicfu.atomic
+import kotlinx.atomicfu.locks.reentrantLock
+import kotlinx.atomicfu.locks.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -34,6 +36,7 @@ internal class SharedFlowProvider<T>(
 
     val shared: Flow<T>
 
+    private val lock = reentrantLock()
     private val subscriptionsCount = atomic(0)
     private val collectJobRef = atomic<Job?>(null)
     private val completeJobRef = atomic<Job?>(null)
@@ -42,11 +45,15 @@ internal class SharedFlowProvider<T>(
         val internalSharedFlow = MutableSharedFlow<T>(replay = 1)
         shared = internalSharedFlow
             .onSubscription {
-                // We are only interested in the first subscription
-                if (subscriptionsCount.getAndIncrement() != 0) return@onSubscription
+                val completeJob = lock.withLock {
+                    // We are only interested in the first subscription
+                    if (subscriptionsCount.getAndIncrement() != 0) return@onSubscription
+                    // Getting completion job under lock
+                    completeJobRef.getAndSet(null)
+                }
 
                 // Cancelling completion job, if running
-                completeJobRef.getAndSet(null)?.cancelAndJoin()
+                completeJob?.cancelAndJoin()
 
                 // Collector job may still be active if it is not unsubscribed by timeout yet.
                 // We'll only start new collect job if there is no other active job.
@@ -59,22 +66,22 @@ internal class SharedFlowProvider<T>(
                 }
             }
             .onCompletion {
-                // We are only interested in the last un-subscription
-                if (subscriptionsCount.decrementAndGet() != 0) return@onCompletion
+                val completeJob = lock.withLock {
+                    // We are only interested in the last un-subscription
+                    if (subscriptionsCount.decrementAndGet() != 0) return@onCompletion
+                    // Creating completion job under lock
+                    Job().apply { completeJobRef.value = this }
+                }
 
-                // Starting completion job, if not running yet
-                val completeJob = Job()
-                if (completeJobRef.compareAndSet(expect = null, update = completeJob)) {
-                    // Scheduling collector job cancellation
-                    scope.launch(completeJob) {
-                        delay(keepSubscribedTimeout)
+                // Scheduling collector job cancellation
+                scope.launch(completeJob) {
+                    delay(keepSubscribedTimeout)
 
-                        // Cancelling latest collector job
-                        val collectJob = collectJobRef.getAndSet(null)
-                        if (collectJob != null) {
-                            collectJob.cancel()
-                            internalSharedFlow.resetReplayCache() // We cannot keep reply cache anymore
-                        }
+                    // Cancelling latest collector job
+                    val collectJob = collectJobRef.getAndSet(null)
+                    if (collectJob != null) {
+                        collectJob.cancel()
+                        internalSharedFlow.resetReplayCache() // We cannot keep reply cache anymore
                     }
                 }
             }
