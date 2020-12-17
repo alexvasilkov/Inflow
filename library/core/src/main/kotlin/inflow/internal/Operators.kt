@@ -4,12 +4,14 @@ import inflow.InflowConnectivity
 import inflow.utils.log
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.collect
@@ -21,6 +23,75 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.launch
+
+/**
+ * Shares a flow among several subscribers. The flow is only subscribed if there is at least one
+ * downstream subscriber and unsubscribed after [keepSubscribedTimeout] since last subscriber is
+ * gone.
+ *
+ * We could use Kotlin's `.shareIn()` operator but it spins a never ending collecting job
+ * while we want to have no hanging jobs once there are no cache subscribers left.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun <T> Flow<T>.share(
+    scope: CoroutineScope,
+    keepSubscribedTimeout: Long
+): Flow<T> {
+    val orig = this
+    val shared = MutableSharedFlow<T>(replay = 1)
+
+    val lock = reentrantLock()
+    var subscriptionsCount = 0
+    var collectJobRef: Job? = null
+    var completeJobRef: Job? = null
+
+    return shared
+        .onSubscription {
+            val collectJob = lock.withLock {
+                // We are only interested in the first subscription
+                if (subscriptionsCount++ != 0) return@onSubscription
+
+                // Cancelling completion job, if running
+                completeJobRef?.cancel()
+                completeJobRef = null
+
+                // Collector job may still be active if it is not unsubscribed by timeout yet.
+                // We'll only start new collect job if there is no other active job.
+                if (collectJobRef != null) return@onSubscription
+
+                Job().apply { collectJobRef = this }
+            }
+
+            scope.launch(collectJob) {
+                orig.collect(shared::emit)
+                awaitCancellation() // Waiting forever in case if flow is finite
+            }
+        }
+        .onCompletion {
+            val completeJob = lock.withLock {
+                // We are only interested in the last un-subscription
+                if (--subscriptionsCount != 0) return@onCompletion
+                // Creating completion job under lock
+                Job().apply { completeJobRef = this }
+            }
+
+            // Scheduling collector job cancellation
+            scope.launch(completeJob) {
+                delay(keepSubscribedTimeout)
+
+                // Cancelling latest collector job under lock
+                lock.withLock {
+                    if (completeJobRef != completeJob) return@launch
+                    val collectJob = collectJobRef ?: return@launch
+                    collectJobRef = null
+                    collectJob.cancel()
+                    shared.resetReplayCache() // We cannot keep reply cache anymore
+                }
+            }
+        }
+}
 
 
 /**

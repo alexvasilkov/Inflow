@@ -51,7 +51,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         }
 
         // Sharing the cache to allow several subscribers
-        cache = SharedFlowProvider(cacheFromConfig, cacheScope, cacheTimeout).shared
+        cache = cacheFromConfig.share(cacheScope, cacheTimeout)
 
         // Preparing a flow that will emit data expiration duration each time the data is changed
         // or connectivity provider signals about active connection
