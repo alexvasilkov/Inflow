@@ -6,7 +6,7 @@ import inflow.utils.now
  * Expiration time provider to control when the data should be automatically refreshed (or
  * invalidated).
  *
- * Default implementations: [ExpiresIfNull], [ExpiresIn].
+ * Default implementations: [ExpiresIfNull], [ExpiresAt], [ExpiresIn].
  */
 interface ExpirationProvider<T> {
     /**
@@ -33,7 +33,29 @@ private val ifNull = object : ExpirationProvider<Any?> {
 fun <T> ExpiresIfNull(): ExpirationProvider<T> = ifNull as ExpirationProvider<T>
 
 /**
- * Refreshes (or invalidates) the data after given duration, provided that we know data's last
+ * Refreshes (or invalidates) the data at specific time as defined by [expiresAt].
+ *
+ * If the data was never loaded then [expiresAt] provider is expected to return `0L`. If the data
+ * should never expire (or be invalidated) then return `Long.MAX_VALUE` from [expiresAt] provider.
+ *
+ * All times are in milliseconds.
+ */
+@Suppress("FunctionName") // Pretending to be a class
+fun <T> ExpiresAt(expiresAt: (T) -> Long): ExpirationProvider<T> {
+    return object : ExpirationProvider<T> {
+        override fun expiresIn(data: T): Long {
+            val expiresAtTime = expiresAt(data)
+            return when {
+                expiresAtTime <= 0L -> 0L // Never loaded
+                expiresAtTime == Long.MAX_VALUE -> Long.MAX_VALUE // Never expires
+                else -> expiresAtTime - now() // Calculating expiration time
+            }
+        }
+    }
+}
+
+/**
+ * Refreshes (or invalidates) the data after given [duration], provided that we know data's last
  * loaded time.
  *
  * If the data was never loaded then [loadedAt] provider is expected to return `0L`.
@@ -44,7 +66,7 @@ fun <T> ExpiresIfNull(): ExpirationProvider<T> = ifNull as ExpirationProvider<T>
  * All times are in milliseconds.
  */
 @Suppress("FunctionName") // Pretending to be a class
-fun <T> ExpiresIn(duration: Long, loadedAt: T.() -> Long): ExpirationProvider<T> {
+fun <T> ExpiresIn(duration: Long, loadedAt: (T) -> Long): ExpirationProvider<T> {
     require(duration > 0L) { "Expiration duration ($duration) should be > 0" }
 
     return object : ExpirationProvider<T> {
@@ -57,31 +79,4 @@ fun <T> ExpiresIn(duration: Long, loadedAt: T.() -> Long): ExpirationProvider<T>
             }
         }
     }
-}
-
-/**
- * Refreshes (or invalidates) the data defined with [LoadedAt] interface after given duration.
- *
- * Use `Long.MAX_VALUE` as duration if you don't want the data to be automatically refreshed
- * (unless the data is `null`).
- */
-@Suppress("FunctionName") // Pretending to be a class
-fun <T : LoadedAt?> ExpiresIn(duration: Long): ExpirationProvider<T> {
-    return ExpiresIn(duration, loadedAt = { this?.loadedAt ?: 0L })
-}
-
-
-/**
- * Marks the data that knows when it was loaded.
- *
- * If the data was never loaded then it is expected to return `0L`.
- *
- * Note: given a list of [LoadedAt] items we can calculate its overall loaded time as
- * `list.minOfOrNull { it.loadedAt } ?: 0L`.
- */
-interface LoadedAt {
-    /**
-     * Time in milliseconds when the data was last loaded.
-     */
-    val loadedAt: Long
 }

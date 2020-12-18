@@ -4,7 +4,6 @@ import inflow.BaseTest
 import inflow.Inflow
 import inflow.latest
 import inflow.map
-import inflow.utils.TestItem
 import inflow.utils.TestTracker
 import inflow.utils.runTest
 import inflow.utils.testInflow
@@ -20,8 +19,8 @@ class TransformTest : BaseTest() {
 
     @Test
     fun `IF mapped THEN same loading state`() = runTest { job ->
-        val inflow: Inflow<TestItem?> = testInflow {}
-        val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
+        val inflow: Inflow<Int?> = testInflow {}
+        val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         val trackerOrig = TestTracker()
         val trackerMapped = TestTracker()
@@ -35,10 +34,10 @@ class TransformTest : BaseTest() {
 
     @Test
     fun `IF mapped THEN same error state`() = runTest {
-        val inflow: Inflow<TestItem?> = testInflow {
+        val inflow: Inflow<Int?> = testInflow {
             loader { throw RuntimeException() }
         }
-        val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
+        val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         mapped.refresh()
         assertSame(inflow.error().value, mapped.error().value, "Mapped inflow has same error")
@@ -46,20 +45,20 @@ class TransformTest : BaseTest() {
 
     @Test
     fun `IF mapped THEN mapped data`() = runTest {
-        val inflow: Inflow<TestItem?> = testInflow {}
-        val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
+        val inflow: Inflow<Int?> = testInflow {}
+        val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         val item1 = mapped.data(autoRefresh = true).first { it != null }
-        assertEquals(inflow.latest()?.loadedAt, item1, "Mapped item is loaded")
+        assertEquals(inflow.latest()?.toString(), item1, "Mapped item is loaded")
 
         val item2 = mapped.data(autoRefresh = false).first { it != null }
-        assertEquals(inflow.latest()?.loadedAt, item2, "Mapped item is loaded from cache")
+        assertEquals(inflow.latest()?.toString(), item2, "Mapped item is loaded from cache")
     }
 
     @Test
     fun `IF mapped THEN mapped data flows are cached`() = runTest {
-        val inflow: Inflow<TestItem?> = testInflow {}
-        val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
+        val inflow: Inflow<Int?> = testInflow {}
+        val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         assertSame(
             mapped.data(autoRefresh = false),
@@ -76,22 +75,22 @@ class TransformTest : BaseTest() {
 
     @Test
     fun `IF mapped THEN can be refreshed with join`() = runTest {
-        val inflow: Inflow<TestItem?> = testInflow {}
-        val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
+        val inflow: Inflow<Int?> = testInflow {}
+        val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         mapped.refresh(repeatIfRunning = false).join()
     }
 
     @Test
     fun `IF mapped THEN can be refreshed with await`() = runTest {
-        val inflow: Inflow<TestItem?> = testInflow {}
-        val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
+        val inflow: Inflow<Int?> = testInflow {}
+        val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         val mappedItem = mapped.refresh(repeatIfRunning = false).await()
         val item = inflow.latest()
 
         assertNotNull(item, "Orig item is loaded too")
-        assertEquals(item.loadedAt, mappedItem, "Mapped item is loaded with await")
+        assertEquals(item.toString(), mappedItem, "Mapped item is loaded with await")
     }
 
 }

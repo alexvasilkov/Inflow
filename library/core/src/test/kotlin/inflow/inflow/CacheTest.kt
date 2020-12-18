@@ -3,8 +3,6 @@ package inflow.inflow
 import inflow.BaseTest
 import inflow.inflow
 import inflow.latest
-import inflow.utils.AtomicInt
-import inflow.utils.TestItem
 import inflow.utils.assertCrash
 import inflow.utils.runTest
 import inflow.utils.testInflow
@@ -22,16 +20,16 @@ class CacheTest : BaseTest() {
 
     @Test
     fun `IF inflow has subscribers THEN cache is subscribed`() = runTest { job ->
-        val cacheCalls = AtomicInt()
+        var cacheCalls = 0
 
         val cache = flow { // Cold cache flow
-            cacheCalls.getAndIncrement()
+            cacheCalls++
 
-            emit(TestItem(-1))
+            emit(-1)
             delay(100L)
-            emit(TestItem(-2))
+            emit(-2)
             delay(100L)
-            emit(TestItem(-3))
+            emit(-3)
             awaitCancellation()
         }
 
@@ -47,13 +45,13 @@ class CacheTest : BaseTest() {
 
         // Getting first emitted item
         launch(job) {
-            assertEquals(TestItem(-1), inflow.latest(), "Receiving first item")
+            assertEquals(expected = -1, actual = inflow.latest(), "Receiving first item")
         }
 
         // Getting second emitted item after delay
         delay(100L)
         launch(job) {
-            assertEquals(TestItem(-2), inflow.latest(), "Receiving second item")
+            assertEquals(expected = -2, actual = inflow.latest(), "Receiving second item")
         }
 
         // Un-subscribing to reset cold cache flow
@@ -62,37 +60,37 @@ class CacheTest : BaseTest() {
         // Getting third item within timeout interval, original cold cache is still subscribed
         delay(100L)
         launch(job) {
-            assertEquals(TestItem(-3), inflow.latest(), "Receiving third item")
+            assertEquals(expected = -3, actual = inflow.latest(), "Receiving third item")
         }
 
         // Getting first item after timeout interval, original cold cache should be re-subscribed
         delay(200L)
         launch(job) {
-            assertEquals(TestItem(-1), inflow.latest(), "Receiving first item again")
+            assertEquals(expected = -1, actual = inflow.latest(), "Receiving first item again")
         }
 
-        assertEquals(expected = 2, cacheCalls.get(), "Original cache is only subscribed twice")
+        assertEquals(expected = 2, cacheCalls, "Original cache is only subscribed twice")
     }
 
     @Test
     fun `IF cache is slow THEN data can still be collected`() = runTest {
-        val flow = flow { // Cold cache flow
-            delay(1000L)
-            emit(TestItem(0))
-        }
-
         val inflow = testInflow {
-            cache(flow)
+            cache(
+                flow { // Cold cache flow
+                    delay(100L)
+                    emit(0)
+                }
+            )
         }
 
-        var item: TestItem? = null
+        var item: Int? = null
 
         launch { item = inflow.latest() }
 
-        delay(500L)
+        delay(50L)
         assertNull(item, "No item in the beginning")
 
-        delay(500L)
+        delay(50L)
         assertNotNull(item, "Item is finally loaded")
     }
 
@@ -115,8 +113,8 @@ class CacheTest : BaseTest() {
             cacheInMemory(null)
         }
 
-        var dataAuto: TestItem? = TestItem(Long.MIN_VALUE)
-        var dataCache: TestItem? = TestItem(Long.MIN_VALUE)
+        var dataAuto: Int? = Int.MIN_VALUE
+        var dataCache: Int? = Int.MAX_VALUE
 
         launch(job) {
             inflow.data().collect { dataAuto = it }
@@ -139,19 +137,18 @@ class CacheTest : BaseTest() {
         var count = 0
         val inflow = testInflow {
             cacheInMemoryDeferred {
-                count++
                 delay(100L)
-                TestItem(-1L)
+                count++
             }
             cacheKeepSubscribedTimeout(0L)
         }
 
-        var item1: TestItem? = null
+        var item1: Int? = null
         launch { item1 = inflow.latest() }
         delay(100L)
         assertNotNull(item1, "Item 1 is loaded")
 
-        var item2: TestItem? = null
+        var item2: Int? = null
         launch { item2 = inflow.latest() }
         delay(100L)
         assertNotNull(item2, "Item 2 is loaded")

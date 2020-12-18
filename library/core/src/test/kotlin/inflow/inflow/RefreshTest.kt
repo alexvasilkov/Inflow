@@ -3,7 +3,6 @@ package inflow.inflow
 import inflow.BaseTest
 import inflow.inflow
 import inflow.latest
-import inflow.utils.TestItem
 import inflow.utils.runTest
 import inflow.utils.runThreads
 import inflow.utils.testInflow
@@ -45,30 +44,30 @@ class RefreshTest : BaseTest() {
         delay(50L)
         val item2 = inflow.latest()
         assertNotNull(item2, "Item is loaded")
-        assertEquals(expected = currentTime, item2.loadedAt, "Fresh item is loaded")
+        assertEquals(expected = 0, actual = item2, "Fresh item is loaded")
 
         // Second item is loaded
         delay(100L)
         val item3 = inflow.latest()
         assertNotNull(item3, "Item is loaded")
-        assertEquals(expected = currentTime, item3.loadedAt, "Fresh item is loaded")
+        assertEquals(expected = 1, actual = item3, "Fresh item is loaded")
     }
 
     @Test
     fun `IF refresh is called with blocking loader THEN data is loaded`() = runThreads {
         val inflow = inflow {
-            cacheInMemory { TestItem(0L) }
+            cacheInMemory { 0 }
             loader {
                 @Suppress("BlockingMethodInNonBlockingContext")
                 Thread.sleep(50L)
-                TestItem(1L)
+                1
             }
         }
 
         inflow.refresh().join()
 
         delay(10L) // We have to delay to ensure cache data is propagated
-        assertEquals(expected = TestItem(1L), actual = inflow.latest(), "New item is loaded")
+        assertEquals(expected = 1, actual = inflow.latest(), "New item is loaded")
     }
 
 }

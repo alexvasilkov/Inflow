@@ -2,7 +2,7 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.InflowConnectivity
-import inflow.utils.TestItem
+import inflow.latest
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
@@ -45,10 +45,8 @@ class ConnectivityTest : BaseTest() {
     fun `IF data is not expired THEN connectivity does not force retry`() = runTest { job ->
         val connectivityState = MutableStateFlow(true)
 
-        var counter = 0L
         val inflow = testInflow {
             cacheInMemory(null)
-            loader { TestItem(counter++) }
             connectivity(object : InflowConnectivity {
                 override val connected = connectivityState
             })
@@ -57,11 +55,12 @@ class ConnectivityTest : BaseTest() {
         // Running auto-refreshing
         launch(job) { inflow.data().collect() }
 
-        assertEquals(expected = 1, actual = counter, "Loaded on subscription")
+        delay(100L)
+        assertEquals(expected = 0, actual = inflow.latest(), "Loaded on subscription")
 
         connectivityState.emit(false)
         connectivityState.emit(true)
-        assertEquals(expected = 1, actual = counter, "No extra loading")
+        assertEquals(expected = 0, actual = inflow.latest(), "No extra loading")
     }
 
     @Test
@@ -73,7 +72,7 @@ class ConnectivityTest : BaseTest() {
         }
 
         // Running auto-refreshing
-        var item: TestItem? = null
+        var item: Int? = null
         launch(job) { inflow.data().collect { item = it } }
 
         delay(100L)

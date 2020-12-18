@@ -42,15 +42,16 @@ fun <T> runThreads(block: suspend CoroutineScope.() -> T) = runBlocking(Dispatch
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal fun TestCoroutineScope.testInflow(
-    block: InflowConfig<TestItem?>.() -> Unit
-): Inflow<TestItem?> = inflow {
+    block: InflowConfig<Int?>.() -> Unit
+): Inflow<Int?> = inflow {
     logId("TEST")
 
     cacheInMemory(null)
 
+    var count = 0
     loader {
         delay(100L)
-        TestItem(currentTime)
+        count++
     }
 
     loadRetryTime(100L)

@@ -37,7 +37,7 @@ class TestActivity : AppCompatActivity() {
 
         val timer = inflow {
             cacheInMemory(initialValue = 0L)
-            cacheExpiration(ExpiresIn(duration = 1000L, loadedAt = { this }))
+            cacheExpiration(ExpiresIn(duration = 1000L, loadedAt = { it }))
             loader { System.currentTimeMillis() }
         }
 

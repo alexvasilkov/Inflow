@@ -37,7 +37,7 @@ class EmptyIfInvalidTest : BaseTest() {
     fun `IF becomes invalid THEN emit as-is and then emit empty value`() = runThreads {
         val startTime = now()
         val orig = flowOf<Long?>(startTime)
-        val invalidIn = ExpiresIn<Long?>(duration = 30L, loadedAt = { this ?: 0L })
+        val invalidIn = ExpiresIn<Long?>(duration = 30L, loadedAt = { it ?: 0L })
         val flow = orig.emptyIfInvalid(logId, invalidIn, null)
 
         assertEquals(expected = startTime, actual = flow.first(), "Orig item is emitted")

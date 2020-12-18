@@ -1,23 +1,23 @@
 package inflow.inflow
 
 import inflow.BaseTest
+import inflow.ExpirationProvider
+import inflow.ExpiresAt
 import inflow.ExpiresIfNull
 import inflow.ExpiresIn
 import inflow.inflow
-import inflow.utils.TestItem
+import inflow.latest
 import inflow.utils.assertCrash
 import inflow.utils.now
 import inflow.utils.runTest
 import inflow.utils.runThreads
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 class ExpirationTest : BaseTest() {
 
@@ -42,19 +42,12 @@ class ExpirationTest : BaseTest() {
     @Test
     fun `IF ExpiresIfNull AND cache is null AND can load THEN update and no retries`() =
         runTest { job ->
-            var counter = 0
-            val inflow = testInflow {
-                loader {
-                    counter++
-                    TestItem(0L)
-                }
-                cacheExpiration(ExpiresIfNull())
-            }
+            val inflow = testInflow {}
 
             launch(job) { inflow.data().collect() }
 
             delay(Long.MAX_VALUE - 1L)
-            assertEquals(expected = 1, counter, "1 update and no retries")
+            assertEquals(expected = 0, inflow.latest(), "1 update and no retries")
         }
 
     @Test
@@ -62,7 +55,7 @@ class ExpirationTest : BaseTest() {
         runTest { job ->
             var counter = 0
             val inflow = testInflow {
-                cache(MutableStateFlow(TestItem(0L)))
+                cacheInMemory(0)
                 loader {
                     counter++
                     throw RuntimeException()
@@ -78,14 +71,16 @@ class ExpirationTest : BaseTest() {
 
 
     @Test
-    fun `IF ExpiresIn AND duration is 0 THEN error`() = runTest {
-        assertFailsWith<IllegalArgumentException> {
-            ExpiresIn<TestItem?>(0L)
-        }
+    fun `IF ExpiresAt AND cache is expiring THEN updates are called`() {
+        testExpiration(ExpiresAt { it + 30L })
     }
 
     @Test
-    fun `IF ExpiresIn AND cache is expiring THEN updates are called`() = runThreads {
+    fun `IF ExpiresIn AND cache is expiring THEN updates are called`() {
+        testExpiration(ExpiresIn(30L) { it })
+    }
+
+    private fun testExpiration(expiration: ExpirationProvider<Long>) = runThreads {
         var counter = 0
         val inflow = inflow {
             cacheInMemory(0L)
@@ -93,7 +88,7 @@ class ExpirationTest : BaseTest() {
                 counter++
                 now()
             }
-            cacheExpiration(ExpiresIn(duration = 30L, loadedAt = { this }))
+            cacheExpiration(expiration)
         }
 
         val collectJob = launch { inflow.data().collect() }
@@ -108,15 +103,10 @@ class ExpirationTest : BaseTest() {
     }
 
     @Test
-    fun `IF ExpiresIn with LoadedAt item THEN loadedAt value is used`() = runTest {
-        val strategy = ExpiresIn<TestItem?>(200L)
-
-        // Nullable strategy
-        assertEquals(expected = 0L, strategy.expiresIn(null), "Expired if null")
-
-        // Expiration time, fuzzy check because of possible timing issues
-        val expiresIn = strategy.expiresIn(TestItem(now() - 100L))
-        assertTrue(expiresIn in 95..105, "Uses loadedAt value")
+    fun `IF ExpiresIn AND duration is 0 THEN error`() = runTest {
+        assertFailsWith<IllegalArgumentException> {
+            ExpiresIn<Int>(0L) { 0L }
+        }
     }
 
 
