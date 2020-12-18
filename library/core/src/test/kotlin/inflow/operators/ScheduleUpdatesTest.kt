@@ -2,23 +2,20 @@ package inflow.operators
 
 import inflow.BaseTest
 import inflow.internal.scheduleUpdates
-import inflow.utils.runTestWithJob
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import inflow.utils.runTest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runBlockingTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-@ExperimentalCoroutinesApi
 class ScheduleUpdatesTest : BaseTest() {
 
     @Test
-    fun `IF not updated THEN one update and few retries `() = runTestWithJob { job ->
+    fun `IF not updated THEN one update and few retries `() = runTest { job ->
         var counter = 0
         launch(job) {
             scheduleWithDefaults(loader = { counter++ })
@@ -29,7 +26,7 @@ class ScheduleUpdatesTest : BaseTest() {
     }
 
     @Test
-    fun `IF new data is not expired THEN one update and no retries`() = runTestWithJob { job ->
+    fun `IF new data is not expired THEN one update and no retries`() = runTest { job ->
         val cacheExpiration = MutableStateFlow(0L)
 
         var counter = 0
@@ -48,7 +45,7 @@ class ScheduleUpdatesTest : BaseTest() {
     }
 
     @Test
-    fun `IF cache is not expired THEN no update and no retries`() = runTestWithJob { job ->
+    fun `IF cache is not expired THEN no update and no retries`() = runTest { job ->
         val cacheExpiration = MutableStateFlow(Long.MAX_VALUE)
 
         var counter = 0
@@ -64,7 +61,7 @@ class ScheduleUpdatesTest : BaseTest() {
     }
 
     @Test
-    fun `IF cache is expiring THEN new updates are called`() = runTestWithJob { job ->
+    fun `IF cache is expiring THEN new updates are called`() = runTest { job ->
         val cacheExpiration = MutableSharedFlow<Long>(replay = 1)
         cacheExpiration.emit(50L)
 
@@ -85,14 +82,14 @@ class ScheduleUpdatesTest : BaseTest() {
 
 
     @Test
-    fun `IF retry time is 0 THEN error`() = runBlockingTest {
+    fun `IF retry time is 0 THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
             scheduleWithDefaults(retryTime = 0L)
         }
     }
 
     @Test
-    fun `IF retry time is 'MAX_VALUE' THEN never retry`() = runTestWithJob { job ->
+    fun `IF retry time is 'MAX_VALUE' THEN never retry`() = runTest { job ->
         var counter = 0
         launch(job) {
             scheduleWithDefaults(retryTime = Long.MAX_VALUE, loader = { counter++ })
@@ -105,7 +102,7 @@ class ScheduleUpdatesTest : BaseTest() {
     }
 
     @Test
-    fun `IF slow loading is finished THEN retry is not called`() = runTestWithJob { job ->
+    fun `IF slow loading is finished THEN retry is not called`() = runTest { job ->
         val cacheExpiration = MutableStateFlow(0L)
 
         var counterStart = 0

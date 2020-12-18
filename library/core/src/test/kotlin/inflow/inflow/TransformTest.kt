@@ -6,22 +6,20 @@ import inflow.latest
 import inflow.map
 import inflow.utils.TestItem
 import inflow.utils.TestTracker
-import inflow.utils.runTestWithJob
+import inflow.utils.runTest
 import inflow.utils.testInflow
 import inflow.utils.track
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runBlockingTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 
-@ExperimentalCoroutinesApi
 class TransformTest : BaseTest() {
 
     @Test
-    fun `IF mapped THEN same loading state`() = runTestWithJob { job ->
+    fun `IF mapped THEN same loading state`() = runTest { job ->
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 
@@ -36,7 +34,7 @@ class TransformTest : BaseTest() {
     }
 
     @Test
-    fun `IF mapped THEN same error state`() = runBlockingTest {
+    fun `IF mapped THEN same error state`() = runTest {
         val inflow: Inflow<TestItem?> = testInflow {
             loader { throw RuntimeException() }
         }
@@ -47,19 +45,19 @@ class TransformTest : BaseTest() {
     }
 
     @Test
-    fun `IF mapped THEN mapped data`() = runBlockingTest {
+    fun `IF mapped THEN mapped data`() = runTest {
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 
         val item1 = mapped.data(autoRefresh = true).first { it != null }
-        assertEquals(expected = currentTime, item1, "Mapped item is loaded")
+        assertEquals(inflow.latest()?.loadedAt, item1, "Mapped item is loaded")
 
         val item2 = mapped.data(autoRefresh = false).first { it != null }
-        assertEquals(expected = currentTime, item2, "Mapped item is loaded from cache")
+        assertEquals(inflow.latest()?.loadedAt, item2, "Mapped item is loaded from cache")
     }
 
     @Test
-    fun `IF mapped THEN mapped data flows are cached`() = runBlockingTest {
+    fun `IF mapped THEN mapped data flows are cached`() = runTest {
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 
@@ -77,7 +75,7 @@ class TransformTest : BaseTest() {
     }
 
     @Test
-    fun `IF mapped THEN can be refreshed with join`() = runBlockingTest {
+    fun `IF mapped THEN can be refreshed with join`() = runTest {
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 
@@ -85,15 +83,15 @@ class TransformTest : BaseTest() {
     }
 
     @Test
-    fun `IF mapped THEN can be refreshed with await`() = runBlockingTest {
+    fun `IF mapped THEN can be refreshed with await`() = runTest {
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 
         val mappedItem = mapped.refresh(repeatIfRunning = false).await()
         val item = inflow.latest()
 
-        assertEquals(expected = currentTime, mappedItem, "Mapped item is loaded with await")
-        assertEquals(expected = currentTime, item?.loadedAt, "Orig item is loaded too")
+        assertNotNull(item, "Orig item is loaded too")
+        assertEquals(item.loadedAt, mappedItem, "Mapped item is loaded with await")
     }
 
 }

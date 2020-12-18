@@ -6,26 +6,22 @@ import inflow.latest
 import inflow.utils.AtomicInt
 import inflow.utils.TestItem
 import inflow.utils.assertCrash
-import inflow.utils.runTestWithJob
+import inflow.utils.runTest
 import inflow.utils.testInflow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runBlockingTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-@ExperimentalCoroutinesApi
 class CacheTest : BaseTest() {
 
     @Test
-    fun `IF inflow has subscribers THEN cache is subscribed`() = runTestWithJob { job ->
+    fun `IF inflow has subscribers THEN cache is subscribed`() = runTest { job ->
         val cacheCalls = AtomicInt()
 
         val cache = flow { // Cold cache flow
@@ -79,7 +75,7 @@ class CacheTest : BaseTest() {
     }
 
     @Test
-    fun `IF cache is slow THEN data can still be collected`() = runBlockingTest {
+    fun `IF cache is slow THEN data can still be collected`() = runTest {
         val flow = flow { // Cold cache flow
             delay(1000L)
             emit(TestItem(0))
@@ -101,7 +97,7 @@ class CacheTest : BaseTest() {
     }
 
     @Test
-    fun `IF cache throws exception THEN crash`() = runBlocking {
+    fun `IF cache throws exception THEN crash`() = runTest {
         assertCrash<RuntimeException> {
             val inflow = inflow {
                 cache(flow<Unit> { throw RuntimeException() })
@@ -114,7 +110,7 @@ class CacheTest : BaseTest() {
     }
 
     @Test
-    fun `IF in-memory cache is used THEN data is cached`() = runTestWithJob { job ->
+    fun `IF in-memory cache is used THEN data is cached`() = runTest { job ->
         val inflow = testInflow {
             cacheInMemory(null)
         }
@@ -139,7 +135,7 @@ class CacheTest : BaseTest() {
     }
 
     @Test
-    fun `IF in-memory cache is used THEN it is initialized only once`() = runBlockingTest {
+    fun `IF in-memory cache is used THEN it is initialized only once`() = runTest {
         var count = 0
         val inflow = testInflow {
             cacheInMemoryDeferred {

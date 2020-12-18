@@ -2,10 +2,9 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.utils.TestTracker
-import inflow.utils.runTestWithJob
+import inflow.utils.runTest
 import inflow.utils.testInflow
 import inflow.utils.track
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.take
@@ -13,11 +12,10 @@ import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-@ExperimentalCoroutinesApi
 class LoadingStateTest : BaseTest() {
 
     @Test
-    fun `IF refresh is called TEHN loading is triggered`() = runTestWithJob { job ->
+    fun `IF refresh is called TEHN loading is triggered`() = runTest { job ->
         val tracker = TestTracker()
         val inflow = testInflow {}
 
@@ -38,7 +36,7 @@ class LoadingStateTest : BaseTest() {
 
     @Test
     fun `IF data is subscribed with autoRefresh=true THEN loading is triggered`() =
-        runTestWithJob { job ->
+        runTest { job ->
             val tracker = TestTracker()
             val inflow = testInflow {}
 
@@ -60,7 +58,7 @@ class LoadingStateTest : BaseTest() {
 
     @Test
     fun `IF data is subscribed with autoRefresh=false THEN loading is not triggered`() =
-        runTestWithJob { job ->
+        runTest { job ->
             val tracker = TestTracker()
             val inflow = testInflow {}
 

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import kotlin.test.assertEquals
@@ -24,8 +25,8 @@ import kotlin.test.assertFailsWith
  *
  * Useful to run long-running tasks that should be canceled in the end of the test.
  */
-@ExperimentalCoroutinesApi
-internal fun runTestWithJob(testBody: suspend TestCoroutineScope.(Job) -> Unit) {
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun runTest(testBody: suspend TestCoroutineScope.(Job) -> Unit) {
     runBlockingTest {
         val job = Job()
         try {
@@ -36,7 +37,10 @@ internal fun runTestWithJob(testBody: suspend TestCoroutineScope.(Job) -> Unit) 
     }
 }
 
-@ExperimentalCoroutinesApi
+fun <T> runThreads(block: suspend CoroutineScope.() -> T) = runBlocking(Dispatchers.IO, block)
+
+
+@OptIn(ExperimentalCoroutinesApi::class)
 internal fun TestCoroutineScope.testInflow(
     block: InflowConfig<TestItem?>.() -> Unit
 ): Inflow<TestItem?> = inflow {

@@ -3,13 +3,11 @@ package inflow.operators
 import inflow.BaseTest
 import inflow.internal.Loader
 import inflow.utils.TestTracker
-import inflow.utils.runTestWithJob
+import inflow.utils.runTest
 import inflow.utils.track
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runBlockingTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -19,11 +17,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-@ExperimentalCoroutinesApi
 class LoaderTest : BaseTest() {
 
     @Test
-    fun `IF loaded THEN loading state is tracked`() = runBlockingTest {
+    fun `IF loaded THEN loading state is tracked`() = runTest {
         val loader = Loader(logId, this) { delay(100L) }
         loader.load(repeatIfRunning = false)
 
@@ -33,7 +30,7 @@ class LoaderTest : BaseTest() {
     }
 
     @Test
-    fun `IF exception THEN loading state is tracked`() = runBlockingTest {
+    fun `IF exception THEN loading state is tracked`() = runTest {
         val loader = Loader(logId, this) {
             delay(100L)
             throw RuntimeException()
@@ -46,7 +43,7 @@ class LoaderTest : BaseTest() {
     }
 
     @Test
-    fun `IF exception THEN error is tracked`() = runBlockingTest {
+    fun `IF exception THEN error is tracked`() = runTest {
         val exception = RuntimeException()
         val loader = Loader(logId, this) {
             delay(100L)
@@ -60,7 +57,7 @@ class LoaderTest : BaseTest() {
     }
 
     @Test
-    fun `IF started THEN error is cleared`() = runBlockingTest {
+    fun `IF started THEN error is cleared`() = runTest {
         val loader = Loader(logId, this) {
             delay(100L)
             throw RuntimeException()
@@ -76,7 +73,7 @@ class LoaderTest : BaseTest() {
 
 
     @Test
-    fun `IF started several times THEN one action runs at a time`() = runBlockingTest {
+    fun `IF started several times THEN one action runs at a time`() = runTest {
         val loader = Loader(logId, this) { delay(100L) }
 
         val job1 = loader.load(repeatIfRunning = false)
@@ -92,7 +89,7 @@ class LoaderTest : BaseTest() {
 
 
     @Test
-    fun `IF started with repeat and already running THEN extra action`() = runTestWithJob { job ->
+    fun `IF started with repeat and already running THEN extra action`() = runTest { job ->
         val loader = Loader(logId, this) {
             delay(100L)
             throw RuntimeException()

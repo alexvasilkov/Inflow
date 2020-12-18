@@ -3,8 +3,7 @@ package inflow.operators
 import inflow.BaseTest
 import inflow.InflowConnectivity
 import inflow.internal.asSignalingFlow
-import inflow.utils.runTestWithJob
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import inflow.utils.runTest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -12,11 +11,10 @@ import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-@ExperimentalCoroutinesApi
 class AsSignalFlowTest : BaseTest() {
 
     @Test
-    fun `IF offline THEN start as online and repeat when re-connected`() = runTestWithJob { job ->
+    fun `IF offline THEN start as online and repeat when re-connected`() = runTest { job ->
         val connected = MutableStateFlow(false)
         val connectivity = object : InflowConnectivity {
             override val connected = connected
@@ -39,7 +37,7 @@ class AsSignalFlowTest : BaseTest() {
     }
 
     @Test
-    fun `IF online THEN start as online and repeat when re-connected`() = runTestWithJob { job ->
+    fun `IF online THEN start as online and repeat when re-connected`() = runTest { job ->
         val connected = MutableStateFlow(true)
         val connectivity = object : InflowConnectivity {
             override val connected = connected
@@ -60,7 +58,7 @@ class AsSignalFlowTest : BaseTest() {
     }
 
     @Test
-    fun `IF no connectivity provider THEN start as online`() = runTestWithJob { job ->
+    fun `IF no connectivity provider THEN start as online`() = runTest { job ->
         var count = 0
         launch(job) { null.asSignalingFlow().collect { count++ } }
 

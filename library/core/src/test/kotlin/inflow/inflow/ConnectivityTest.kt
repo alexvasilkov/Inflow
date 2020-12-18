@@ -3,9 +3,8 @@ package inflow.inflow
 import inflow.BaseTest
 import inflow.InflowConnectivity
 import inflow.utils.TestItem
-import inflow.utils.runTestWithJob
+import inflow.utils.runTest
 import inflow.utils.testInflow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -14,11 +13,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-@ExperimentalCoroutinesApi
 class ConnectivityTest : BaseTest() {
 
     @Test
-    fun `IF error in loader THEN connectivity triggers retry`() = runTestWithJob { job ->
+    fun `IF error in loader THEN connectivity triggers retry`() = runTest { job ->
         val connectivityState = MutableStateFlow(true)
 
         var counter = 0
@@ -44,7 +42,7 @@ class ConnectivityTest : BaseTest() {
     }
 
     @Test
-    fun `IF data is not expired THEN connectivity does not force retry`() = runTestWithJob { job ->
+    fun `IF data is not expired THEN connectivity does not force retry`() = runTest { job ->
         val connectivityState = MutableStateFlow(true)
 
         var counter = 0L
@@ -67,7 +65,7 @@ class ConnectivityTest : BaseTest() {
     }
 
     @Test
-    fun `IF not connected THEN still call initial update`() = runTestWithJob { job ->
+    fun `IF not connected THEN still call initial update`() = runTest { job ->
         val inflow = testInflow {
             connectivity(object : InflowConnectivity {
                 override val connected = MutableStateFlow(false)

@@ -1,9 +1,8 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.utils.runTestWithJob
+import inflow.utils.runTest
 import inflow.utils.testInflow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -12,11 +11,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-@ExperimentalCoroutinesApi
 class ErrorStateTest : BaseTest() {
 
     @Test
-    fun `IF exception THEN error is collected`() = runTestWithJob { job ->
+    fun `IF exception THEN error is collected`() = runTest { job ->
         val inflow = testInflow {
             loader {
                 delay(100L)
@@ -45,7 +43,7 @@ class ErrorStateTest : BaseTest() {
     }
 
     @Test
-    fun `IF refresh is forced THEN error is propagated only once `() = runTestWithJob { job ->
+    fun `IF refresh is forced THEN error is propagated only once `() = runTest { job ->
         val inflow = testInflow {
             loader {
                 delay(100L)

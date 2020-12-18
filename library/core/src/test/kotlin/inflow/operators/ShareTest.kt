@@ -8,6 +8,7 @@ import inflow.internal.share
 import inflow.utils.AtomicInt
 import inflow.utils.log
 import inflow.utils.runStressTest
+import inflow.utils.runThreads
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
@@ -67,7 +67,7 @@ class ShareTest : BaseTest() {
     private fun testWithTimeout(
         keepSubscribedTimeout: Long,
         flow: Flow<Unit?> = MutableStateFlow(null)
-    ): Int = runBlocking(Dispatchers.IO) {
+    ): Int = runThreads {
         val cacheState = AtomicInt()
         val cacheCalls = AtomicInt()
 

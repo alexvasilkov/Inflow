@@ -2,18 +2,16 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.inflow
+import inflow.utils.runTest
 import inflow.utils.testInflow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.test.runBlockingTest
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
-@ExperimentalCoroutinesApi
 class ConfigTest : BaseTest() {
 
     @Test
-    fun `IF no cache THEN error`() = runBlockingTest {
+    fun `IF no cache THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
             inflow {
                 cacheWriter {}
@@ -23,7 +21,7 @@ class ConfigTest : BaseTest() {
     }
 
     @Test
-    fun `IF no cache writer THEN error`() = runBlockingTest {
+    fun `IF no cache writer THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
             inflow {
                 cache(emptyFlow())
@@ -33,7 +31,7 @@ class ConfigTest : BaseTest() {
     }
 
     @Test
-    fun `IF cache timeout is negative THEN error`() = runBlockingTest {
+    fun `IF cache timeout is negative THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
             testInflow {
                 cacheKeepSubscribedTimeout(-1L)
@@ -42,7 +40,7 @@ class ConfigTest : BaseTest() {
     }
 
     @Test
-    fun `IF no loader THEN error`() = runBlockingTest {
+    fun `IF no loader THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
             inflow {
                 cache(emptyFlow<Unit>())
@@ -52,7 +50,7 @@ class ConfigTest : BaseTest() {
     }
 
     @Test
-    fun `IF retry time is 0 THEN error`() = runBlockingTest {
+    fun `IF retry time is 0 THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
             testInflow {
                 loadRetryTime(0L)
