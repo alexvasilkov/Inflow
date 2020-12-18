@@ -2,7 +2,7 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.utils.TestTracker
-import inflow.utils.runBlockingTestWithJob
+import inflow.utils.runTestWithJob
 import inflow.utils.testInflow
 import inflow.utils.track
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 class LoadingStateTest : BaseTest() {
 
     @Test
-    fun `Loading is triggered by refresh`() = runBlockingTestWithJob { job ->
+    fun `IF refresh is called TEHN loading is triggered`() = runTestWithJob { job ->
         val tracker = TestTracker()
         val inflow = testInflow {}
 
@@ -37,44 +37,46 @@ class LoadingStateTest : BaseTest() {
     }
 
     @Test
-    fun `Loading is triggered by cache`() = runBlockingTestWithJob { job ->
-        val tracker = TestTracker()
-        val inflow = testInflow {}
+    fun `IF data is subscribed with autoRefresh=true THEN loading is triggered`() =
+        runTestWithJob { job ->
+            val tracker = TestTracker()
+            val inflow = testInflow {}
 
-        launch(job) {
-            inflow.loading().track(tracker)
+            launch(job) {
+                inflow.loading().track(tracker)
+            }
+
+            assertEquals(TestTracker(0, 1), tracker, "Not loading by default")
+
+            // Briefly subscribing to trigger refresh
+            launch(job) { inflow.data().take(1).collect() }
+
+            assertEquals(TestTracker(1, 1), tracker, "Refresh is started but not finished")
+
+            delay(100L)
+
+            assertEquals(TestTracker(1, 2), tracker, "Refresh is finished")
         }
-
-        assertEquals(TestTracker(0, 1), tracker, "Not loading by default")
-
-        // Briefly subscribing to trigger refresh
-        launch(job) { inflow.data().take(1).collect() }
-
-        assertEquals(TestTracker(1, 1), tracker, "Refresh is started but not finished")
-
-        delay(100L)
-
-        assertEquals(TestTracker(1, 2), tracker, "Refresh is finished")
-    }
 
     @Test
-    fun `Loading is not triggered by cache with no autoRefresh`() = runBlockingTestWithJob { job ->
-        val tracker = TestTracker()
-        val inflow = testInflow {}
+    fun `IF data is subscribed with autoRefresh=false THEN loading is not triggered`() =
+        runTestWithJob { job ->
+            val tracker = TestTracker()
+            val inflow = testInflow {}
 
-        launch(job) {
-            inflow.loading().track(tracker)
+            launch(job) {
+                inflow.loading().track(tracker)
+            }
+
+            assertEquals(TestTracker(0, 1), tracker, "Not loading by default")
+
+            launch(job) {
+                inflow.data(autoRefresh = false).take(1).collect()
+            }
+
+            delay(1000L)
+
+            assertEquals(TestTracker(0, 1), tracker, "Loading never started")
         }
-
-        assertEquals(TestTracker(0, 1), tracker, "Not loading by default")
-
-        launch(job) {
-            inflow.data(autoRefresh = false).take(1).collect()
-        }
-
-        delay(1000L)
-
-        assertEquals(TestTracker(0, 1), tracker, "Loading never started")
-    }
 
 }

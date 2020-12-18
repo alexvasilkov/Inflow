@@ -25,7 +25,7 @@ import kotlin.test.assertFailsWith
  * Useful to run long-running tasks that should be canceled in the end of the test.
  */
 @ExperimentalCoroutinesApi
-internal fun runBlockingTestWithJob(testBody: suspend TestCoroutineScope.(Job) -> Unit) {
+internal fun runTestWithJob(testBody: suspend TestCoroutineScope.(Job) -> Unit) {
     runBlockingTest {
         val job = Job()
         try {

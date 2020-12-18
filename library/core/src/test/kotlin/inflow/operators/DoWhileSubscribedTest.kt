@@ -29,59 +29,61 @@ import kotlin.test.assertTrue
 class DoWhileSubscribedTest : BaseTest() {
 
     @Test
-    fun `Can track flow subscribers`() = runBlockingTest {
-        val flow = MutableStateFlow(0)
+    fun `IF collecting THEN job started and stopped`() =
+        runBlockingTest {
+            val flow = MutableStateFlow(0)
 
-        var subscribed = false
-        val tracked = flow.doWhileSubscribed {
-            launch {
-                subscribed = true
+            var subscribed = false
+            val tracked = flow.doWhileSubscribed {
+                launch {
+                    subscribed = true
 
-                suspendCancellableCoroutine {
-                    it.invokeOnCancellation {
-                        subscribed = false
+                    suspendCancellableCoroutine {
+                        it.invokeOnCancellation {
+                            subscribed = false
+                        }
                     }
                 }
             }
+
+            delay(100L)
+
+            assertFalse(subscribed, "Not subscribed in the beginning")
+
+            launch {
+                // Subscribing and waiting a bit to allow value observation
+                tracked.take(1).collect { delay(100L) }
+            }
+
+            assertTrue(subscribed, "Subscribed")
+
+            delay(100L)
+
+            assertFalse(subscribed, "Not subscribed in the end")
         }
-
-        delay(100L)
-
-        assertFalse(subscribed, "Not subscribed in the beginning")
-
-        launch {
-            // Subscribing and waiting a bit to allow value observation
-            tracked.take(1).collect { delay(100L) }
-        }
-
-        assertTrue(subscribed, "Subscribed")
-
-        delay(100L)
-
-        assertFalse(subscribed, "Not subscribed in the end")
-    }
 
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `Can track flow subscribers -- real threading`(): Unit = runBlocking(Dispatchers.IO) {
-        val state = AtomicInt()
-        val flow = MutableStateFlow(0)
-        val tracked = flow.doWhileSubscribed {
-            launch {
-                state.getAndIncrement()
+    fun `IF collecting from several threads THEN job is started and stopped`() =
+        runBlocking(Dispatchers.IO) {
+            val state = AtomicInt()
+            val flow = MutableStateFlow(0)
+            val tracked = flow.doWhileSubscribed {
+                launch {
+                    state.getAndIncrement()
 
-                suspendCancellableCoroutine {
-                    it.invokeOnCancellation {
-                        state.decrementAndGet()
+                    suspendCancellableCoroutine {
+                        it.invokeOnCancellation {
+                            state.decrementAndGet()
+                        }
                     }
                 }
             }
+
+            runStressTest(logId, STRESS_RUNS) { tracked.first() }
+
+            assertEquals(expected = 0, actual = state.get(), "Tracked job is cancelled")
         }
-
-        runStressTest(logId, STRESS_RUNS) { tracked.first() }
-
-        assertEquals(expected = 0, actual = state.get(), "Tracked job is cancelled")
-    }
 
 }

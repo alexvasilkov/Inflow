@@ -1,7 +1,7 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.utils.runBlockingTestWithJob
+import inflow.utils.runTestWithJob
 import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -16,7 +16,7 @@ import kotlin.test.assertNull
 class ErrorStateTest : BaseTest() {
 
     @Test
-    fun `Error is propagated`() = runBlockingTestWithJob { job ->
+    fun `IF exception THEN error is collected`() = runTestWithJob { job ->
         val inflow = testInflow {
             loader {
                 delay(100L)
@@ -35,20 +35,17 @@ class ErrorStateTest : BaseTest() {
         inflow.refresh()
 
         delay(100L)
-
         assertNotNull(error, "Error is collected")
 
         inflow.refresh()
-
         assertNull(error, "Error in cleared when starting loading")
 
         delay(100L)
-
         assertNotNull(error, "Error is collected again")
     }
 
     @Test
-    fun `Error is propagated only once if refresh is forced`() = runBlockingTestWithJob { job ->
+    fun `IF refresh is forced THEN error is propagated only once `() = runTestWithJob { job ->
         val inflow = testInflow {
             loader {
                 delay(100L)

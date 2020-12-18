@@ -3,7 +3,7 @@ package inflow.inflow
 import inflow.BaseTest
 import inflow.InflowConnectivity
 import inflow.utils.TestItem
-import inflow.utils.runBlockingTestWithJob
+import inflow.utils.runTestWithJob
 import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -18,7 +18,7 @@ import kotlin.test.assertNotNull
 class ConnectivityTest : BaseTest() {
 
     @Test
-    fun `Connectivity forces data loading retry`() = runBlockingTestWithJob { job ->
+    fun `IF error in loader THEN connectivity triggers retry`() = runTestWithJob { job ->
         val connectivityState = MutableStateFlow(true)
 
         var counter = 0
@@ -36,7 +36,7 @@ class ConnectivityTest : BaseTest() {
         // Running auto-refreshing
         launch(job) { inflow.data().collect() }
 
-        assertEquals(expected = 1, actual = counter, "Loading in the beginning")
+        assertEquals(expected = 1, actual = counter, "Loaded on subscription")
 
         connectivityState.emit(false)
         connectivityState.emit(true)
@@ -44,7 +44,7 @@ class ConnectivityTest : BaseTest() {
     }
 
     @Test
-    fun `Connectivity does not force non-expired data update`() = runBlockingTestWithJob { job ->
+    fun `IF data is not expired THEN connectivity does not force retry`() = runTestWithJob { job ->
         val connectivityState = MutableStateFlow(true)
 
         var counter = 0L
@@ -59,7 +59,7 @@ class ConnectivityTest : BaseTest() {
         // Running auto-refreshing
         launch(job) { inflow.data().collect() }
 
-        assertEquals(expected = 1, actual = counter, "Loading in the beginning")
+        assertEquals(expected = 1, actual = counter, "Loaded on subscription")
 
         connectivityState.emit(false)
         connectivityState.emit(true)
@@ -67,7 +67,7 @@ class ConnectivityTest : BaseTest() {
     }
 
     @Test
-    fun `No connectivity should still call the update`() = runBlockingTestWithJob { job ->
+    fun `IF not connected THEN still call initial update`() = runTestWithJob { job ->
         val inflow = testInflow {
             connectivity(object : InflowConnectivity {
                 override val connected = MutableStateFlow(false)
@@ -79,7 +79,7 @@ class ConnectivityTest : BaseTest() {
         launch(job) { inflow.data().collect { item = it } }
 
         delay(100L)
-        assertNotNull(item, "Loading in the beginning")
+        assertNotNull(item, "Loaded on subscription")
     }
 
 }

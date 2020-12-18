@@ -6,7 +6,7 @@ import inflow.latest
 import inflow.map
 import inflow.utils.TestItem
 import inflow.utils.TestTracker
-import inflow.utils.runBlockingTestWithJob
+import inflow.utils.runTestWithJob
 import inflow.utils.testInflow
 import inflow.utils.track
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,7 +21,7 @@ import kotlin.test.assertSame
 class TransformTest : BaseTest() {
 
     @Test
-    fun `Mapped inflow has same loading state`() = runBlockingTestWithJob { job ->
+    fun `IF mapped THEN same loading state`() = runTestWithJob { job ->
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 
@@ -36,7 +36,7 @@ class TransformTest : BaseTest() {
     }
 
     @Test
-    fun `Mapped inflow has same error state`() = runBlockingTest {
+    fun `IF mapped THEN same error state`() = runBlockingTest {
         val inflow: Inflow<TestItem?> = testInflow {
             loader { throw RuntimeException() }
         }
@@ -47,7 +47,7 @@ class TransformTest : BaseTest() {
     }
 
     @Test
-    fun `Mapped inflow has correct data`() = runBlockingTest {
+    fun `IF mapped THEN mapped data`() = runBlockingTest {
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 
@@ -59,7 +59,7 @@ class TransformTest : BaseTest() {
     }
 
     @Test
-    fun `Mapped inflow is caching flows`() = runBlockingTest {
+    fun `IF mapped THEN mapped data flows are cached`() = runBlockingTest {
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 
@@ -77,7 +77,7 @@ class TransformTest : BaseTest() {
     }
 
     @Test
-    fun `Mapped inflow can be refreshed with join`() = runBlockingTest {
+    fun `IF mapped THEN can be refreshed with join`() = runBlockingTest {
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 
@@ -85,7 +85,7 @@ class TransformTest : BaseTest() {
     }
 
     @Test
-    fun `Mapped inflow can be refreshed with await`() = runBlockingTest {
+    fun `IF mapped THEN can be refreshed with await`() = runBlockingTest {
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
 

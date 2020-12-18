@@ -7,7 +7,7 @@ import inflow.inflow
 import inflow.utils.TestItem
 import inflow.utils.assertCrash
 import inflow.utils.now
-import inflow.utils.runBlockingTestWithJob
+import inflow.utils.runTestWithJob
 import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -25,8 +25,8 @@ import kotlin.test.assertTrue
 class ExpirationTest : BaseTest() {
 
     @Test
-    fun `ExpiresIfNull -- One update and few retries for null value`() =
-        runBlockingTestWithJob { job ->
+    fun `(ExpiresIfNull) IF cache is null and cannot load THEN update and few retries`() =
+        runTestWithJob { job ->
             var counter = 0
             val inflow = testInflow {
                 loader {
@@ -43,8 +43,8 @@ class ExpirationTest : BaseTest() {
         }
 
     @Test
-    fun `ExpiresIfNull -- One update and no retries for null value`() =
-        runBlockingTestWithJob { job ->
+    fun `(ExpiresIfNull) IF cache is null and can load THEN update and no retries`() =
+        runTestWithJob { job ->
             var counter = 0
             val inflow = testInflow {
                 loader {
@@ -61,8 +61,8 @@ class ExpirationTest : BaseTest() {
         }
 
     @Test
-    fun `ExpiresIfNull -- No update and no retries for non-null value`() =
-        runBlockingTestWithJob { job ->
+    fun `(ExpiresIfNull) IF cache is not null THEN no update and no retries`() =
+        runTestWithJob { job ->
             var counter = 0
             val inflow = testInflow {
                 cache(MutableStateFlow(TestItem(0L)))
@@ -81,14 +81,14 @@ class ExpirationTest : BaseTest() {
 
 
     @Test
-    fun `ExpiresIn -- Duration cannot be zero`() = runBlockingTest {
+    fun `(ExpiresIn) IF duration is 0 THEN error`() = runBlockingTest {
         assertFailsWith<IllegalArgumentException> {
             ExpiresIn<TestItem?>(0L)
         }
     }
 
     @Test
-    fun `ExpiresIn -- Expiration updates are called`() = runBlockingTestWithJob { job ->
+    fun `(ExpiresIn) IF cache is expiring THEN updates are called`() = runTestWithJob { job ->
         var counter = 0
         val inflow = testInflow {
             loader {
@@ -110,7 +110,7 @@ class ExpirationTest : BaseTest() {
     }
 
     @Test
-    fun `ExpiresIn -- 'LoadedAt' variant uses loadedAt value`() = runBlockingTest {
+    fun `(ExpiresIn) IF 'LoadedAt' provided THEN loadedAt value is used`() = runBlockingTest {
         val strategy = ExpiresIn<TestItem?>(200L)
 
         // Nullable strategy
@@ -123,7 +123,7 @@ class ExpirationTest : BaseTest() {
 
 
     @Test
-    fun `Loader cannot return stale data -- real threading`(): Unit = runBlocking {
+    fun `IF loader returns stale data THEN crash`(): Unit = runBlocking {
         assertCrash<AssertionError> {
             val inflow = inflow<Unit?> {
                 cacheInMemory(null)

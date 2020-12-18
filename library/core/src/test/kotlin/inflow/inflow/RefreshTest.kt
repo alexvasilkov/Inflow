@@ -19,57 +19,60 @@ import kotlin.test.assertNull
 class RefreshTest : BaseTest() {
 
     @Test
-    fun `Can refresh the data`() = runBlockingTest {
-        val inflow = testInflow {}
+    fun `IF refresh is called THEN data is loaded`() =
+        runBlockingTest {
+            val inflow = testInflow {}
 
-        inflow.refresh()
+            inflow.refresh()
 
-        assertNull(inflow.latest(), "Starts with null")
+            assertNull(inflow.latest(), "Starts with null")
 
-        delay(100L)
-        assertNotNull(inflow.latest(), "Item is loaded")
-    }
-
-    @Test
-    fun `Can refresh the data with forced repeat`() = runBlockingTest {
-        val inflow = testInflow {}
-
-        inflow.refresh()
-
-        // Forcing second refresh
-        delay(50L)
-        inflow.refresh(repeatIfRunning = true)
-
-        assertNull(inflow.latest(), "Starts with null")
-
-        // First item is loaded
-        delay(50L)
-        val item2 = inflow.latest()
-        assertNotNull(item2, "Item is loaded")
-        assertEquals(expected = currentTime, item2.loadedAt, "Fresh item is loaded")
-
-        // Second item is loaded
-        delay(100L)
-        val item3 = inflow.latest()
-        assertNotNull(item3, "Item is loaded")
-        assertEquals(expected = currentTime, item3.loadedAt, "Fresh item is loaded")
-    }
-
-    @Test
-    fun `Can refresh the data blocking -- real threading`(): Unit = runBlocking(Dispatchers.IO) {
-        val inflow = inflow {
-            cacheInMemory { TestItem(0L) }
-            @Suppress("BlockingMethodInNonBlockingContext")
-            loader {
-                Thread.sleep(50L)
-                TestItem(1L)
-            }
+            delay(100L)
+            assertNotNull(inflow.latest(), "Item is loaded")
         }
 
-        inflow.refresh().join()
+    @Test
+    fun `IF refresh is called with repeatIfRunning=true THEN loading is repeated`() =
+        runBlockingTest {
+            val inflow = testInflow {}
 
-        delay(10L) // We have to delay to ensure cache data is propagated
-        assertEquals(expected = TestItem(1L), actual = inflow.latest(), "New item is loaded")
-    }
+            inflow.refresh()
+
+            // Forcing second refresh
+            delay(50L)
+            inflow.refresh(repeatIfRunning = true)
+
+            assertNull(inflow.latest(), "Starts with null")
+
+            // First item is loaded
+            delay(50L)
+            val item2 = inflow.latest()
+            assertNotNull(item2, "Item is loaded")
+            assertEquals(expected = currentTime, item2.loadedAt, "Fresh item is loaded")
+
+            // Second item is loaded
+            delay(100L)
+            val item3 = inflow.latest()
+            assertNotNull(item3, "Item is loaded")
+            assertEquals(expected = currentTime, item3.loadedAt, "Fresh item is loaded")
+        }
+
+    @Test
+    fun `IF refresh is called with blocking loader THEN data is loaded`(): Unit =
+        runBlocking(Dispatchers.IO) {
+            val inflow = inflow {
+                cacheInMemory { TestItem(0L) }
+                @Suppress("BlockingMethodInNonBlockingContext")
+                loader {
+                    Thread.sleep(50L)
+                    TestItem(1L)
+                }
+            }
+
+            inflow.refresh().join()
+
+            delay(10L) // We have to delay to ensure cache data is propagated
+            assertEquals(expected = TestItem(1L), actual = inflow.latest(), "New item is loaded")
+        }
 
 }

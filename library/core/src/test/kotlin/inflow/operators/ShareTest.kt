@@ -6,6 +6,7 @@ import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.internal.share
 import inflow.utils.AtomicInt
+import inflow.utils.log
 import inflow.utils.runStressTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +29,7 @@ class ShareTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `Infinite flow is subscribed only once if timeout == 100L`() {
+    fun `IF timeout=100 THEN flow is subscribed only once`() {
         val count = testWithTimeout(100L)
         assertEquals(expected = 1, actual = count, "Cache should only be subscribed once")
     }
@@ -36,7 +37,7 @@ class ShareTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `Finite flow is subscribed only once if timeout == 100L`() {
+    fun `IF timeout=100 THEN finite flow is subscribed only once`() {
         val flow = flowOf(null)
         val count = testWithTimeout(100L, flow)
         assertEquals(expected = 1, actual = count, "Cache should only be subscribed once")
@@ -45,7 +46,7 @@ class ShareTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `Subscribed several times if timeout == 1L`() {
+    fun `IF timeout=1 THEN flow is subscribed several times with no deadlocks`() {
         val count = testWithTimeout(1L)
         assertTrue(count >= 1, "Cache should be subscribed at least once")
     }
@@ -53,7 +54,7 @@ class ShareTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `Subscribed several times if timeout == 0L`() {
+    fun `IF timeout=0 THEN flow is subscribed several times with no deadlocks`() {
         val count = testWithTimeout(0L)
         assertTrue(count > 1, "Cache should be subscribed several times")
     }
@@ -94,7 +95,7 @@ class ShareTest : BaseTest() {
 
         assertEquals(expected = 0, actual = cacheState.get(), "Cache job is finished")
 
-        println("Cache subscribed ${cacheCalls.get()} time(s)")
+        log(logId) { "Cache subscribed ${cacheCalls.get()} time(s)" }
         cacheCalls.get()
     }
 

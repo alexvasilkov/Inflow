@@ -6,7 +6,7 @@ import inflow.latest
 import inflow.utils.AtomicInt
 import inflow.utils.TestItem
 import inflow.utils.assertCrash
-import inflow.utils.runBlockingTestWithJob
+import inflow.utils.runTestWithJob
 import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
@@ -25,32 +25,7 @@ import kotlin.test.assertNull
 class CacheTest : BaseTest() {
 
     @Test
-    fun `In-memory cache is working as expected`() = runBlockingTestWithJob { job ->
-        val inflow = testInflow {
-            cacheInMemory(null)
-        }
-
-        var dataAuto: TestItem? = TestItem(Long.MIN_VALUE)
-        var dataCache: TestItem? = TestItem(Long.MIN_VALUE)
-
-        launch(job) {
-            inflow.data().collect { dataAuto = it }
-        }
-
-        launch(job) {
-            // Second cache listener, just to be sure
-            inflow.data(autoRefresh = false).collect { dataCache = it }
-        }
-
-        delay(100L)
-
-        assertNotNull(dataAuto, "Data is loaded -- auto")
-        assertNotNull(dataCache, "Data is loaded -- cache")
-        assertEquals(dataAuto, dataCache, "Same data is loaded")
-    }
-
-    @Test
-    fun `Cache is subscribed if has subscribers`() = runBlockingTestWithJob { job ->
+    fun `IF inflow has subscribers THEN cache is subscribed`() = runTestWithJob { job ->
         val cacheCalls = AtomicInt()
 
         val cache = flow { // Cold cache flow
@@ -104,7 +79,7 @@ class CacheTest : BaseTest() {
     }
 
     @Test
-    fun `Cache can be slow`() = runBlockingTest {
+    fun `IF cache is slow THEN data can still be collected`() = runBlockingTest {
         val flow = flow { // Cold cache flow
             delay(1000L)
             emit(TestItem(0))
@@ -126,7 +101,45 @@ class CacheTest : BaseTest() {
     }
 
     @Test
-    fun `In-memory cache initialized only once`() = runBlockingTest {
+    fun `IF cache throws exception THEN crash`() = runBlocking {
+        assertCrash<RuntimeException> {
+            val inflow = inflow {
+                cache(flow<Unit> { throw RuntimeException() })
+                cacheWriter {}
+                loader {}
+            }
+
+            inflow.refresh()
+        }
+    }
+
+    @Test
+    fun `IF in-memory cache is used THEN data is cached`() = runTestWithJob { job ->
+        val inflow = testInflow {
+            cacheInMemory(null)
+        }
+
+        var dataAuto: TestItem? = TestItem(Long.MIN_VALUE)
+        var dataCache: TestItem? = TestItem(Long.MIN_VALUE)
+
+        launch(job) {
+            inflow.data().collect { dataAuto = it }
+        }
+
+        launch(job) {
+            // Second cache listener, just to be sure
+            inflow.data(autoRefresh = false).collect { dataCache = it }
+        }
+
+        delay(100L)
+
+        assertNotNull(dataAuto, "Data is loaded -- auto")
+        assertNotNull(dataCache, "Data is loaded -- cache")
+        assertEquals(dataAuto, dataCache, "Same data is loaded")
+    }
+
+    @Test
+    fun `IF in-memory cache is used THEN it is initialized only once`() = runBlockingTest {
         var count = 0
         val inflow = testInflow {
             cacheInMemoryDeferred {
@@ -148,19 +161,6 @@ class CacheTest : BaseTest() {
         assertNotNull(item2, "Item 2 is loaded")
 
         assertEquals(expected = 1, count, "Cache initializer is called only once")
-    }
-
-    @Test
-    fun `Cache can throw uncaught exception`() = runBlocking {
-        assertCrash<RuntimeException> {
-            val inflow = inflow {
-                cache(flow<Unit> { throw RuntimeException() })
-                cacheWriter {}
-                loader {}
-            }
-
-            inflow.refresh()
-        }
     }
 
 }

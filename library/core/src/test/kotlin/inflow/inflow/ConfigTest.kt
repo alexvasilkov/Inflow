@@ -13,7 +13,7 @@ import kotlin.test.assertFailsWith
 class ConfigTest : BaseTest() {
 
     @Test
-    fun `Cache is required`() = runBlockingTest {
+    fun `IF no cache THEN error`() = runBlockingTest {
         assertFailsWith<IllegalArgumentException> {
             inflow {
                 cacheWriter {}
@@ -23,7 +23,7 @@ class ConfigTest : BaseTest() {
     }
 
     @Test
-    fun `Cache writer is required`() = runBlockingTest {
+    fun `IF no cache writer THEN error`() = runBlockingTest {
         assertFailsWith<IllegalArgumentException> {
             inflow {
                 cache(emptyFlow())
@@ -33,7 +33,7 @@ class ConfigTest : BaseTest() {
     }
 
     @Test
-    fun `Cache timeout is not negative`() = runBlockingTest {
+    fun `IF cache timeout is negative THEN error`() = runBlockingTest {
         assertFailsWith<IllegalArgumentException> {
             testInflow {
                 cacheKeepSubscribedTimeout(-1L)
@@ -42,7 +42,7 @@ class ConfigTest : BaseTest() {
     }
 
     @Test
-    fun `Loader is required`() = runBlockingTest {
+    fun `IF no loader THEN error`() = runBlockingTest {
         assertFailsWith<IllegalArgumentException> {
             inflow {
                 cache(emptyFlow<Unit>())
@@ -52,7 +52,7 @@ class ConfigTest : BaseTest() {
     }
 
     @Test
-    fun `Retry time is positive`() = runBlockingTest {
+    fun `IF retry time is 0 THEN error`() = runBlockingTest {
         assertFailsWith<IllegalArgumentException> {
             testInflow {
                 loadRetryTime(0L)
