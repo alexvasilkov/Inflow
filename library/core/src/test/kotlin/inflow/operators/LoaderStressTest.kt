@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class LoaderStressTest : BaseTest() {
@@ -56,6 +57,15 @@ class LoaderStressTest : BaseTest() {
 
         println("Loads: ${loads.get()}")
         assertTrue(loads.get() in expectedRange, "One action can run at a time")
+    }
+
+    @Test
+    @Tag(STRESS_TAG)
+    @Timeout(STRESS_TIMEOUT)
+    fun `Repeat-if-running results in a single item + await2`() = runBlocking(Dispatchers.IO) {
+        val loader = Loader(logId, this) {}
+        runStressTest(logId, STRESS_RUNS) { loader.load(repeatIfRunning = true).await() }
+        assertFalse(loader.loading.value, "Finished in the end")
     }
 
 }

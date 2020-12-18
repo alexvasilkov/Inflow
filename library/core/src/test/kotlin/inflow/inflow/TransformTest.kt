@@ -59,6 +59,24 @@ class TransformTest : BaseTest() {
     }
 
     @Test
+    fun `Mapped inflow is caching flows`() = runBlockingTest {
+        val inflow: Inflow<TestItem?> = testInflow {}
+        val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }
+
+        assertSame(
+            mapped.data(autoRefresh = false),
+            mapped.data(autoRefresh = false),
+            "Cached flow is re-used"
+        )
+
+        assertSame(
+            mapped.data(autoRefresh = true),
+            mapped.data(autoRefresh = true),
+            "Auto flow is re-used"
+        )
+    }
+
+    @Test
     fun `Mapped inflow can be refreshed with join`() = runBlockingTest {
         val inflow: Inflow<TestItem?> = testInflow {}
         val mapped: Inflow<Long?> = inflow.map { it?.loadedAt }

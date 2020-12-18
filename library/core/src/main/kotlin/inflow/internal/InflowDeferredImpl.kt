@@ -36,9 +36,6 @@ internal class InflowDeferredImpl<T> : InflowDeferred<T> {
      * Un-sets REPEAT state, if set.
      */
     fun skipRepeat() {
-        // Weak assertion, just a best effort to check for possible state issues
-        require(_state.value != FINISHING) { "State must not be FINISHING" }
-
         _state.compareAndSet(expect = REPEAT, update = ACTIVE)
     }
 
@@ -46,9 +43,6 @@ internal class InflowDeferredImpl<T> : InflowDeferred<T> {
      * Tries to set the job into FINISHING state, returns `false` if the job should be repeated.
      */
     fun setFinishingIfNoRepeat(): Boolean {
-        // Weak assertion, just a best effort to check for possible state issues
-        require(_state.value != FINISHING) { "State must not be FINISHING" }
-
         return _state.compareAndSet(expect = ACTIVE, update = FINISHING)
     }
 
