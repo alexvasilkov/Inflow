@@ -3,22 +3,24 @@ package inflow
 import inflow.utils.now
 
 /**
- * Expiration time provider to control when the data should be automatically refreshed.
+ * Expiration time provider to control when the data should be automatically refreshed (or
+ * invalidated).
  *
- * Default providers are available with: [ExpiresIfNull] and [ExpiresIn].
+ * Default implementations: [ExpiresIfNull], [ExpiresIn].
  */
 interface ExpirationProvider<T> {
     /**
      * Relative time in milliseconds after which given data will expire and should be automatically
-     * refreshed. In other words, how many milliseconds (from now) the data can be considered fresh.
+     * refreshed (or invalidated).
+     * In other words, how many milliseconds (from now) the data can be considered fresh (or valid).
      *
-     * Return `0L` if the data should be refreshed immediately.
+     * Return `0L` if the data should be refreshed (or invalidated) immediately.
      *
-     * Return `Long.MAX_VALUE` if the data should never be refreshed automatically.
+     * Return `Long.MAX_VALUE` if the data should never be refreshed (or invalidated) automatically.
      */
     fun expiresIn(data: T): Long
-
 }
+
 
 private val ifNull = object : ExpirationProvider<Any?> {
     override fun expiresIn(data: Any?) = if (data == null) 0L else Long.MAX_VALUE
@@ -31,11 +33,13 @@ private val ifNull = object : ExpirationProvider<Any?> {
 fun <T> ExpiresIfNull(): ExpirationProvider<T> = ifNull as ExpirationProvider<T>
 
 /**
- * Refresh the data after given duration, provided that we know data's last loaded time.
+ * Refreshes (or invalidates) the data after given duration, provided that we know data's last
+ * loaded time.
  *
- * If the data was never loaded then provider is expected to return `0L`.
+ * If the data was never loaded then [loadedAt] provider is expected to return `0L`.
  *
- * Use `Long.MAX_VALUE` as duration if you don't want the data to be automatically refreshed.
+ * Use `Long.MAX_VALUE` as duration if you don't want the data to be automatically refreshed
+ * (or invalidated).
  *
  * All times are in milliseconds.
  */
@@ -56,7 +60,7 @@ fun <T> ExpiresIn(duration: Long, loadedAt: T.() -> Long): ExpirationProvider<T>
 }
 
 /**
- * Refresh the data defined with [LoadedAt] interface after given duration.
+ * Refreshes (or invalidates) the data defined with [LoadedAt] interface after given duration.
  *
  * Use `Long.MAX_VALUE` as duration if you don't want the data to be automatically refreshed
  * (unless the data is `null`).
@@ -68,12 +72,12 @@ fun <T : LoadedAt?> ExpiresIn(duration: Long): ExpirationProvider<T> {
 
 
 /**
- * Marks data that knows when it was loaded.
+ * Marks the data that knows when it was loaded.
  *
  * If the data was never loaded then it is expected to return `0L`.
  *
  * Note: given a list of [LoadedAt] items we can calculate its overall loaded time as
- * `list.minOfOrNull { it.loadedAt } ?: 0`.
+ * `list.minOfOrNull { it.loadedAt } ?: 0L`.
  */
 interface LoadedAt {
     /**

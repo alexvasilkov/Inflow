@@ -58,8 +58,8 @@ class RefreshTest : BaseTest() {
     fun `IF refresh is called with blocking loader THEN data is loaded`() = runThreads {
         val inflow = inflow {
             cacheInMemory { TestItem(0L) }
-            @Suppress("BlockingMethodInNonBlockingContext")
             loader {
+                @Suppress("BlockingMethodInNonBlockingContext")
                 Thread.sleep(50L)
                 TestItem(1L)
             }

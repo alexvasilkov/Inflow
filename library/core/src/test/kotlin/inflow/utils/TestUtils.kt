@@ -44,11 +44,15 @@ fun <T> runThreads(block: suspend CoroutineScope.() -> T) = runBlocking(Dispatch
 internal fun TestCoroutineScope.testInflow(
     block: InflowConfig<TestItem?>.() -> Unit
 ): Inflow<TestItem?> = inflow {
+    logId("TEST")
+
     cacheInMemory(null)
+
     loader {
         delay(100L)
         TestItem(currentTime)
     }
+
     loadRetryTime(100L)
 
     connectivity(object : InflowConnectivity {

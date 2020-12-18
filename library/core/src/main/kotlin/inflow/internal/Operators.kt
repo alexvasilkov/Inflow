@@ -1,5 +1,6 @@
 package inflow.internal
 
+import inflow.ExpirationProvider
 import inflow.InflowConnectivity
 import inflow.utils.log
 import kotlinx.atomicfu.locks.reentrantLock
@@ -93,7 +94,6 @@ internal fun <T> Flow<T>.share(
         }
 }
 
-
 /**
  * Runs [action] on first subscription and cancels resulting job once no subscribers left.
  */
@@ -120,6 +120,36 @@ internal fun <T> Flow<T>.doWhileSubscribed(action: () -> Job): Flow<T> {
         }
 }
 
+/**
+ * Checks if the data emitted from [this] flow is invalid and returns [emptyValue] instead.
+ * Also schedules extra emission of [emptyValue] once the data becomes invalid according to
+ * expiration time provided by [invalidIn].
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun <T> Flow<T>.emptyIfInvalid(
+    logId: String,
+    invalidIn: ExpirationProvider<T>,
+    emptyValue: T
+): Flow<T> = flatMapLatest { data ->
+    flow {
+        // Getting invalidation time
+        val expiration = invalidIn.expiresIn(data)
+
+        // Returning the data, if valid
+        if (expiration > 0L) {
+            emit(data)
+            if (expiration < Long.MAX_VALUE) {
+                log(logId) { "Cache will be invalid in ${expiration}ms" }
+            }
+        }
+
+        // Waiting for the data to become invalid
+        delay(expiration)
+
+        log(logId) { "Cache is invalid, returning empty value" }
+        emit(emptyValue)
+    }
+}
 
 /**
  * Uses [cacheExpiration] flow to call [loader] action each time the data should be updated.
@@ -148,21 +178,19 @@ internal suspend fun scheduleUpdates(
             // the data is finally loaded and cached, which in turn should trigger a new data
             // to be sent to us and this flow will be cancelled and re-scheduled.
             flow {
-                if (expiration == Long.MAX_VALUE) {
-                    log(logId) { "Cache never expires" }
-                    awaitCancellation() // Waiting for cancellation, it won't consume resources
-                }
-
-                if (expiration > 0L) {
+                // Waiting for expiration
+                if (expiration > 0L && expiration < Long.MAX_VALUE) {
                     log(logId) { "Cache is expiring in ${expiration}ms" }
-                    delay(expiration)
                 }
+                delay(expiration)
 
                 log(logId) { "Cache is expired" }
                 emit(Unit)
 
                 while (true) { // Retrying until new data is loaded and this flow is cancelled
-                    emit(null) // Suspend until prev emission is collected ('cause of 0 buffer size)
+                    // Suspend until prev emission is collected (loader is finished).
+                    // Works because of 0 buffer size and suspending strategy (see below).
+                    emit(null)
                     // TODO: Should we check if downstream was successful before repeating again? + update config docs
                     delay(retryTime)
                     log(logId) { "Cache refresh retry after ${retryTime}ms timeout" }

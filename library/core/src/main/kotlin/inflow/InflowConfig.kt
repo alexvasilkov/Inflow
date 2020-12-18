@@ -57,7 +57,8 @@ class InflowConfig<T> internal constructor() {
     internal var cache: Flow<T>? = null; private set
     internal var cacheWriter: (suspend (T) -> Unit)? = null; private set
     internal var cacheExpiration: ExpirationProvider<T> = ExpiresIfNull(); private set
-    internal var cacheInvalidation: ExpirationProvider<T> = ExpiresIfNull(); private set
+    internal var cacheInvalidation: ExpirationProvider<T>? = null; private set
+    internal var cacheInvalidationEmpty: T? = null; private set
     internal var cacheKeepSubscribedTimeout: Long = 1_000L; private set // 1 sec
     internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
     internal var loader: (suspend () -> T)? = null; private set
@@ -115,9 +116,16 @@ class InflowConfig<T> internal constructor() {
         cacheExpiration = expiresIn
     }
 
-    // TODO: not implemented
-    fun cacheInvalidation(invalidIn: ExpirationProvider<T>) {
+    /**
+     * Cache invalidation provider. By default the cache is considered to be valid all the time
+     * but a more advanced strategy can be set if needed (e.g. using [ExpiresIn]).
+     *
+     * Provided [emptyValue] will be emitted each time invalid data is emitted by original [cache]
+     * and automatically after the expiration time returned by [invalidIn].
+     */
+    fun cacheInvalidation(invalidIn: ExpirationProvider<T>, emptyValue: T) {
         cacheInvalidation = invalidIn
+        cacheInvalidationEmpty = emptyValue
     }
 
     /**

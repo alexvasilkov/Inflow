@@ -17,6 +17,8 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
     private val loader: Loader<T>
 
     init {
+        val logId = config.logId
+
         // Config validation
         val cacheFromConfig = requireNotNull(config.cache) { "`cache` is required" }
         val cacheWriter = requireNotNull(config.cacheWriter) { "`cacheWriter` is required" }
@@ -34,10 +36,11 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         val loadScope = CoroutineScope(config.loadDispatcher)
 
         // Preparing the loader that will track its `loading` and `error` state
-        loader = Loader(config.logId, loadScope) {
+        loader = Loader(logId, loadScope) {
             // Loading data
             val data = loaderFromConfig.invoke()
 
+            // TODO: Do not save data to cache if "repeatIfRunning"
             // Saving data into cache using cache dispatcher
             cacheScope.launch { cacheWriter.invoke(data) }
 
@@ -50,8 +53,21 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
             data
         }
 
+        // Checking for cached data invalidation if configured
+        val cacheWithInvalidation = if (config.cacheInvalidation != null) {
+            val invalidIn = config.cacheInvalidation!!
+
+            // If invalidation provider is set then empty value will never be null for non-null `T`
+            @Suppress("UNCHECKED_CAST")
+            val emptyValue = config.cacheInvalidationEmpty as T
+
+            cacheFromConfig.emptyIfInvalid(logId, invalidIn, emptyValue)
+        } else {
+            cacheFromConfig
+        }
+
         // Sharing the cache to allow several subscribers
-        cache = cacheFromConfig.share(cacheScope, cacheTimeout)
+        cache = cacheWithInvalidation.share(cacheScope, cacheTimeout)
 
         // Preparing a flow that will emit data expiration duration each time the data is changed
         // or connectivity provider signals about active connection
@@ -63,7 +79,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         // the data is expired
         auto = cache.doWhileSubscribed {
             loadScope.launch {
-                scheduleUpdates(config.logId, cacheExpiration, retryTime) {
+                scheduleUpdates(logId, cacheExpiration, retryTime) {
                     loader.load(repeatIfRunning = false).join()
                 }
             }
