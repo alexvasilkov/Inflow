@@ -4,6 +4,8 @@ import inflow.BaseTest
 import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
+import inflow.cache
+import inflow.forceRefresh
 import inflow.inflow
 import inflow.utils.AtomicInt
 import inflow.utils.runStressTest
@@ -77,12 +79,12 @@ class StressTest : BaseTest() {
                 // Scheduling a new refresh, it will force extra refresh every second time
                 val job = launch {
                     delay(10L)
-                    inflow.refresh(repeatIfRunning = j % 2 == 1).join()
+                    (if (j % 2 == 1) inflow.forceRefresh() else inflow.refresh()).join()
                 }
 
                 inflow.refresh().await()
                 job.join()
-                inflow.data(autoRefresh = false).first { it != null }
+                inflow.cache().first { it != null }
 
                 assertFalse(inflow.loading().value, "Loading is finished $i/$j")
             }
@@ -108,7 +110,7 @@ class StressTest : BaseTest() {
         }
 
         runStressTest(logId, STRESS_RUNS) {
-            inflow.data(autoRefresh = true).first { it != null }
+            inflow.data().first { it != null }
             inflow.error().first { it == null }
             inflow.loading().first { !it }
 

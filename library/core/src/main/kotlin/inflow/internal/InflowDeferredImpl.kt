@@ -4,13 +4,31 @@ import inflow.InflowDeferred
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CompletableDeferred
 
+
+internal open class InflowDeferredWrapper<T>(
+    private val deferred: CompletableDeferred<T> = CompletableDeferred()
+) : InflowDeferred<T> {
+    fun complete(value: T?, exception: Throwable?) {
+        if (exception == null) {
+            @Suppress("UNCHECKED_CAST") // Result must not be null here if T is not nullable
+            deferred.complete(value as T)
+        } else {
+            deferred.completeExceptionally(exception)
+        }
+    }
+
+    override suspend fun await() = deferred.await()
+
+    override suspend fun join() = deferred.join()
+}
+
+
 private const val ACTIVE = 0
 private const val REPEAT = 1
 private const val FINISHING = 2
 
-internal class InflowDeferredImpl<T> : InflowDeferred<T> {
+internal class InflowDeferredWithState<T> : InflowDeferredWrapper<T>() {
 
-    private val deferred = CompletableDeferred<T>()
     private val _state = atomic(ACTIVE)
 
     fun isNotFinishing(): Boolean = _state.value < FINISHING
@@ -45,23 +63,5 @@ internal class InflowDeferredImpl<T> : InflowDeferred<T> {
     fun setFinishingIfNoRepeat(): Boolean {
         return _state.compareAndSet(expect = ACTIVE, update = FINISHING)
     }
-
-
-    /**
-     * Completes normally unless exception.
-     */
-    fun complete(value: T?, exception: Throwable?) {
-        if (exception == null) {
-            @Suppress("UNCHECKED_CAST") // Result must not be null here if T is not nullable
-            deferred.complete(value as T)
-        } else {
-            deferred.completeExceptionally(exception)
-        }
-    }
-
-
-    override suspend fun await() = deferred.await()
-
-    override suspend fun join() = deferred.join()
 
 }

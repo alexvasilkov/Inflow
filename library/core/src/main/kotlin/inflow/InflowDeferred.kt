@@ -5,7 +5,7 @@ import kotlinx.coroutines.Deferred
 /**
  * Subset of [Deferred] methods to avoid external cancellation.
  *
- * **Not stable for inheritance outside of `Inflow` library**.
+ * **Not stable for inheritance.**
  */
 interface InflowDeferred<T> {
 

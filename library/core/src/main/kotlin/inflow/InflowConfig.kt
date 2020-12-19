@@ -109,20 +109,26 @@ class InflowConfig<T> internal constructor() {
     }
 
     /**
-     * Cache expiration provider. Uses [ExpiresIfNull] strategy by default but can be set to use a
-     * more advanced strategy if needed (e.g. using [ExpiresIn]).
+     * Cache expiration policy, see [ExpirationProvider]. Uses [ExpiresIfNull] policy by default.
      */
     fun cacheExpiration(expiresIn: ExpirationProvider<T>) {
         cacheExpiration = expiresIn
     }
 
     /**
-     * Cache invalidation provider. By default the cache is considered to be valid all the time
-     * but a more advanced strategy can be set if needed (e.g. using [ExpiresIn]).
+     * Cache invalidation policy, see [ExpirationProvider].
+     * By default the cache is considered to be valid all the time.
      *
      * Provided [emptyValue] will be emitted each time invalid data is emitted by original [cache]
-     * and automatically after the expiration time returned by [invalidIn].
+     * and automatically after the expiration time defined by [invalidIn] policy.
+     *
+     * Note that [cacheWriter] **will not** be called with [emptyValue] to clear the cache because
+     * it is hard to guarantee that newly loaded valid data was not already saved
+     *
+     * **Important: [emptyValue] should be 'expired' according to [cacheExpiration] policy,
+     * otherwise invalid data will not be automatically refreshed.**
      */
+    // TODO: We can add extra logic for safe cacheWrite(emptyValue) call, does it make sense?
     fun cacheInvalidation(invalidIn: ExpirationProvider<T>, emptyValue: T) {
         cacheInvalidation = invalidIn
         cacheInvalidationEmpty = emptyValue
@@ -131,6 +137,7 @@ class InflowConfig<T> internal constructor() {
     /**
      * Time to keep active [cache] subscription even if there are no other subscribers currently.
      * If there are still no subscribers after that time the [cache] will be unsubscribed.
+     * See [Inflow.data].
      *
      * It can be useful to avoid extra readings from cold [cache] flow while switching app screens.
      *
@@ -150,6 +157,9 @@ class InflowConfig<T> internal constructor() {
 
     /**
      * Suspending function that will be called using [loadDispatcher] to load a new data.
+     *
+     * **Important. The newly loaded data must not be expired according to [cacheExpiration] policy.
+     * [AssertionError] will be thrown otherwise to prevent endless loading.**
      */
     fun loader(action: suspend () -> T) {
         loader = action

@@ -15,7 +15,7 @@ import kotlin.test.assertFailsWith
 class ScheduleUpdatesTest : BaseTest() {
 
     @Test
-    fun `IF not updated THEN one update and few retries `() = runTest { job ->
+    fun `IF not updated THEN one update and few retries`() = runTest { job ->
         var counter = 0
         launch(job) {
             scheduleWithDefaults(loader = { counter++ })

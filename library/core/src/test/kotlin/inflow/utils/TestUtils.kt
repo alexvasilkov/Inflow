@@ -133,3 +133,19 @@ internal suspend inline fun <reified T : Throwable> assertCrash(block: () -> Uni
 
     Thread.setDefaultUncaughtExceptionHandler(handler)
 }
+
+internal fun getLogMessage(block: () -> Unit): String? {
+    val wasVerbose = inflowVerbose
+    inflowVerbose = true
+    val origLogger = inflowLogger
+
+    var message: String? = null
+    inflowLogger = { _, msg -> message = msg }
+
+    block()
+
+    inflowVerbose = wasVerbose
+    inflowLogger = origLogger
+
+    return message
+}

@@ -1,6 +1,7 @@
 package inflow.inflow
 
 import inflow.BaseTest
+import inflow.forceRefresh
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
@@ -43,7 +44,7 @@ class ErrorStateTest : BaseTest() {
     }
 
     @Test
-    fun `IF refresh is forced THEN error is propagated only once `() = runTest { job ->
+    fun `IF refresh is forced THEN error is propagated only once`() = runTest { job ->
         val inflow = testInflow {
             loader {
                 delay(100L)
@@ -67,7 +68,7 @@ class ErrorStateTest : BaseTest() {
 
         delay(50L)
 
-        inflow.refresh(repeatIfRunning = true)
+        inflow.forceRefresh()
 
         delay(100L)
 

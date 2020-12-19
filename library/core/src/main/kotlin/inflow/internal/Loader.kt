@@ -22,15 +22,15 @@ internal class Loader<T>(
     private val _error = MutableStateFlow<Throwable?>(null)
     val error = _error.asStateFlow()
 
-    private val prevJobRef = atomic<InflowDeferredImpl<T>?>(null)
-    private val jobRef = atomic<InflowDeferredImpl<T>?>(null)
+    private val prevJobRef = atomic<InflowDeferredWithState<T>?>(null)
+    private val jobRef = atomic<InflowDeferredWithState<T>?>(null)
 
     fun load(repeatIfRunning: Boolean): InflowDeferred<T> {
         // Fast path to return already running job without extra objects allocation
         getActiveJobAndCleanUp(repeatIfRunning)?.let { return it }
 
         // Seems like there is no active job yet, let's try to start a new one
-        val job = InflowDeferredImpl<T>()
+        val job = InflowDeferredWithState<T>()
 
         while (true) {
             // Trying to start a job ourselves
@@ -87,7 +87,7 @@ internal class Loader<T>(
         }
     }
 
-    private suspend fun loadExclusively(job: InflowDeferredImpl<T>): Pair<T?, Throwable?> {
+    private suspend fun loadExclusively(job: InflowDeferredWithState<T>): Pair<T?, Throwable?> {
         // We can do the actual work here without worrying about race conditions
         var result: T?
         var caughtError: Throwable?
@@ -110,7 +110,7 @@ internal class Loader<T>(
                 throw ae // Just re-throw to crash
             } catch (th: Throwable) {
                 caughtError = th
-                log(logId) { "Refresh error: ${th::class.java.simpleName} - ${th.message}" }
+                log(logId) { "Refresh error: ${th::class.simpleName} - ${th.message}" }
             }
 
             // Trying to finish the loading, otherwise we have to repeat the loading again

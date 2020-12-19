@@ -42,7 +42,7 @@ class EmptyIfInvalidTest : BaseTest() {
 
         assertEquals(expected = startTime, actual = flow.first(), "Orig item is emitted")
 
-        delay(35L)
+        delay(50L)
         assertNull(flow.first(), "Empty value is emitted")
     }
 

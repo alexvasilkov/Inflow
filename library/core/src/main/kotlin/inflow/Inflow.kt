@@ -1,5 +1,8 @@
 package inflow
 
+import inflow.DataParam.CacheOnly
+import inflow.RefreshParam.IfExpiresIn
+import inflow.RefreshParam.Repeat
 import inflow.internal.InflowImpl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,12 +47,11 @@ import kotlin.experimental.ExperimentalTypeInference
  * See [InflowConfig] for all the available configuration options.
  */
 interface Inflow<T> {
-
     /**
      * Cached data collected from original [InflowConfig.cache] flow.
      *
      * Original (cold or hot) flow will be subscribed automatically and shared among all active
-     * subscribers. Thus no extra cache readings are need for all the subsequent subscribers as they
+     * subscribers. Thus no extra cache readings will be done for all subsequent subscribers as they
      * will immediately receive the most recent cache data.
      * Original cache will be unsubscribed after predefined timeout since last active subscriber is
      * unsubscribed (see [InflowConfig.cacheKeepSubscribedTimeout]).
@@ -59,11 +61,14 @@ interface Inflow<T> {
      * can be useful to avoid extra readings from original (cold) cache flow while switching app
      * screens, etc.
      *
-     * @param autoRefresh If set to `true` (which is by default) the cache will be automatically
-     * kept fresh while it has at least one subscriber using [InflowConfig.loader] and according to
-     * expiration policy set with [InflowConfig.cacheExpiration].
+     * The cache will be automatically kept fresh using [InflowConfig.loader] while it has at least
+     * one subscriber and according to expiration policy set with [InflowConfig.cacheExpiration].
+     * This behavior can be disabled by using [CacheOnly] param.
+     *
+     * @param params Optional parameters, see [DataParam].
+     * If parameter of the same type is passed several times then only first parameter will be used.
      */
-    fun data(autoRefresh: Boolean = true): Flow<T>
+    fun data(vararg params: DataParam): Flow<T>
 
     /**
      * Current loading state. Will emit `true` when starting remote data request and `false` in the
@@ -86,22 +91,16 @@ interface Inflow<T> {
 
     /**
      * Manually requests data refresh from a remote source. The request will start immediately
-     * but can be observed using returned deferred object.
+     * (unless [IfExpiresIn] param is used) and can be observed using returned deferred object.
      *
-     * @param repeatIfRunning If set to true and another refresh is currently in place then extra
-     * refresh will be done again right after the current one. No error or loading events will be
-     * emitted until this extra request completes.
-     *
-     * It can be useful in situations when remote data was changed (e.g. because of POST or PUT
-     * request) and we need to ensure that newly loaded data reflects that changes. Otherwise
-     * previous refresh may return stale data.
+     * @param params Optional parameters for refresh request, see [RefreshParam].
+     * If parameter of the same type is passed several times then only first parameter will be used.
      *
      * @return Deferred object with [join][InflowDeferred.join] and [await][InflowDeferred.await]
      * methods to **optionally** observe the result of the call in a suspending manner. The result
      * can still be observed with [data], [loading] and [error] flows as usual.
      */
-    fun refresh(repeatIfRunning: Boolean = false): InflowDeferred<T>
-
+    fun refresh(vararg params: RefreshParam): InflowDeferred<T>
 }
 
 
@@ -113,8 +112,83 @@ fun <T> inflow(@BuilderInference block: InflowConfig<T>.() -> Unit): Inflow<T> =
     InflowImpl(InflowConfig<T>().apply(block))
 
 
+/* ---------------------------------------------------------------------------------------------- */
+/* Parameters                                                                                     */
+/* ---------------------------------------------------------------------------------------------- */
+
+/**
+ * Parameters for [Inflow.data] method: [CacheOnly].
+ */
+sealed class DataParam {
+    /**
+     * Returned data flow will not trigger automatic data refresh and will just return the flow of
+     * cached data.
+     */
+    object CacheOnly : DataParam()
+}
+
+/**
+ * Parameters for [Inflow.refresh] method: [Repeat], [IfExpiresIn].
+ */
+sealed class RefreshParam {
+    /**
+     * If set and another refresh is currently in place then extra refresh will be done again right
+     * after the current one. No error or loading events will be emitted until this extra request
+     * completes.
+     *
+     * It can be useful in situations when remote data was changed (e.g. because of POST or PUT
+     * request) and we need to ensure that newly loaded data reflects that changes. Otherwise
+     * previous refresh may return stale data.
+     */
+    object Repeat : RefreshParam()
+
+    /**
+     * The refresh will only be requested if the latest cached value is expiring in less than
+     * [expiresIn] milliseconds according to [InflowConfig.cacheExpiration] policy.
+     *
+     * For example if cached value expires in 5 minutes and [expiresIn] is set to 10 minutes then
+     * no refresh will be done and the cached value will be returned as-is. But if [expiresIn] is
+     * set to 2 minutes then a new refresh request will be scheduled.
+     */
+    data class IfExpiresIn(val expiresIn: Long) : RefreshParam() {
+        init {
+            require(expiresIn >= 0L) { "Value of 'expiresIn' must be >= 0" }
+        }
+    }
+}
+
+
+/* ---------------------------------------------------------------------------------------------- */
+/* Useful extensions                                                                              */
+/* ---------------------------------------------------------------------------------------------- */
+
+/**
+ * Returns cache flow, shortcut for `data(DataParam.CacheOnly)`
+ */
+fun <T> Inflow<T>.cache(): Flow<T> = data(CacheOnly)
+
 /**
  * Returns latest cached data without trying to refresh it.
- * Shortcut for `data(autoRefresh = false).first()`.
+ *
+ * Shortcut for `data(DataParam.CacheOnly).first()`.
  */
-suspend fun <T> Inflow<T>.latest() = data(autoRefresh = false).first()
+suspend fun <T> Inflow<T>.cached() = data(CacheOnly).first()
+
+/**
+ * If latest cached data is expiring in more than [expiresIn] milliseconds then it will be returned
+ * as-is. Otherwise a new request will be triggered and its result will be returned.
+ * See [IfExpiresIn].
+ *
+ * **Important: this method will throw an exception if the request is failed.**
+ *
+ * Shortcut for `refresh(RefreshParam.IfExpiresIn(expiresIn)).await()`.
+ */
+suspend fun <T> Inflow<T>.fresh(expiresIn: Long = 0L): T = refresh(IfExpiresIn(expiresIn)).await()
+
+/**
+ * If another refresh is currently in place then extra refresh will be done again right after the
+ * current one. See [Repeat].
+ *
+ * Shortcut for `refresh(RefreshParam.Repeat)`.
+ */
+fun <T> Inflow<T>.forceRefresh(): InflowDeferred<T> = refresh(Repeat)

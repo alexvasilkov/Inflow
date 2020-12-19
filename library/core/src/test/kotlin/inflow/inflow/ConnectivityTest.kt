@@ -2,7 +2,7 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.InflowConnectivity
-import inflow.latest
+import inflow.cached
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
@@ -56,11 +56,11 @@ class ConnectivityTest : BaseTest() {
         launch(job) { inflow.data().collect() }
 
         delay(100L)
-        assertEquals(expected = 0, actual = inflow.latest(), "Loaded on subscription")
+        assertEquals(expected = 0, actual = inflow.cached(), "Loaded on subscription")
 
         connectivityState.emit(false)
         connectivityState.emit(true)
-        assertEquals(expected = 0, actual = inflow.latest(), "No extra loading")
+        assertEquals(expected = 0, actual = inflow.cached(), "No extra loading")
     }
 
     @Test

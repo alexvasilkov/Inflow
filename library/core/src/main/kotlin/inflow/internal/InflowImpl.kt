@@ -1,10 +1,17 @@
 package inflow.internal
 
+import inflow.DataParam
+import inflow.DataParam.CacheOnly
 import inflow.Inflow
 import inflow.InflowConfig
+import inflow.InflowDeferred
+import inflow.RefreshParam
+import inflow.RefreshParam.IfExpiresIn
+import inflow.utils.log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -16,9 +23,13 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
     private val auto: Flow<T>
     private val loader: Loader<T>
 
-    init {
-        val logId = config.logId
+    private val logId = config.logId
+    private val cacheScope = CoroutineScope(config.cacheDispatcher)
+    private val loadScope = CoroutineScope(config.loadDispatcher)
 
+    private val cacheExpiration = config.cacheExpiration
+
+    init {
         // Config validation
         val cacheFromConfig = requireNotNull(config.cache) { "`cache` is required" }
         val cacheWriter = requireNotNull(config.cacheWriter) { "`cacheWriter` is required" }
@@ -31,10 +42,6 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         val retryTime = config.loadRetryTime
         require(retryTime > 0L) { "`loadRetryTime` should be positive" }
 
-        // Defining scopes
-        val cacheScope = CoroutineScope(config.cacheDispatcher)
-        val loadScope = CoroutineScope(config.loadDispatcher)
-
         // Preparing the loader that will track its `loading` and `error` state
         loader = Loader(logId, loadScope) {
             // Loading data
@@ -45,7 +52,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
             cacheScope.launch { cacheWriter.invoke(data) }
 
             // Assert that loader does not return expired data to prevent endless loading
-            val expiresIn = config.cacheExpiration.expiresIn(data)
+            val expiresIn = cacheExpiration.expiresIn(data)
             if (expiresIn <= 0L) {
                 throw AssertionError("Loader must not return expired data to avoid endless loading")
             }
@@ -54,14 +61,18 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         }
 
         // Checking for cached data invalidation if configured
-        val cacheWithInvalidation = if (config.cacheInvalidation != null) {
-            val invalidIn = config.cacheInvalidation!!
-
+        val cacheInvalidation = config.cacheInvalidation
+        val cacheWithInvalidation = if (cacheInvalidation != null) {
             // If invalidation provider is set then empty value will never be null for non-null `T`
             @Suppress("UNCHECKED_CAST")
             val emptyValue = config.cacheInvalidationEmpty as T
 
-            cacheFromConfig.emptyIfInvalid(logId, invalidIn, emptyValue)
+            val expirationOfEmptyValue = cacheExpiration.expiresIn(emptyValue)
+            if (expirationOfEmptyValue > 0L) {
+                log(logId) { "Warning: Empty value for invalidation policy is not expired, automatic refresh may not work as expected" }
+            }
+
+            cacheFromConfig.emptyIfInvalid(logId, cacheInvalidation, emptyValue)
         } else {
             cacheFromConfig
         }
@@ -73,7 +84,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         // or connectivity provider signals about active connection
         val cacheExpiration = config.connectivity.asSignalingFlow()
             .flatMapLatest { cache }
-            .map(config.cacheExpiration::expiresIn)
+            .map(cacheExpiration::expiresIn)
 
         // Preparing `auto` cache that will schedule data updates whenever it is subscribed and
         // the data is expired
@@ -86,12 +97,42 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         }
     }
 
-    override fun data(autoRefresh: Boolean): Flow<T> = if (autoRefresh) auto else cache
+    override fun data(vararg params: DataParam): Flow<T> =
+        if (params.contains(CacheOnly)) cache else auto
 
     override fun loading() = loader.loading
 
     override fun error() = loader.error
 
-    override fun refresh(repeatIfRunning: Boolean) = loader.load(repeatIfRunning)
+    override fun refresh(vararg params: RefreshParam): InflowDeferred<T> {
+        val ifExpiresIn = params.find { it is IfExpiresIn } as IfExpiresIn?
+
+        val repeatIfRunning = params.contains(RefreshParam.Repeat)
+
+        return if (ifExpiresIn != null) {
+            val deferred = InflowDeferredWrapper<T>()
+
+            // We need to request latest cached value to check its expiration
+            loadScope.launch {
+                val cached = cache.first()
+                if (cacheExpiration.expiresIn(cached) > ifExpiresIn.expiresIn) {
+                    // Not expired, returning cached value as is
+                    deferred.complete(cached, null)
+                } else {
+                    // Expired, requesting refresh
+                    try {
+                        val result = loader.load(repeatIfRunning).await()
+                        deferred.complete(result, null)
+                    } catch (th: Throwable) {
+                        deferred.complete(null, th)
+                    }
+                }
+            }
+
+            deferred
+        } else {
+            loader.load(repeatIfRunning)
+        }
+    }
 
 }

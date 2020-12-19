@@ -1,8 +1,9 @@
 package inflow.inflow
 
 import inflow.BaseTest
+import inflow.cache
+import inflow.cached
 import inflow.inflow
-import inflow.latest
 import inflow.utils.assertCrash
 import inflow.utils.runTest
 import inflow.utils.testInflow
@@ -39,19 +40,17 @@ class CacheTest : BaseTest() {
         }
 
         // Launching endless subscription
-        val collectorJob = launch {
-            inflow.data(autoRefresh = false).collect()
-        }
+        val collectorJob = launch { inflow.cache().collect() }
 
         // Getting first emitted item
         launch(job) {
-            assertEquals(expected = -1, actual = inflow.latest(), "Receiving first item")
+            assertEquals(expected = -1, actual = inflow.cached(), "Receiving first item")
         }
 
         // Getting second emitted item after delay
         delay(100L)
         launch(job) {
-            assertEquals(expected = -2, actual = inflow.latest(), "Receiving second item")
+            assertEquals(expected = -2, actual = inflow.cached(), "Receiving second item")
         }
 
         // Un-subscribing to reset cold cache flow
@@ -60,13 +59,13 @@ class CacheTest : BaseTest() {
         // Getting third item within timeout interval, original cold cache is still subscribed
         delay(100L)
         launch(job) {
-            assertEquals(expected = -3, actual = inflow.latest(), "Receiving third item")
+            assertEquals(expected = -3, actual = inflow.cached(), "Receiving third item")
         }
 
         // Getting first item after timeout interval, original cold cache should be re-subscribed
         delay(200L)
         launch(job) {
-            assertEquals(expected = -1, actual = inflow.latest(), "Receiving first item again")
+            assertEquals(expected = -1, actual = inflow.cached(), "Receiving first item again")
         }
 
         assertEquals(expected = 2, cacheCalls, "Original cache is only subscribed twice")
@@ -85,7 +84,7 @@ class CacheTest : BaseTest() {
 
         var item: Int? = null
 
-        launch { item = inflow.latest() }
+        launch { item = inflow.cached() }
 
         delay(50L)
         assertNull(item, "No item in the beginning")
@@ -113,23 +112,17 @@ class CacheTest : BaseTest() {
             cacheInMemory(null)
         }
 
-        var dataAuto: Int? = Int.MIN_VALUE
-        var dataCache: Int? = Int.MAX_VALUE
+        var data: Int? = Int.MIN_VALUE
+        launch(job) { inflow.data().collect { data = it } }
 
-        launch(job) {
-            inflow.data().collect { dataAuto = it }
-        }
-
-        launch(job) {
-            // Second cache listener, just to be sure
-            inflow.data(autoRefresh = false).collect { dataCache = it }
-        }
+        var cache: Int? = Int.MAX_VALUE
+        launch(job) { inflow.cache().collect { cache = it } }
 
         delay(100L)
 
-        assertNotNull(dataAuto, "Data is loaded -- auto")
-        assertNotNull(dataCache, "Data is loaded -- cache")
-        assertEquals(dataAuto, dataCache, "Same data is loaded")
+        assertNotNull(data, "Data is loaded -- auto")
+        assertNotNull(cache, "Data is loaded -- cache")
+        assertEquals(data, cache, "Same data is loaded")
     }
 
     @Test
@@ -144,12 +137,12 @@ class CacheTest : BaseTest() {
         }
 
         var item1: Int? = null
-        launch { item1 = inflow.latest() }
+        launch { item1 = inflow.cached() }
         delay(100L)
         assertNotNull(item1, "Item 1 is loaded")
 
         var item2: Int? = null
-        launch { item2 = inflow.latest() }
+        launch { item2 = inflow.cached() }
         delay(100L)
         assertNotNull(item2, "Item 2 is loaded")
 

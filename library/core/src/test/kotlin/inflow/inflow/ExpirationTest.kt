@@ -5,8 +5,8 @@ import inflow.ExpirationProvider
 import inflow.ExpiresAt
 import inflow.ExpiresIfNull
 import inflow.ExpiresIn
+import inflow.cached
 import inflow.inflow
-import inflow.latest
 import inflow.utils.assertCrash
 import inflow.utils.now
 import inflow.utils.runTest
@@ -47,7 +47,7 @@ class ExpirationTest : BaseTest() {
             launch(job) { inflow.data().collect() }
 
             delay(Long.MAX_VALUE - 1L)
-            assertEquals(expected = 0, inflow.latest(), "1 update and no retries")
+            assertEquals(expected = 0, inflow.cached(), "1 update and no retries")
         }
 
     @Test
@@ -83,7 +83,7 @@ class ExpirationTest : BaseTest() {
     private fun testExpiration(expiration: ExpirationProvider<Long>) = runThreads {
         var counter = 0
         val inflow = inflow {
-            cacheInMemory(0L)
+            cacheInMemory(-30L) // In both cases resulting expiresIn will be 0L
             loader {
                 counter++
                 now()
@@ -96,7 +96,7 @@ class ExpirationTest : BaseTest() {
         delay(15L)
         assertEquals(expected = 1, counter, "First update is called")
 
-        delay(25L)
+        delay(40L)
         assertEquals(expected = 2, actual = counter, "Expiration update is called")
 
         collectJob.cancel()
@@ -105,8 +105,22 @@ class ExpirationTest : BaseTest() {
     @Test
     fun `IF ExpiresIn AND duration is 0 THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
-            ExpiresIn<Int>(0L) { 0L }
+            ExpiresIn<Int>(0L) { 1L }
         }
+    }
+
+    @Test
+    fun `IF ExpiresAt AND expiresAt is MAX_VALUE THEN never expires`() = runTest {
+        val expiration = ExpiresAt<Int> { Long.MAX_VALUE }
+        val expiresIn = expiration.expiresIn(0)
+        assertEquals(expected = Long.MAX_VALUE, actual = expiresIn, "Never expires")
+    }
+
+    @Test
+    fun `IF ExpiresIn AND duration is MAX_VALUE THEN never expires`() = runTest {
+        val expiration = ExpiresIn<Int>(Long.MAX_VALUE) { 1L }
+        val expiresIn = expiration.expiresIn(0)
+        assertEquals(expected = Long.MAX_VALUE, actual = expiresIn, "Never expires")
     }
 
 
