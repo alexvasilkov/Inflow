@@ -135,18 +135,25 @@ internal fun <T> Flow<T>.emptyIfInvalid(
 ): Flow<T> = flatMapLatest { data ->
     flow {
         // Getting invalidation time
-        val expiration = invalidIn.expiresIn(data)
+        var expiration = invalidIn.expiresIn(data)
 
         // Returning the data, if valid
-        if (expiration > 0L) {
-            emit(data)
+        if (expiration > 0L) emit(data)
+
+        // Waiting for expiration timeout and re-checking it again in case it's dynamic,
+        // meaning that `expiresIn` may just define the next time to check the expiration
+        // while expiration logic itself may not be time-based.
+        while (true) {
+            if (expiration <= 0L) break
+
             if (expiration < Long.MAX_VALUE) {
                 log(logId) { "Cache will be invalid in ${expiration}ms" }
             }
+            // Waiting for the data to become invalid
+            delay(expiration)
+            // Checking expiration again, in most cases it should be <= 0L by now
+            expiration = invalidIn.expiresIn(data)
         }
-
-        // Waiting for the data to become invalid
-        delay(expiration)
 
         log(logId) { "Cache is invalid, returning empty value" }
         emit(emptyValue)
@@ -154,37 +161,44 @@ internal fun <T> Flow<T>.emptyIfInvalid(
 }
 
 /**
- * Uses [cacheExpiration] flow to call [loader] action each time the data should be updated.
+ * Uses [cache] flow to call [loader] action each time the data should be updated according to
+ * [expiration] policy.
  *
- * **Important**: By contract cache (and eventually [cacheExpiration]) flow should be triggered
- * each time the data is successfully loaded and saved into cache, otherwise we will retry loading
- * after retry timeout or each time activation flow will emit `true` (meaning we have active
- * subscribers and/or active internet connection).
+ * **Important**: By contract [cache] flow should be triggered each time the data is successfully
+ * loaded and saved into cache, otherwise we will retry loading after the retry timeout.
  *
- * Also when a new data is successfully loaded and saved the [cacheExpiration] flow should return
- * a new expiration time greater than 0, otherwise we will enter infinite loading cycle.
+ * Also when a new data is successfully loaded and saved the [cache] flow should return a new data
+ * with expiration timeout greater than 0, otherwise we will enter infinite loading cycle.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-internal suspend fun scheduleUpdates(
+internal suspend fun <T> scheduleUpdates(
     logId: String,
-    cacheExpiration: Flow<Long>,
+    cache: Flow<T>,
+    expiration: ExpirationProvider<T>,
     retryTime: Long,
     loader: suspend () -> Unit
 ) {
     require(retryTime > 0L) { "Retry time ($retryTime) should be > 0" }
 
-    cacheExpiration
-        .flatMapLatest { expiration ->
+    cache
+        .flatMapLatest { data ->
             // Scheduling new periodic update.
             // It should run once the data is expired and retry with provided `retryTime` until
             // the data is finally loaded and cached, which in turn should trigger a new data
             // to be sent to us and this flow will be cancelled and re-scheduled.
             flow {
-                // Waiting for expiration
-                if (expiration > 0L && expiration < Long.MAX_VALUE) {
-                    log(logId) { "Cache is expiring in ${expiration}ms" }
+                // Waiting for expiration timeout and re-checking it again in case it's dynamic,
+                // meaning that `expiresIn` may just define the next time to check the expiration
+                // while expiration logic itself may not be time-based.
+                while (true) {
+                    val expiresIn = expiration.expiresIn(data)
+                    if (expiresIn <= 0L) break
+
+                    if (expiresIn < Long.MAX_VALUE) {
+                        log(logId) { "Cache is expiring in ${expiresIn}ms" }
+                    }
+                    delay(expiresIn)
                 }
-                delay(expiration)
 
                 log(logId) { "Cache is expired" }
                 emit(Unit)

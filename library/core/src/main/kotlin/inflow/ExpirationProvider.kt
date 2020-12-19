@@ -4,19 +4,24 @@ import inflow.utils.now
 
 /**
  * Expiration time provider to control when the data should be automatically refreshed (or
- * invalidated).
+ * invalidated). See [expiresIn] method.
  *
- * Default implementations: [ExpiresIfNull], [ExpiresAt], [ExpiresIn].
+ * Default implementations: [ExpiresIfNull], [ExpiresAt], [ExpiresIn], [ExpiresIf].
  */
 interface ExpirationProvider<T> {
     /**
-     * Relative time in milliseconds after which given data will expire and should be automatically
+     * Timeout in milliseconds after which given data will expire and should be automatically
      * refreshed (or invalidated).
      * In other words, how many milliseconds (from now) the data can be considered fresh (or valid).
      *
      * Return `0L` if the data should be refreshed (or invalidated) immediately.
      *
      * Return `Long.MAX_VALUE` if the data should never be refreshed (or invalidated) automatically.
+     *
+     * Note that this method will be called again right after expiration timeout and if it still
+     * returns a positive timeout then it will start to wait again, until this method will finally
+     * return 0 or negative value. This can be useful to have a timely validation check which is not
+     * time-based itself, see [ExpiresIf]
      */
     fun expiresIn(data: T): Long
 }
@@ -38,7 +43,7 @@ fun <T> ExpiresIfNull(): ExpirationProvider<T> = ifNull as ExpirationProvider<T>
  * If the data was never loaded then [expiresAt] provider is expected to return `0L`. If the data
  * should never expire (or be invalidated) then return `Long.MAX_VALUE` from [expiresAt] provider.
  *
- * All times are in milliseconds.
+ * The time should be in milliseconds since unix epoch.
  */
 @Suppress("FunctionName") // Pretending to be a class
 fun <T> ExpiresAt(expiresAt: (T) -> Long): ExpirationProvider<T> {
@@ -63,7 +68,8 @@ fun <T> ExpiresAt(expiresAt: (T) -> Long): ExpirationProvider<T> {
  * Use `Long.MAX_VALUE` as duration if you don't want the data to be automatically refreshed
  * (or invalidated).
  *
- * All times are in milliseconds.
+ * The time from [loadedAt] should be in milliseconds since unix epoch.
+ * Duration time is also in milliseconds.
  */
 @Suppress("FunctionName") // Pretending to be a class
 fun <T> ExpiresIn(duration: Long, loadedAt: (T) -> Long): ExpirationProvider<T> {
@@ -77,6 +83,26 @@ fun <T> ExpiresIn(duration: Long, loadedAt: (T) -> Long): ExpirationProvider<T> 
                 duration == Long.MAX_VALUE -> Long.MAX_VALUE // Never expires
                 else -> lastLoaded + duration - now() // Calculating expiration time
             }
+        }
+    }
+}
+
+/**
+ * Checks if the data is expired (or invalid) using [isExpired] lambda at a regular [interval].
+ *
+ * It can be useful in cases when data expiration (or validity) is not time-based, so that we can't
+ * say for sure when exactly it will expire. Instead we'll just start to check it periodically.
+ *
+ * For example [ExpiresIfNull] can be implemented as `ExpiresIf(Long.MAX_VALUE) { it == null }`,
+ * meaning that we'll check for nullability once but won't ever need to check it again.
+ */
+@Suppress("FunctionName") // Pretending to be a class
+fun <T> ExpiresIf(interval: Long, isExpired: (T) -> Boolean): ExpirationProvider<T> {
+    require(interval > 0L) { "Expiration check interval ($interval) should be > 0" }
+
+    return object : ExpirationProvider<T> {
+        override fun expiresIn(data: T): Long {
+            return if (isExpired(data)) 0L else interval
         }
     }
 }

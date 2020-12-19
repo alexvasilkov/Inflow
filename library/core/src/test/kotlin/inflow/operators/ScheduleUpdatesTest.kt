@@ -1,11 +1,15 @@
 package inflow.operators
 
 import inflow.BaseTest
+import inflow.ExpirationProvider
+import inflow.ExpiresAt
+import inflow.ExpiresIf
 import inflow.internal.scheduleUpdates
+import inflow.utils.now
 import inflow.utils.runTest
+import inflow.utils.runThreads
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlin.test.Test
@@ -27,15 +31,15 @@ class ScheduleUpdatesTest : BaseTest() {
 
     @Test
     fun `IF new data is not expired THEN one update and no retries`() = runTest { job ->
-        val cacheExpiration = MutableStateFlow(0L)
+        val cache = MutableStateFlow(0L)
 
         var counter = 0
         launch(job) {
             scheduleWithDefaults(
-                cacheExpiration = cacheExpiration,
+                cache = cache,
                 loader = {
                     counter++
-                    cacheExpiration.emit(Long.MAX_VALUE)
+                    cache.emit(Long.MAX_VALUE)
                 }
             )
         }
@@ -46,12 +50,10 @@ class ScheduleUpdatesTest : BaseTest() {
 
     @Test
     fun `IF cache is not expired THEN no update and no retries`() = runTest { job ->
-        val cacheExpiration = MutableStateFlow(Long.MAX_VALUE)
-
         var counter = 0
         launch(job) {
             scheduleWithDefaults(
-                cacheExpiration = cacheExpiration,
+                cache = MutableStateFlow(Long.MAX_VALUE),
                 loader = { counter++ }
             )
         }
@@ -61,23 +63,43 @@ class ScheduleUpdatesTest : BaseTest() {
     }
 
     @Test
-    fun `IF cache is expiring THEN new updates are called`() = runTest { job ->
-        val cacheExpiration = MutableSharedFlow<Long>(replay = 1)
-        cacheExpiration.emit(50L)
+    fun `IF cache is expiring THEN new updates are called`() = runThreads {
+        val cache = MutableStateFlow(0L)
 
         var counter = 0
-        launch(job) {
+        val job = launch {
             scheduleWithDefaults(
-                cacheExpiration = cacheExpiration,
+                cache = cache,
                 loader = {
                     counter++
-                    cacheExpiration.emit(50L)
+                    cache.emit(now() + 30L)
                 }
             )
         }
 
-        delay(4 * 50L + 1L) // Extra time to track last update
-        assertEquals(expected = 4, counter, "Several updates called")
+        delay(75L) // Expecting loads after 0ms, 30ms and 60ms
+        assertEquals(expected = 3, counter, "Several updates called")
+
+        job.cancel()
+    }
+
+    @Test
+    fun `IF using dynamic expiration that never expires THEN no updates`() = runTest { job ->
+        var expired = false
+        var counter = 0
+        launch(job) {
+            scheduleWithDefaults(
+                expiration = ExpiresIf(interval = 100L) { expired },
+                loader = { counter++ }
+            )
+        }
+
+        delay(1000L)
+        assertEquals(expected = 0, counter, "No updates")
+
+        expired = true
+        delay(100L)
+        assertEquals(expected = 1, counter, "Update is called once expired")
     }
 
 
@@ -103,13 +125,13 @@ class ScheduleUpdatesTest : BaseTest() {
 
     @Test
     fun `IF slow loading is finished THEN retry is not called`() = runTest { job ->
-        val cacheExpiration = MutableStateFlow(0L)
+        val cache = MutableStateFlow(0L)
 
         var counterStart = 0
         var counterEnd = 0
         launch(job) {
             scheduleWithDefaults(
-                cacheExpiration = cacheExpiration,
+                cache = cache,
                 retryTime = 100L,
                 loader = {
                     counterStart++
@@ -117,7 +139,7 @@ class ScheduleUpdatesTest : BaseTest() {
 
                     launch {
                         delay(10L) // Simulating cache delay
-                        cacheExpiration.emit(Long.MAX_VALUE) // Should not trigger updates
+                        cache.emit(Long.MAX_VALUE) // Should not trigger updates
                         counterEnd++
                     }
                 }
@@ -144,9 +166,10 @@ class ScheduleUpdatesTest : BaseTest() {
 
     // Helper function to avoid defining same things in every test
     private suspend fun scheduleWithDefaults(
-        cacheExpiration: Flow<Long> = MutableStateFlow(0L),
+        cache: Flow<Long> = MutableStateFlow(0L),
+        expiration: ExpirationProvider<Long> = ExpiresAt { it },
         retryTime: Long = 100L,
         loader: suspend () -> Unit = {}
-    ) = scheduleUpdates(logId, cacheExpiration, retryTime, loader)
+    ) = scheduleUpdates(logId, cache, expiration, retryTime, loader)
 
 }

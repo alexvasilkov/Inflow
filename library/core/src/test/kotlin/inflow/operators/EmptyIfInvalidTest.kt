@@ -1,6 +1,7 @@
 package inflow.operators
 
 import inflow.BaseTest
+import inflow.ExpiresIf
 import inflow.ExpiresIfNull
 import inflow.ExpiresIn
 import inflow.internal.emptyIfInvalid
@@ -8,8 +9,10 @@ import inflow.utils.now
 import inflow.utils.runTest
 import inflow.utils.runThreads
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -44,6 +47,26 @@ class EmptyIfInvalidTest : BaseTest() {
 
         delay(50L)
         assertNull(flow.first(), "Empty value is emitted")
+    }
+
+    @Test
+    fun `IF using dynamic expiration that never expires THEN never invalid`() = runTest { job ->
+        var expired = false
+        val orig = flowOf<Unit?>(Unit)
+        val expiration = ExpiresIf<Unit?>(interval = 100L) { expired }
+        val flow = orig.emptyIfInvalid(logId, expiration, null)
+
+        var item: Unit? = null
+        launch(job) {
+            flow.collect { item = it }
+        }
+
+        delay(1000L)
+        assertSame(expected = Unit, actual = item, "Empty value is not returned")
+
+        expired = true
+        delay(100L)
+        assertNull(item, "Empty value is finally returned")
     }
 
 }

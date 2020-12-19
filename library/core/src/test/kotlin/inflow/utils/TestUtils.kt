@@ -127,7 +127,7 @@ internal suspend inline fun <reified T : Throwable> assertCrash(block: () -> Uni
 
     assertFailsWith(T::class) {
         block()
-        delay(25L) // Waiting for error to propagate
+        delay(50L) // Waiting for error to propagate
         throw error!!
     }
 

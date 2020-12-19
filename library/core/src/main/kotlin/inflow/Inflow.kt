@@ -74,7 +74,7 @@ interface Inflow<T> {
      * Current loading state. Will emit `true` when starting remote data request and `false` in the
      * end. Only one request can run at a time.
      *
-     * Note: if a new refresh is explicitly requested with [refresh] and `repeatIfRunning = true`
+     * Note: if a new refresh is explicitly requested with [refresh] and [Repeat] param
      * while running another refresh, the new request will run immediately after first request is
      * finished without emitting consequent `false` and `true` values.
      */

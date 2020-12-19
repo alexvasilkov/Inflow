@@ -13,7 +13,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalCoroutinesApi::class) // It is our internal details, no need to enforce it
@@ -80,17 +79,15 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         // Sharing the cache to allow several subscribers
         cache = cacheWithInvalidation.share(cacheScope, cacheTimeout)
 
-        // Preparing a flow that will emit data expiration duration each time the data is changed
+        // Preparing a flow that will emit cached data each time the data is changed
         // or connectivity provider signals about active connection
-        val cacheExpiration = config.connectivity.asSignalingFlow()
-            .flatMapLatest { cache }
-            .map(cacheExpiration::expiresIn)
+        val cacheRepeated = config.connectivity.asSignalingFlow().flatMapLatest { cache }
 
         // Preparing `auto` cache that will schedule data updates whenever it is subscribed and
-        // the data is expired
+        // cached data is expired
         auto = cache.doWhileSubscribed {
             loadScope.launch {
-                scheduleUpdates(logId, cacheExpiration, retryTime) {
+                scheduleUpdates(logId, cacheRepeated, cacheExpiration, retryTime) {
                     loader.load(repeatIfRunning = false).join()
                 }
             }
