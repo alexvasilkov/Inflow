@@ -6,6 +6,7 @@ import inflow.utils.log
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
@@ -79,7 +80,8 @@ internal fun <T> Flow<T>.share(
             }
 
             // Scheduling collector job cancellation
-            scope.launch(completeJob) {
+            // Using UNDISPATCHED start to immediately cancel the job if timeout is 0
+            scope.launch(completeJob, start = CoroutineStart.UNDISPATCHED) {
                 delay(keepSubscribedTimeout)
 
                 // Cancelling latest collector job under lock
