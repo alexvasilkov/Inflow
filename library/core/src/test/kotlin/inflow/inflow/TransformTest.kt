@@ -19,15 +19,15 @@ import kotlin.test.assertSame
 class TransformTest : BaseTest() {
 
     @Test
-    fun `IF mapped THEN same loading state`() = runTest { job ->
+    fun `IF mapped THEN same progress state`() = runTest { job ->
         val inflow: Inflow<Int?> = testInflow {}
         val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         val trackerOrig = TestTracker()
         val trackerMapped = TestTracker()
 
-        launch(job) { inflow.loading().track(trackerOrig) }
-        launch(job) { mapped.loading().track(trackerMapped) }
+        launch(job) { inflow.progress().track(trackerOrig) }
+        launch(job) { mapped.progress().track(trackerMapped) }
 
         mapped.refresh()
         assertEquals(trackerOrig, trackerMapped, "Mapped inflow has same loading state")

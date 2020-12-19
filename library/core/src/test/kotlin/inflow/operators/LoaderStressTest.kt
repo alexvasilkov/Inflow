@@ -1,6 +1,7 @@
 package inflow.operators
 
 import inflow.BaseTest
+import inflow.Progress
 import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
@@ -14,7 +15,7 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class LoaderStressTest : BaseTest() {
@@ -67,7 +68,7 @@ class LoaderStressTest : BaseTest() {
     fun `IF repeatIfRunning=true and await() THEN finishes with no deadlocks`() = runThreads {
         val loader = Loader(logId, this) {}
         runStressTest(logId, STRESS_RUNS) { loader.load(repeatIfRunning = true).await() }
-        assertFalse(loader.loading.value, "Finished in the end")
+        assertSame(Progress.Idle, loader.progress.value, "Finished")
     }
 
 }

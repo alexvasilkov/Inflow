@@ -8,8 +8,10 @@ import inflow.cache
 import inflow.forceRefresh
 import inflow.inflow
 import inflow.utils.AtomicInt
+import inflow.utils.isIdle
 import inflow.utils.runStressTest
 import inflow.utils.runThreads
+import inflow.utils.waitIdle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -21,8 +23,8 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class StressTest : BaseTest() {
 
@@ -49,11 +51,11 @@ class StressTest : BaseTest() {
 
                 // Waiting till the end
                 inflow.error().first { it != null }
-                inflow.loading().first { !it }
+                inflow.progress().waitIdle()
 
                 job.cancel()
 
-                assertFalse(inflow.loading().value, "Finished loading: $i/$j")
+                assertTrue(inflow.isIdle(), "Finished loading: $i/$j")
                 assertNotNull(inflow.error().value, "Error is tracked: $i/$j")
             }
         }
@@ -86,7 +88,7 @@ class StressTest : BaseTest() {
                 job.join()
                 inflow.cache().first { it != null }
 
-                assertFalse(inflow.loading().value, "Loading is finished $i/$j")
+                assertTrue(inflow.isIdle(), "Loading is finished $i/$j")
             }
         }
     }
@@ -112,9 +114,9 @@ class StressTest : BaseTest() {
         runStressTest(logId, STRESS_RUNS) {
             inflow.data().first { it != null }
             inflow.error().first { it == null }
-            inflow.loading().first { !it }
+            inflow.progress().waitIdle()
 
-            assertFalse(inflow.loading().value, "Loading finished")
+            assertTrue(inflow.isIdle(), "Loading finished")
         }
 
         assertEquals(expected = 0, actual = cacheState.get(), "Cache job is finished")

@@ -1,6 +1,8 @@
 package inflow.internal
 
 import inflow.InflowDeferred
+import inflow.Progress
+import inflow.ProgressTracker
 import inflow.utils.log
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CoroutineScope
@@ -14,10 +16,10 @@ import kotlinx.coroutines.launch
 internal class Loader<T>(
     private val logId: String,
     private val scope: CoroutineScope,
-    private val action: suspend () -> T
+    private val action: suspend (ProgressTracker) -> T
 ) {
-    private val _loading = MutableStateFlow(false)
-    val loading = _loading.asStateFlow()
+    private val _progress = MutableStateFlow<Progress>(Progress.Idle)
+    val progress = _progress.asStateFlow()
 
     private val _error = MutableStateFlow<Throwable?>(null)
     val error = _error.asStateFlow()
@@ -92,7 +94,7 @@ internal class Loader<T>(
         var result: T?
         var caughtError: Throwable?
 
-        _loading.value = true
+        _progress.value = Progress.Active
         _error.value = null // Clearing any errors before load
 
         while (true) {
@@ -104,7 +106,9 @@ internal class Loader<T>(
             caughtError = null
 
             try {
-                result = action()
+                val tracker = Tracker()
+                result = action(tracker)
+                tracker.disable() // Deactivating to avoid tracking outside of the loader
                 log(logId) { "Refresh successful" }
             } catch (ae: AssertionError) {
                 throw ae // Just re-throw to crash
@@ -118,9 +122,22 @@ internal class Loader<T>(
         }
 
         _error.value = caughtError
-        _loading.value = false
+        _progress.value = Progress.Idle
 
         return Pair(result, caughtError)
+    }
+
+
+    private inner class Tracker : ProgressTracker {
+        private var isActive = true
+
+        fun disable() {
+            isActive = false
+        }
+
+        override fun state(current: Float, total: Float) {
+            if (isActive) _progress.tryEmit(Progress.State(current, total))
+        }
     }
 
 }

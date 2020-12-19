@@ -61,7 +61,7 @@ class InflowConfig<T> internal constructor() {
     internal var cacheInvalidationEmpty: T? = null; private set
     internal var cacheKeepSubscribedTimeout: Long = 1_000L; private set // 1 sec
     internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
-    internal var loader: (suspend () -> T)? = null; private set
+    internal var loader: (suspend (ProgressTracker) -> T)? = null; private set
     internal var loadRetryTime: Long = 60_000; private set // 1 min
     internal var loadDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
     internal var connectivity: InflowConnectivity? = InflowConnectivity.Default; private set
@@ -161,7 +161,7 @@ class InflowConfig<T> internal constructor() {
      * **Important. The newly loaded data must not be expired according to [cacheExpiration] policy.
      * [AssertionError] will be thrown otherwise to prevent endless loading.**
      */
-    fun loader(action: suspend () -> T) {
+    fun loader(action: suspend (ProgressTracker) -> T) {
         loader = action
     }
 

@@ -8,7 +8,7 @@ fun <T, R> Inflow<T>.map(mapper: suspend (T) -> R): Inflow<R> {
     return object : Inflow<R> {
         override fun data(vararg params: DataParam): Flow<R> = orig.data(*params).map(mapper)
 
-        override fun loading() = orig.loading()
+        override fun progress() = orig.progress()
 
         override fun error() = orig.error()
 

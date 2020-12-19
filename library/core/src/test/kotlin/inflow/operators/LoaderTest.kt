@@ -1,6 +1,7 @@
 package inflow.operators
 
 import inflow.BaseTest
+import inflow.Progress
 import inflow.internal.Loader
 import inflow.utils.TestTracker
 import inflow.utils.runTest
@@ -10,36 +11,34 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 class LoaderTest : BaseTest() {
 
     @Test
-    fun `IF loaded THEN loading state is tracked`() = runTest {
+    fun `IF loaded THEN progress state is tracked`() = runTest {
         val loader = Loader(logId, this) { delay(100L) }
         loader.load(repeatIfRunning = false)
 
-        assertTrue(loader.loading.value, "In loading state")
+        assertSame(Progress.Active, loader.progress.value, "In loading state")
         delay(100L)
-        assertFalse(loader.loading.value, "Loading finished")
+        assertSame(Progress.Idle, loader.progress.value, "Loading finished")
     }
 
     @Test
-    fun `IF exception THEN loading state is tracked`() = runTest {
+    fun `IF exception THEN progress state is tracked`() = runTest {
         val loader = Loader(logId, this) {
             delay(100L)
             throw RuntimeException()
         }
         loader.load(repeatIfRunning = false)
 
-        assertTrue(loader.loading.value, "In loading state")
+        assertSame(Progress.Active, loader.progress.value, "In loading state")
         delay(100L)
-        assertFalse(loader.loading.value, "Loading finished")
+        assertSame(Progress.Idle, loader.progress.value, "Loading finished")
     }
 
     @Test
@@ -95,8 +94,8 @@ class LoaderTest : BaseTest() {
             throw RuntimeException()
         }
 
-        val loadingsTracker = TestTracker()
-        launch(job) { loader.loading.track(loadingsTracker) }
+        val progressTracker = TestTracker()
+        launch(job) { loader.progress.track(progressTracker) }
 
         var errorsCount = 0
         launch(job) { loader.error.collect { if (it != null) errorsCount++ } }
@@ -106,7 +105,7 @@ class LoaderTest : BaseTest() {
 
         delay(50L)
         assertEquals(expected = 0, actual = errorsCount, "No error in the middle")
-        assertEquals(TestTracker(1, 1), loadingsTracker, "Loading in the middle")
+        assertEquals(TestTracker(1, 1), progressTracker, "Loading in the middle")
 
         // Forcing second refresh while the first one is in the middle
         loader.load(repeatIfRunning = true)
@@ -116,11 +115,11 @@ class LoaderTest : BaseTest() {
 
         delay(50L)
         assertEquals(expected = 0, actual = errorsCount, "No error in the end of first refresh")
-        assertEquals(TestTracker(1, 1), loadingsTracker, "Loading in the end of first refresh")
+        assertEquals(TestTracker(1, 1), progressTracker, "Loading in the end of first refresh")
 
         delay(100L)
         assertEquals(expected = 1, actual = errorsCount, "Error in the end of second refresh")
-        assertEquals(TestTracker(1, 2), loadingsTracker, "Not loading in the end of second refresh")
+        assertEquals(TestTracker(1, 2), progressTracker, "Not loading in the end of second refresh")
     }
 
 }

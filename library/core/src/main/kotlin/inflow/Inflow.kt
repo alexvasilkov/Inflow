@@ -6,7 +6,9 @@ import inflow.RefreshParam.Repeat
 import inflow.internal.InflowImpl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlin.experimental.ExperimentalTypeInference
 
 /**
@@ -25,10 +27,13 @@ import kotlin.experimental.ExperimentalTypeInference
  *
  * **State**
  *
- * Refresh state can be observed using [loading] and [error] state flows. The [loading] flow will
- * emit `true` when the loading is started and `false` in the end. The [error] flow will emit
- * the most recent error happened during last refresh or `null` if last request was successful or
- * still in progress.
+ * Refresh state can be observed using [progress] and [error] state flows.
+ *
+ * The [progress] flow will emit each time the loading is started or finished and can optionally
+ * emit an intermediate progress state. Also see [loading] extension.
+ *
+ * The [error] flow will emit the most recent error happened during last refresh or `null` if last
+ * request was successful or still in progress.
  *
  * **Usage**
  *
@@ -71,14 +76,17 @@ interface Inflow<T> {
     fun data(vararg params: DataParam): Flow<T>
 
     /**
-     * Current loading state. Will emit `true` when starting remote data request and `false` in the
-     * end. Only one request can run at a time.
+     * Current loading progress.
+     * It will emit [Progress.Active] once the loading is started and [Progress.Idle] in the end.
+     * Optionally it is also possible to track loading state ([Progress.State]) using
+     * [ProgressTracker] object passed to [InflowConfig.loader].
+     * Only one request can run at a time.
      *
      * Note: if a new refresh is explicitly requested with [refresh] and [Repeat] param
      * while running another refresh, the new request will run immediately after first request is
-     * finished without emitting consequent `false` and `true` values.
+     * finished without emitting consequent [Progress.Active] and [Progress.Idle] values.
      */
-    fun loading(): StateFlow<Boolean>
+    fun progress(): StateFlow<Progress>
 
     /**
      * Recent error caught during refresh requests or `null` if latest request was successful.
@@ -98,7 +106,7 @@ interface Inflow<T> {
      *
      * @return Deferred object with [join][InflowDeferred.join] and [await][InflowDeferred.await]
      * methods to **optionally** observe the result of the call in a suspending manner. The result
-     * can still be observed with [data], [loading] and [error] flows as usual.
+     * can still be observed with [data], [progress] and [error] flows as usual.
      */
     fun refresh(vararg params: RefreshParam): InflowDeferred<T>
 }
@@ -133,8 +141,8 @@ sealed class DataParam {
 sealed class RefreshParam {
     /**
      * If set and another refresh is currently in place then extra refresh will be done again right
-     * after the current one. No error or loading events will be emitted until this extra request
-     * completes.
+     * after the current one. No error or progress (except optional [Progress.State]) events will be
+     * emitted until this extra request completes.
      *
      * It can be useful in situations when remote data was changed (e.g. because of POST or PUT
      * request) and we need to ensure that newly loaded data reflects that changes. Otherwise
@@ -192,3 +200,10 @@ suspend fun <T> Inflow<T>.fresh(expiresIn: Long = 0L): T = refresh(IfExpiresIn(e
  * Shortcut for `refresh(RefreshParam.Repeat)`.
  */
 fun <T> Inflow<T>.forceRefresh(): InflowDeferred<T> = refresh(Repeat)
+
+/**
+ * Provides a simple flow of `false` (if [Progress.Idle]) and `true` (otherwise) values.
+ */
+fun <T> Inflow<T>.loading(): Flow<Boolean> = progress()
+    .map { it != Progress.Idle }
+    .distinctUntilChanged()

@@ -5,6 +5,7 @@ import inflow.ExpirationProvider
 import inflow.ExpiresAt
 import inflow.ExpiresIf
 import inflow.internal.scheduleUpdates
+import inflow.utils.TestTracker
 import inflow.utils.now
 import inflow.utils.runTest
 import inflow.utils.runThreads
@@ -127,40 +128,33 @@ class ScheduleUpdatesTest : BaseTest() {
     fun `IF slow loading is finished THEN retry is not called`() = runTest { job ->
         val cache = MutableStateFlow(0L)
 
-        var counterStart = 0
-        var counterEnd = 0
+        val tracker = TestTracker()
         launch(job) {
             scheduleWithDefaults(
                 cache = cache,
                 retryTime = 100L,
                 loader = {
-                    counterStart++
-                    delay(190L) // Note: bigger than retry time
+                    tracker.active++
+                    delay(200L) // Note: bigger than retry time
 
-                    launch {
-                        delay(10L) // Simulating cache delay
-                        cache.emit(Long.MAX_VALUE) // Should not trigger updates
-                        counterEnd++
-                    }
+                    cache.emit(Long.MAX_VALUE) // Should not trigger updates
+                    tracker.idle++
                 }
             )
         }
 
         delay(50L)
         // State: loading is started but not finished yet, retry is not called as well.
-        assertEquals(expected = 1, actual = counterStart, "First loading is started")
-        assertEquals(expected = 0, actual = counterEnd, "First loading is not finished")
+        assertEquals(TestTracker(1, 0), tracker, "First is loading and not finished")
 
         delay(100L)
         // State: loading is not finished yet, retry loading is not called yet.
-        assertEquals(expected = 1, actual = counterStart, "No second loading started")
-        assertEquals(expected = 0, actual = counterEnd, "First loading is not finished")
+        assertEquals(TestTracker(1, 0), tracker, "First is loading. No second loading")
 
         delay(100L)
         // State: loading is finished and newly loaded value should never expire,
         // no retry is called at this point even though loading time was bigger than retry time.
-        assertEquals(expected = 1, actual = counterStart, "No second loading started")
-        assertEquals(expected = 1, actual = counterEnd, "First loading finished")
+        assertEquals(TestTracker(1, 1), tracker, "First is finished. No second loading")
     }
 
 

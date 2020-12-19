@@ -41,10 +41,10 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         val retryTime = config.loadRetryTime
         require(retryTime > 0L) { "`loadRetryTime` should be positive" }
 
-        // Preparing the loader that will track its `loading` and `error` state
-        loader = Loader(logId, loadScope) {
+        // Preparing the loader that will track its `progress` and `error` state
+        loader = Loader(logId, loadScope) { tracker ->
             // Loading data
-            val data = loaderFromConfig.invoke()
+            val data = loaderFromConfig.invoke(tracker)
 
             // TODO: Do not save data to cache if "repeatIfRunning"
             // Saving data into cache using cache dispatcher
@@ -97,7 +97,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
     override fun data(vararg params: DataParam): Flow<T> =
         if (params.contains(CacheOnly)) cache else auto
 
-    override fun loading() = loader.loading
+    override fun progress() = loader.progress
 
     override fun error() = loader.error
 

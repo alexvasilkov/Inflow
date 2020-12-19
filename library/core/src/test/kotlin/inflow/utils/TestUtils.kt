@@ -3,6 +3,7 @@ package inflow.utils
 import inflow.Inflow
 import inflow.InflowConfig
 import inflow.InflowConnectivity
+import inflow.Progress
 import inflow.inflow
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -12,7 +13,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScope
@@ -37,13 +40,20 @@ internal fun runTest(testBody: suspend TestCoroutineScope.(Job) -> Unit) {
     }
 }
 
-fun <T> runThreads(block: suspend CoroutineScope.() -> T) = runBlocking(Dispatchers.IO, block)
+internal fun <T> runThreads(block: suspend CoroutineScope.() -> T) =
+    runBlocking(Dispatchers.IO, block)
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal fun TestCoroutineScope.testInflow(
     block: InflowConfig<Int?>.() -> Unit
 ): Inflow<Int?> = inflow {
+    if (InflowConnectivity.Default == null) {
+        InflowConnectivity.Default = object : InflowConnectivity {
+            override val connected = MutableStateFlow(true)
+        }
+    }
+
     logId("TEST")
 
     cacheInMemory(null)
@@ -56,18 +66,10 @@ internal fun TestCoroutineScope.testInflow(
 
     loadRetryTime(100L)
 
-    connectivity(object : InflowConnectivity {
-        override val connected = MutableStateFlow(true)
-    })
-
     block()
 
     cacheDispatcher(testDispatcher)
     loadDispatcher(testDispatcher)
-}
-
-internal suspend fun Flow<Boolean>.track(tracker: TestTracker) {
-    collect { if (it) tracker.start++ else tracker.end++ }
 }
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -76,12 +78,26 @@ private val TestCoroutineScope.testDispatcher: CoroutineDispatcher
     get() = coroutineContext[CoroutineDispatcher.Key] as CoroutineDispatcher
 
 
+internal suspend fun Flow<Progress>.track(tracker: TestTracker) {
+    collect {
+        if (it === Progress.Active) tracker.active++
+        if (it === Progress.Idle) tracker.idle++
+    }
+}
+
 internal data class TestTracker(
-    var start: Int = 0,
-    var end: Int = 0
+    var active: Int = 0,
+    var idle: Int = 0
 )
 
+internal fun Inflow<*>.isIdle(): Boolean = progress().value === Progress.Idle
 
+internal suspend fun StateFlow<Progress>.waitIdle() = first { it === Progress.Idle }
+
+
+/**
+ * Runs several iterations of same action at a constant rate of 4 actions per second.
+ */
 internal suspend fun runStressTest(
     logId: String,
     runs: Int,
