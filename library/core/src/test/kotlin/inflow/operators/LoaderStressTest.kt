@@ -33,7 +33,7 @@ class LoaderStressTest : BaseTest() {
 
         log(logId) { "Loads: ${loads.get()}" }
         val expected = STRESS_RUNS / 4 /* per ms */ / 100 /* ms */
-        val expectedRange = (expected - 3)..(expected + 1)
+        val expectedRange = (expected - 4)..(expected + 4) // Fuzzy check because of timings
         assertTrue(loads.get() in expectedRange, "One action can run at a time")
     }
 
