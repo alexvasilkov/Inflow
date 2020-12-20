@@ -152,11 +152,13 @@ sealed class RefreshParam {
 
     /**
      * The refresh will only be requested if the latest cached value is expiring in less than
-     * [expiresIn] milliseconds according to [InflowConfig.cacheExpiration] policy.
+     * [expiresIn] milliseconds according to [InflowConfig.cacheExpiration] policy. In other words
+     * if [expiresIn] is > 0 then it will allow to refresh a not-yet-expired value which will expire
+     * sooner than we want. If [expiresIn] is set to 0 then only expired values will be refreshed.
      *
-     * For example if cached value expires in 5 minutes and [expiresIn] is set to 10 minutes then
+     * For example if cached value expires in 5 minutes and [expiresIn] is set to 2 minutes then
      * no refresh will be done and the cached value will be returned as-is. But if [expiresIn] is
-     * set to 2 minutes then a new refresh request will be scheduled.
+     * set to 10 minutes then a new refresh request will be triggered.
      */
     data class IfExpiresIn(val expiresIn: Long) : RefreshParam() {
         init {
