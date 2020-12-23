@@ -19,6 +19,10 @@ internal class AtomicInt {
 internal class AtomicBoolean {
     private val atomic = atomic(false)
 
+    fun set(value: Boolean) {
+        atomic.value = value
+    }
+
     fun compareAndSet(expect: Boolean, update: Boolean): Boolean =
         atomic.compareAndSet(expect, update)
 }

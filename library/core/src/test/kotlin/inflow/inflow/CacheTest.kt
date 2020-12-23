@@ -1,12 +1,15 @@
 package inflow.inflow
 
 import inflow.BaseTest
+import inflow.Inflow
 import inflow.cache
 import inflow.cached
 import inflow.inflow
 import inflow.utils.assertCrash
 import inflow.utils.runTest
 import inflow.utils.testInflow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -35,8 +38,8 @@ class CacheTest : BaseTest() {
         }
 
         val inflow = testInflow {
-            cache(cache)
-            cacheKeepSubscribedTimeout(200L)
+            data(cache) {}
+            keepCacheSubscribedTimeout(200L)
         }
 
         // Launching endless subscription
@@ -74,12 +77,8 @@ class CacheTest : BaseTest() {
     @Test
     fun `IF cache is slow THEN data can still be collected`() = runTest {
         val inflow = testInflow {
-            cache(
-                flow { // Cold cache flow
-                    delay(100L)
-                    emit(0)
-                }
-            )
+            // Cold cache flow
+            data(flow { delay(100L); emit(0) }) {}
         }
 
         var item: Int? = null
@@ -96,10 +95,8 @@ class CacheTest : BaseTest() {
     @Test
     fun `IF cache throws exception THEN crash`() = runTest {
         assertCrash<RuntimeException> {
-            val inflow = inflow {
-                cache(flow<Unit> { throw RuntimeException() })
-                cacheWriter {}
-                loader {}
+            val inflow = inflow<Unit> {
+                data(flow { throw RuntimeException() }) {}
             }
 
             inflow.refresh()
@@ -109,14 +106,25 @@ class CacheTest : BaseTest() {
     @Test
     fun `IF in-memory cache is used THEN data is cached`() = runTest { job ->
         val inflow = testInflow {
-            cacheInMemory(null)
+            data(initial = null) { delay(100L); 0 }
         }
+        testCachedInMemory(inflow, this, job)
+    }
 
+    @Test
+    fun `IF in-memory deferred cache is used THEN data is cached`() = runTest { job ->
+        val inflow = testInflow {
+            data(initial = { null }) { delay(100L); 0 }
+        }
+        testCachedInMemory(inflow, this, job)
+    }
+
+    private suspend fun testCachedInMemory(inflow: Inflow<Int?>, scope: CoroutineScope, job: Job) {
         var data: Int? = Int.MIN_VALUE
-        launch(job) { inflow.data().collect { data = it } }
+        scope.launch(job) { inflow.data().collect { data = it } }
 
         var cache: Int? = Int.MAX_VALUE
-        launch(job) { inflow.cache().collect { cache = it } }
+        scope.launch(job) { inflow.cache().collect { cache = it } }
 
         delay(100L)
 
@@ -129,11 +137,8 @@ class CacheTest : BaseTest() {
     fun `IF in-memory cache is used THEN it is initialized only once`() = runTest {
         var count = 0
         val inflow = testInflow {
-            cacheInMemoryDeferred {
-                delay(100L)
-                count++
-            }
-            cacheKeepSubscribedTimeout(0L)
+            data(initial = { delay(100L); count++ }) { throw RuntimeException() }
+            keepCacheSubscribedTimeout(0L)
         }
 
         var item1: Int? = null
@@ -147,6 +152,25 @@ class CacheTest : BaseTest() {
         assertNotNull(item2, "Item 2 is loaded")
 
         assertEquals(expected = 1, count, "Cache initializer is called only once")
+    }
+
+
+    @Test
+    fun `IF in-memory cache is manually initialized THEN initializer is not called`() = runTest {
+        lateinit var writer: suspend (Int) -> Unit
+        var count = 0
+        val inflow = testInflow {
+            writer = data(initial = { count++ }) { throw RuntimeException() }
+            keepCacheSubscribedTimeout(0L)
+        }
+
+        writer(-1)
+
+        var item1: Int? = null
+        launch { item1 = inflow.cached() }
+        assertEquals(expected = -1, item1, "Custom item is loaded")
+
+        assertEquals(expected = 0, count, "Cache is never initialized")
     }
 
 }

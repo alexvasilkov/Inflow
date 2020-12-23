@@ -11,11 +11,11 @@ import inflow.utils.runStressTest
 import inflow.utils.runThreads
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import org.junit.jupiter.api.Tag
@@ -24,6 +24,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+@ExperimentalCoroutinesApi
 class ShareTest : BaseTest() {
 
     @Test
@@ -31,15 +32,6 @@ class ShareTest : BaseTest() {
     @Timeout(STRESS_TIMEOUT)
     fun `IF timeout=100 THEN flow is subscribed only once`() {
         val count = testWithTimeout(100L)
-        assertEquals(expected = 1, actual = count, "Cache should only be subscribed once")
-    }
-
-    @Test
-    @Tag(STRESS_TAG)
-    @Timeout(STRESS_TIMEOUT)
-    fun `IF timeout=100 THEN finite flow is subscribed only once`() {
-        val flow = flowOf(null)
-        val count = testWithTimeout(100L, flow)
         assertEquals(expected = 1, actual = count, "Cache should only be subscribed once")
     }
 

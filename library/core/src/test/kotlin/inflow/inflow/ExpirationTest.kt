@@ -8,7 +8,6 @@ import inflow.ExpiresIfNull
 import inflow.ExpiresIn
 import inflow.cached
 import inflow.inflow
-import inflow.utils.assertCrash
 import inflow.utils.now
 import inflow.utils.runTest
 import inflow.utils.runThreads
@@ -27,11 +26,8 @@ class ExpirationTest : BaseTest() {
         runTest { job ->
             var counter = 0
             val inflow = testInflow {
-                loader {
-                    counter++
-                    throw RuntimeException()
-                }
-                cacheExpiration(ExpiresIfNull())
+                data(initial = null) { counter++; throw RuntimeException() }
+                expiration(ExpiresIfNull())
             }
 
             launch(job) { inflow.data().collect() }
@@ -56,12 +52,8 @@ class ExpirationTest : BaseTest() {
         runTest { job ->
             var counter = 0
             val inflow = testInflow {
-                cacheInMemory(0)
-                loader {
-                    counter++
-                    throw RuntimeException()
-                }
-                cacheExpiration(ExpiresIfNull())
+                data(initial = 0) { counter++; throw RuntimeException() }
+                expiration(ExpiresIfNull())
             }
 
             launch(job) { inflow.data().collect() }
@@ -83,13 +75,10 @@ class ExpirationTest : BaseTest() {
 
     private fun testExpiration(expiration: ExpirationProvider<Long>) = runThreads {
         var counter = 0
-        val inflow = inflow {
-            cacheInMemory(-30L) // In both cases resulting expiresIn will be 0L
-            loader {
-                counter++
-                now()
-            }
-            cacheExpiration(expiration)
+        val inflow = inflow<Long> {
+            // In both test cases initial expiresIn will be 0L
+            data(initial = -30L) { counter++; now() }
+            expiration(expiration)
         }
 
         val collectJob = launch { inflow.data().collect() }
@@ -128,19 +117,6 @@ class ExpirationTest : BaseTest() {
     fun `IF ExpiresIf AND interval is 0 THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
             ExpiresIf<Int>(interval = 0L) { false }
-        }
-    }
-
-
-    @Test
-    fun `IF loader returns expired data THEN crash`() = runThreads {
-        assertCrash<AssertionError> {
-            val inflow = inflow<Unit?> {
-                cacheInMemory(null)
-                loader { null }
-                cacheExpiration(ExpiresIfNull())
-            }
-            inflow.refresh()
         }
     }
 

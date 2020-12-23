@@ -14,6 +14,7 @@ import inflow.utils.runThreads
 import inflow.utils.waitIdle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onCompletion
@@ -34,14 +35,10 @@ class StressTest : BaseTest() {
     fun `IF observe several inflows THEN no deadlocks`() = runThreads {
         runStressTest(logId, STRESS_RUNS) { i ->
             for (j in 0 until 2) {
-                val inflow = inflow {
+                val inflow = inflow<Unit?> {
                     logId("$i/$j")
-                    cacheInMemory(null)
-                    loader {
-                        delay(50L)
-                        throw RuntimeException()
-                    }
-                    loadRetryTime(Long.MAX_VALUE)
+                    data(initial = null) { delay(50L); throw RuntimeException() }
+                    retryTime(Long.MAX_VALUE)
                 }
 
                 val job = Job()
@@ -56,7 +53,7 @@ class StressTest : BaseTest() {
                 job.cancel()
 
                 assertTrue(inflow.isIdle(), "Finished loading: $i/$j")
-                assertNotNull(inflow.error().value, "Error is tracked: $i/$j")
+                assertNotNull(inflow.error().first(), "Error is tracked: $i/$j")
             }
         }
     }
@@ -69,13 +66,13 @@ class StressTest : BaseTest() {
             for (j in 0 until 2) {
                 val inflow = inflow<Unit?> {
                     logId("$i/$j")
-                    cacheInMemory(null)
-
-                    // Delaying memory cache writer
-                    val origWriter = requireNotNull(cacheWriter)
-                    cacheWriter { delay(10L); origWriter.invoke(it) }
-
-                    loader { delay(50L) }
+                    val memory = MutableSharedFlow<Unit?>(replay = 1).apply { tryEmit(null) }
+                    data(
+                        cache = memory,
+                        // Delaying memory cache writer
+                        writer = { delay(10L); memory.emit(it) },
+                        loader = { delay(50L) }
+                    )
                 }
 
                 // Scheduling a new refresh, it will force extra refresh every second time
@@ -100,15 +97,13 @@ class StressTest : BaseTest() {
         val cacheState = AtomicInt()
 
         val inflow = inflow<Unit?> {
-            cacheInMemory(null)
-            cache(
-                cache!!
-                    .onStart { cacheState.getAndIncrement() }
-                    .onCompletion { cacheState.decrementAndGet() }
-            )
-            cacheKeepSubscribedTimeout(1L)
-            loader { delay(100L) }
-            loadRetryTime(Long.MAX_VALUE)
+            val memory = MutableSharedFlow<Unit?>(replay = 1).apply { tryEmit(null) }
+            val cache = memory
+                .onStart { cacheState.getAndIncrement() }
+                .onCompletion { cacheState.decrementAndGet() }
+            data(cache) { delay(100L); memory.emit(Unit) }
+            keepCacheSubscribedTimeout(1L)
+            retryTime(Long.MAX_VALUE)
         }
 
         runStressTest(logId, STRESS_RUNS) {

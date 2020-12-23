@@ -30,9 +30,9 @@ class DataTest : BaseTest() {
     fun `IF expired cache is emitted during loading THEN no extra refresh`() = runTest { job ->
         lateinit var writer: suspend (Int?) -> Unit
         val inflow = testInflow {
-            cacheInMemory(-1)
-            writer = cacheWriter!!
-            cacheExpiration(ExpiresIf(Long.MAX_VALUE) { it == null || it < 0 })
+            var count = 0
+            writer = data(initial = -1) { delay(100L); count++ }
+            expiration(ExpiresIf(Long.MAX_VALUE) { it == null || it < 0 })
         }
 
         var item: Int? = Int.MIN_VALUE
@@ -43,6 +43,7 @@ class DataTest : BaseTest() {
         // Sending expired item again while loading is in place
         delay(50L)
         writer(-2)
+        assertEquals(expected = -2, actual = item, "Cache changes are available immediately")
 
         delay(50L)
         assertEquals(expected = 0, actual = item, "Fresh item is loaded automatically")

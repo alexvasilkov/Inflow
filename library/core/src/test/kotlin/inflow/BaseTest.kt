@@ -1,6 +1,7 @@
 package inflow
 
 import inflow.utils.inflowVerbose
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.test.BeforeTest
 
 const val STRESS_TAG = "stress"
@@ -14,6 +15,12 @@ open class BaseTest {
     @BeforeTest
     fun setup() {
         inflowVerbose = true
+
+        if (InflowConnectivity.Default == null) {
+            InflowConnectivity.Default = object : InflowConnectivity {
+                override val connected = MutableStateFlow(true)
+            }
+        }
     }
 
 }

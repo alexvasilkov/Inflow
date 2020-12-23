@@ -84,14 +84,14 @@ class ProgressStateTest : BaseTest() {
     fun `IF state is tracked THEN progress state is triggered`() = runTest {
         lateinit var trackerOutside: ProgressTracker
         val inflow = testInflow {
-            loader { tracker ->
+            data(initial = null) { tracker ->
                 trackerOutside = tracker
                 delay(100L)
-                tracker.state(0f, 1f)
+                tracker.state(0.0, 1.0)
                 delay(100L)
-                tracker.state(0.5f, 1f)
+                tracker.state(0.5, 1.0)
                 delay(100L)
-                tracker.state(1f, 1f)
+                tracker.state(1.0, 1.0)
                 delay(100L)
                 1
             }
@@ -99,30 +99,30 @@ class ProgressStateTest : BaseTest() {
 
         inflow.refresh()
 
-        fun active() = inflow.progress().value as? Active
-        fun state() = inflow.progress().value as? State
-        fun idle() = inflow.progress().value as? Idle
+        suspend fun active() = inflow.progress().first() as? Active
+        suspend fun state() = inflow.progress().first() as? State
+        suspend fun idle() = inflow.progress().first() as? Idle
 
         assertNotNull(active(), "Loading is started")
         delay(100L)
-        assertEquals(State(0f, 1f), state(), "First state")
+        assertEquals(State(0.0, 1.0), state(), "First state")
         delay(100L)
-        assertEquals(State(0.5f, 1f), state(), "Second state")
+        assertEquals(State(0.5, 1.0), state(), "Second state")
         delay(100L)
-        assertEquals(State(1f, 1f), state(), "Third state")
+        assertEquals(State(1.0, 1.0), state(), "Third state")
         delay(100L)
         assertNotNull(idle(), "Loading is finished")
 
-        trackerOutside.state(0f, 0f)
+        trackerOutside.state(0.0, 0.0)
         assertNull(state(), "Cannot track outside of the loader")
     }
 
     @Test
     fun `IF using loading extension THEN loading state is correct`() = runTest { job ->
         val inflow = testInflow {
-            loader { tracker ->
+            data(initial = null) { tracker ->
                 delay(100L)
-                tracker.state(0.5f, 1f)
+                tracker.state(0.5, 1.0)
                 delay(100L)
                 1
             }
@@ -141,13 +141,13 @@ class ProgressStateTest : BaseTest() {
 
     @Test
     fun `IF has state THEN rate is correctly calculated`() {
-        assertEquals(expected = 0f, actual = State(1f, 0f).rate(), "Cannot divide by 0")
+        assertEquals(expected = 0.0, actual = State(1.0, 0.0).rate(), "Cannot divide by 0")
 
-        assertEquals(expected = 0f, actual = State(-1f, 1f).rate(), "Cannot be negative")
+        assertEquals(expected = 0.0, actual = State(-1.0, 1.0).rate(), "Cannot be negative")
 
-        assertEquals(expected = 1f, actual = State(2f, 1f).rate(), "Cannot be bigger than 1")
+        assertEquals(expected = 1.0, actual = State(2.0, 1.0).rate(), "Cannot be bigger than 1")
 
-        val state = State(1f, 2f)
+        val state = State(1.0, 2.0)
         assertEquals(expected = state.current / state.total, actual = state.rate(), "Rate")
     }
 

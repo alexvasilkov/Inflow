@@ -30,10 +30,7 @@ class LoaderTest : BaseTest() {
 
     @Test
     fun `IF exception THEN progress state is tracked`() = runTest {
-        val loader = Loader(logId, this) {
-            delay(100L)
-            throw RuntimeException()
-        }
+        val loader = Loader(logId, this) { delay(100L); throw RuntimeException() }
         loader.load(repeatIfRunning = false)
 
         assertSame(Progress.Active, loader.progress.value, "In loading state")
@@ -44,10 +41,7 @@ class LoaderTest : BaseTest() {
     @Test
     fun `IF exception THEN error is tracked`() = runTest {
         val exception = RuntimeException()
-        val loader = Loader(logId, this) {
-            delay(100L)
-            throw exception
-        }
+        val loader = Loader(logId, this) { delay(100L); throw exception }
         loader.load(repeatIfRunning = false)
 
         assertNull(loader.error.value, "No error in the beginning")
@@ -57,10 +51,7 @@ class LoaderTest : BaseTest() {
 
     @Test
     fun `IF started THEN error is cleared`() = runTest {
-        val loader = Loader(logId, this) {
-            delay(100L)
-            throw RuntimeException()
-        }
+        val loader = Loader(logId, this) { delay(100L); throw RuntimeException() }
 
         loader.load(repeatIfRunning = false)
         delay(100L)
@@ -89,10 +80,7 @@ class LoaderTest : BaseTest() {
 
     @Test
     fun `IF started with repeat and already running THEN extra action`() = runTest { job ->
-        val loader = Loader(logId, this) {
-            delay(100L)
-            throw RuntimeException()
-        }
+        val loader = Loader(logId, this) { delay(100L); throw RuntimeException() }
 
         val progressTracker = TestTracker()
         launch(job) { loader.progress.track(progressTracker) }

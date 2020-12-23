@@ -9,7 +9,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -36,7 +35,7 @@ import kotlinx.coroutines.launch
  * We could use Kotlin's `.shareIn()` operator but it spins a never ending collecting job
  * while we want to have no hanging jobs once there are no cache subscribers left.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@ExperimentalCoroutinesApi
 internal fun <T> Flow<T>.share(
     scope: CoroutineScope,
     keepSubscribedTimeout: Long
@@ -66,10 +65,7 @@ internal fun <T> Flow<T>.share(
                 Job().apply { collectJobRef = this }
             }
 
-            scope.launch(collectJob) {
-                orig.collect(shared::emit)
-                awaitCancellation() // Waiting forever in case if flow is finite
-            }
+            scope.launch(collectJob) { orig.collect(shared::emit) }
         }
         .onCompletion {
             val completeJob = lock.withLock {

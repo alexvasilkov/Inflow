@@ -4,17 +4,30 @@ import inflow.BaseTest
 import inflow.ExpiresIn
 import inflow.RefreshParam
 import inflow.RefreshParam.Repeat
+import inflow.STRESS_RUNS
+import inflow.STRESS_TAG
+import inflow.STRESS_TIMEOUT
 import inflow.cached
+import inflow.forceRefresh
 import inflow.fresh
 import inflow.inflow
+import inflow.utils.AtomicInt
+import inflow.utils.isIdle
+import inflow.utils.log
 import inflow.utils.now
+import inflow.utils.runStressTest
 import inflow.utils.runTest
 import inflow.utils.runThreads
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.flow
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -30,6 +43,33 @@ class RefreshTest : BaseTest() {
 
         delay(100L)
         assertNotNull(inflow.cached(), "Item is loaded")
+    }
+
+    @Test
+    fun `IF refresh with loader flow is called THEN data is loaded`() = runTest {
+        val inflow = testInflow {
+            val memory = MutableSharedFlow<Int?>(replay = 1).apply { tryEmit(null) }
+            data(
+                cache = memory,
+                writer = { memory.emit(it) },
+                loaderFlow = {
+                    flow {
+                        emit(0)
+                        delay(100L)
+                        emit(1)
+                    }
+                }
+            )
+        }
+
+        assertNull(inflow.cached(), "Starts with null")
+
+        inflow.refresh()
+
+        assertEquals(expected = 0, inflow.cached(), "First value loaded")
+        assertFalse(inflow.isIdle(), "Still in progress")
+        delay(100L)
+        assertEquals(expected = 1, inflow.cached(), "Second value loaded")
     }
 
     @Test
@@ -60,8 +100,8 @@ class RefreshTest : BaseTest() {
     @Test
     fun `IF refresh with IfExpiresIn THEN loading is triggered only if expired`() = runTest {
         val inflow = testInflow {
-            cacheInMemory(-1)
-            cacheExpiration(ExpiresIn(50L) { now() })
+            data(initial = -1) { 0 }
+            expiration(ExpiresIn(50L) { now() })
         }
 
         val item1 = inflow.fresh()
@@ -81,7 +121,7 @@ class RefreshTest : BaseTest() {
     @Test
     fun `IF refresh with IfExpiresIn has error THEN error is thrown by await()`() = runTest {
         val inflow = testInflow {
-            loader { throw RuntimeException() }
+            data(initial = null) { throw RuntimeException() }
         }
 
         assertFailsWith<RuntimeException> {
@@ -92,9 +132,8 @@ class RefreshTest : BaseTest() {
 
     @Test
     fun `IF refresh is called with blocking loader THEN data is loaded`() = runThreads {
-        val inflow = inflow {
-            cacheInMemory { 0 }
-            loader {
+        val inflow = inflow<Int> {
+            data(initial = 0) {
                 @Suppress("BlockingMethodInNonBlockingContext")
                 Thread.sleep(50L)
                 1
@@ -105,6 +144,28 @@ class RefreshTest : BaseTest() {
 
         delay(10L) // We have to delay to ensure cache data is propagated
         assertEquals(expected = 1, actual = inflow.cached(), "New item is loaded")
+    }
+
+
+    @Test
+    @Tag(STRESS_TAG)
+    @Timeout(STRESS_TIMEOUT)
+    fun `IF refresh with Repeat and await() THEN all waiters get same result`() = runThreads {
+        val loads = AtomicInt()
+        val inflow = inflow<Int> {
+            data(initial = -1) { delay(100L); loads.getAndIncrement() }
+        }
+
+        var commonResult: Int? = null
+        runStressTest(logId, STRESS_RUNS) {
+            val result = inflow.forceRefresh().await()
+            synchronized(inflow) { if (commonResult == null) commonResult = result }
+            // All waiters should receive the latest loaded item
+            assertEquals(commonResult, result, "All waiters get same result")
+        }
+
+        log(logId) { "Loads: ${loads.get()}" }
+        assertEquals(loads.get() - 1, commonResult, "All waiters get latest result")
     }
 
 }

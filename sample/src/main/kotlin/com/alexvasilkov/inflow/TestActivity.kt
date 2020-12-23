@@ -16,6 +16,7 @@ import inflow.inflow
 import inflow.utils.inflowVerbose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -35,15 +36,14 @@ class TestActivity : AppCompatActivity() {
         text.setOnClickListener { Toast.makeText(this, "Clicked", Toast.LENGTH_SHORT).show() }
         setContentView(text, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
 
-        val timer = inflow {
-            cacheInMemory(initialValue = 0L)
-            cacheExpiration(ExpiresIn(duration = 1000L, loadedAt = { it }))
-            loader { System.currentTimeMillis() }
+        val timer = inflow<Long> {
+            data(initial = 0L) { System.currentTimeMillis() }
+            expiration(ExpiresIn(duration = 1000L, loadedAt = { it }))
         }
 
         lifecycleScope.launch {
             val formatter = SimpleDateFormat("HH:mm:ss", Locale.ENGLISH)
-            timer.data().collect {
+            timer.data().filter { it != 0L }.collect {
                 text.text = formatter.format(it)
             }
         }

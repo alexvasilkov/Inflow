@@ -5,11 +5,9 @@ import inflow.RefreshParam.IfExpiresIn
 import inflow.RefreshParam.Repeat
 import inflow.internal.InflowImpl
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlin.experimental.ExperimentalTypeInference
 
 /**
  * An `Inflow` is a way to use cached data more effectively, automatically keep it up to date by
@@ -27,7 +25,7 @@ import kotlin.experimental.ExperimentalTypeInference
  *
  * **State**
  *
- * Refresh state can be observed using [progress] and [error] state flows.
+ * Refresh state can be observed using [progress] and [error] flows.
  *
  * The [progress] flow will emit each time the loading is started or finished and can optionally
  * emit an intermediate progress state. Also see [loading] extension.
@@ -42,33 +40,35 @@ import kotlin.experimental.ExperimentalTypeInference
  * A simple usage can look like this:
  *
  * ```
- * inflow {
- *     loader = api::loadData
- *     cache = dao::getData
- *     cacheWriter = dao::saveData
+ * val someData = inflow<SomeData> {
+ *     data(
+ *         cache = dao.getSomeData()
+ *         writer = dao::saveSomeData
+ *         loader = { api.loadSomeData() }
+ *     )
  * }
  * ```
  *
- * See [InflowConfig] for all the available configuration options.
+ * **See [InflowConfig] for all the available configuration options.**
  */
 interface Inflow<T> {
     /**
-     * Cached data collected from original [InflowConfig.cache] flow.
+     * Cached data collected from original cache flow provided with [InflowConfig.data].
      *
      * Original (cold or hot) flow will be subscribed automatically and shared among all active
-     * subscribers. Thus no extra cache readings will be done for all subsequent subscribers as they
-     * will immediately receive the most recent cache data.
+     * subscribers. Thus no extra cache readings will be done for all subsequent subscribers and
+     * they will immediately receive the most recent cache data.
      * Original cache will be unsubscribed after predefined timeout since last active subscriber is
-     * unsubscribed (see [InflowConfig.cacheKeepSubscribedTimeout]).
+     * unsubscribed (see [InflowConfig.keepCacheSubscribedTimeout]).
      *
      * In other words original cache flow will be subscribed only if there is at least one active
      * subscriber and for some time after all subscribers are gone. This "keep subscribed" time
      * can be useful to avoid extra readings from original (cold) cache flow while switching app
      * screens, etc.
      *
-     * The cache will be automatically kept fresh using [InflowConfig.loader] while it has at least
-     * one subscriber and according to expiration policy set with [InflowConfig.cacheExpiration].
-     * This behavior can be disabled by using [CacheOnly] param.
+     * The cache will be automatically kept fresh using the loader provided with [InflowConfig.data]
+     * while it has at least one subscriber and according to expiration policy set with
+     * [InflowConfig.expiration]. This behavior can be disabled by using [CacheOnly] param.
      *
      * @param params Optional parameters, see [DataParam].
      * If parameter of the same type is passed several times then only first parameter will be used.
@@ -79,14 +79,16 @@ interface Inflow<T> {
      * Current loading progress.
      * It will emit [Progress.Active] once the loading is started and [Progress.Idle] in the end.
      * Optionally it is also possible to track loading state ([Progress.State]) using
-     * [ProgressTracker] object passed to [InflowConfig.loader].
+     * [ProgressTracker] object passed to the loader set in [InflowConfig.data].
      * Only one request can run at a time.
+     *
+     * It will always repeat the most recent state when starting collecting.
      *
      * Note: if a new refresh is explicitly requested with [refresh] and [Repeat] param
      * while running another refresh, the new request will run immediately after first request is
      * finished without emitting consequent [Progress.Active] and [Progress.Idle] values.
      */
-    fun progress(): StateFlow<Progress>
+    fun progress(): Flow<Progress>
 
     /**
      * Recent error caught during refresh requests or `null` if latest request was successful.
@@ -95,7 +97,7 @@ interface Inflow<T> {
      * It will always repeat the most recent error when starting collecting so the UI code may want
      * to save latest handled error locally to avoid showing duplicate errors.
      */
-    fun error(): StateFlow<Throwable?>
+    fun error(): Flow<Throwable?>
 
     /**
      * Manually requests data refresh from a remote source. The request will start immediately
@@ -115,8 +117,7 @@ interface Inflow<T> {
 /**
  * Creates a new [Inflow] using provided [InflowConfig] configuration.
  */
-@OptIn(ExperimentalTypeInference::class)
-fun <T> inflow(@BuilderInference block: InflowConfig<T>.() -> Unit): Inflow<T> =
+fun <T> inflow(block: InflowConfig<T>.() -> Unit): Inflow<T> =
     InflowImpl(InflowConfig<T>().apply(block))
 
 
@@ -152,7 +153,7 @@ sealed class RefreshParam {
 
     /**
      * The refresh will only be requested if the latest cached value is expiring in less than
-     * [expiresIn] milliseconds according to [InflowConfig.cacheExpiration] policy. In other words
+     * [expiresIn] milliseconds according to [InflowConfig.expiration] policy. In other words
      * if [expiresIn] is > 0 then it will allow to refresh a not-yet-expired value which will expire
      * sooner than we want. If [expiresIn] is set to 0 then only expired values will be refreshed.
      *

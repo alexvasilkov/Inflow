@@ -14,7 +14,6 @@ import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -25,10 +24,7 @@ class LoaderStressTest : BaseTest() {
     @Timeout(STRESS_TIMEOUT)
     fun `IF repeatIfRunning=false and join() THEN only one action runs at a time`() = runThreads {
         val loads = AtomicInt()
-        val loader = Loader(logId, this) {
-            delay(100L)
-            loads.getAndIncrement()
-        }
+        val loader = Loader(logId, this) { delay(100L); loads.getAndIncrement() }
 
         runStressTest(logId, STRESS_RUNS) { loader.load(repeatIfRunning = false).join() }
 
@@ -36,30 +32,6 @@ class LoaderStressTest : BaseTest() {
         // There must be much more than one loading event (around STRESS_RUNS / 4 / 100), but it is
         // impossible to predict the exact amount because of timings, so we'll just check it's > 1.
         assertTrue(loads.get() > 1, "One action should run at a time")
-    }
-
-    @Test
-    @Tag(STRESS_TAG)
-    @Timeout(STRESS_TIMEOUT)
-    fun `IF repeatIfRunning=true and await() THEN all waiters get same result`() = runThreads {
-        val loads = AtomicInt()
-        val loader = Loader(logId, this) {
-            delay(100L)
-            loads.getAndIncrement()
-        }
-
-        var commonResult: Int? = null
-        runStressTest(logId, STRESS_RUNS) {
-            val result = loader.load(repeatIfRunning = true).await()
-            synchronized(loader) {
-                if (commonResult == null) commonResult = result
-                // All waiters should receive the latest loaded item
-                assertEquals(commonResult, result, "All waiters get same result")
-            }
-        }
-
-        log(logId) { "Loads: ${loads.get()}" }
-        assertEquals(loads.get() - 1, commonResult, "All waiters get latest result")
     }
 
     @Test

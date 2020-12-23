@@ -23,8 +23,8 @@ class InvalidationTest : BaseTest() {
     fun `IF invalid THEN emit empty value`() = runTest {
         val invalidIn = ExpiresIn<Int?>(1L) { if (it == -1) 0L else Long.MAX_VALUE }
         val inflow = testInflow {
-            cacheInMemory(-1)
-            cacheInvalidation(invalidIn = invalidIn, emptyValue = -2)
+            data(initial = -1) { 0 }
+            invalidation(invalidIn = invalidIn, emptyValue = -2)
         }
 
         assertEquals(expected = -2, actual = inflow.cached(), "Empty value is returned")
@@ -36,8 +36,8 @@ class InvalidationTest : BaseTest() {
             // Empty value (-1) is not expired according to ExpiresIfNull policy, it should
             // trigger a warning
             testInflow {
-                cacheExpiration(ExpiresIfNull())
-                cacheInvalidation(invalidIn = ExpiresIfNull(), emptyValue = -1)
+                expiration(ExpiresIfNull())
+                invalidation(invalidIn = ExpiresIfNull(), emptyValue = -1)
             }
         }
 
@@ -48,8 +48,8 @@ class InvalidationTest : BaseTest() {
     @Test
     fun `IF valid THEN emit as-is`() = runTest {
         val inflow = testInflow {
-            cacheInMemory(-1)
-            cacheInvalidation(invalidIn = ExpiresIfNull(), emptyValue = null)
+            data(initial = -1) { 0 }
+            invalidation(invalidIn = ExpiresIfNull(), emptyValue = null)
         }
 
         assertEquals(expected = -1, actual = inflow.cached(), "Item is returned")
@@ -58,10 +58,9 @@ class InvalidationTest : BaseTest() {
     @Test
     fun `IF becomes invalid THEN emit as-is and then emit empty value`() = runThreads {
         val start = now()
-        val inflow = inflow {
-            cacheInMemory(start)
-            cacheInvalidation(invalidIn = ExpiresIn<Long?>(30L) { it ?: 0L }, emptyValue = null)
-            loader { throw RuntimeException() }
+        val inflow = inflow<Long?> {
+            data(start) { throw RuntimeException() }
+            invalidation(invalidIn = ExpiresIn(30L) { it ?: 0L }, emptyValue = null)
         }
 
         assertEquals(expected = start, actual = inflow.cached(), "Orig item is emitted")

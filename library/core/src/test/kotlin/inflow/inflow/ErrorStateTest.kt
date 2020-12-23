@@ -17,10 +17,7 @@ class ErrorStateTest : BaseTest() {
     @Test
     fun `IF exception THEN error is collected`() = runTest { job ->
         val inflow = testInflow {
-            loader {
-                delay(100L)
-                throw RuntimeException()
-            }
+            data(initial = null) { delay(100L); throw RuntimeException() }
         }
 
         var error: Throwable? = IllegalStateException()
@@ -46,10 +43,7 @@ class ErrorStateTest : BaseTest() {
     @Test
     fun `IF refresh is forced THEN error is propagated only once`() = runTest { job ->
         val inflow = testInflow {
-            loader {
-                delay(100L)
-                throw RuntimeException()
-            }
+            data(initial = null) { delay(100L); throw RuntimeException() }
         }
 
         var error: Throwable? = IllegalStateException()

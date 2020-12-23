@@ -36,12 +36,12 @@ class TransformTest : BaseTest() {
     @Test
     fun `IF mapped THEN same error state`() = runTest {
         val inflow: Inflow<Int?> = testInflow {
-            loader { throw RuntimeException() }
+            data(initial = null) { throw RuntimeException() }
         }
         val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         mapped.refresh()
-        assertSame(inflow.error().value, mapped.error().value, "Mapped inflow has same error")
+        assertSame(inflow.error().first(), mapped.error().first(), "Mapped inflow has same error")
     }
 
     @Test

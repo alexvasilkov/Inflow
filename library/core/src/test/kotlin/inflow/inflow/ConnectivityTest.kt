@@ -21,11 +21,7 @@ class ConnectivityTest : BaseTest() {
 
         var counter = 0
         val inflow = testInflow {
-            cacheInMemory(null)
-            loader {
-                counter++
-                throw RuntimeException()
-            }
+            data(initial = null) { counter++; throw RuntimeException() }
             connectivity(object : InflowConnectivity {
                 override val connected = connectivityState
             })
@@ -46,7 +42,7 @@ class ConnectivityTest : BaseTest() {
         val connectivityState = MutableStateFlow(true)
 
         val inflow = testInflow {
-            cacheInMemory(null)
+            data(initial = null) { 0 }
             connectivity(object : InflowConnectivity {
                 override val connected = connectivityState
             })

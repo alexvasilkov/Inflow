@@ -6,197 +6,274 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.withContext
 
 /**
  * Configuration params to create a new [Inflow], with default values.
  *
+ * It is required to call one of the variants of [data] method to configure the Inflow, other
+ * configuration methods are optional.
+ *
  * **Loader and cache**
  *
- * The only required value is [loader] which should be set to a suspending function that will fetch
- * a new data from the network (or any other source).
+ * To configure the data source use one of the [data] methods.
+ * The basic configuration involves providing the cache flow and the loader. There are other
+ * variants of [data] method including ones with separate cache writer parameter, with loader that
+ * returns a flow of data and with automatic in-memory cache.
  *
- * A [cache] flow and a [cacheWriter] function can be defined to read existing cache and store a
- * newly loaded data into the cache. The newly cached data is expected to be observed by [cache]
- * flow shortly after it was saved by [cacheWriter].
+ * The cache flow should emit latest cached data upon subscription and then emit new data each
+ * time it was updated in the cache. If no data is cached yet the cache flow is still expected to
+ * emit an empty (e.g. `null`) value. This empty value will be a trigger for an immediate refresh
+ * once [Inflow.data] is subscribed (also see **Cache expiration and invalidation** section below).
  *
- * In-memory cache can be configured using [cacheInMemory] instead of defining custom [cache] and
- * [cacheWriter] values.
+ * The loader should be set to a suspending function that will fetch new data from the network or
+ * any other source. The loader is expected to save the data into the cache itself unless dedicated
+ * cache writer parameter was passed to [data] method.
  *
- * If non-null [cache] flow is provided then it is expected to always emit an empty value
- * (e.g. `null`) if the cache is currently empty. This empty value will be a trigger for an
- * immediate refresh (also see **Cache expiration** section below).
+ * It is expected that once a new data is saved into the cache it will be emitted by the cache flow
+ * shortly. If the data was removed from the cache then cache flow is expected to return an empty
+ * value.
  *
- * Local cache can be defined manually or using external libraries such as Jetpack Room or
- * Jetpack DataStore.
+ * The cache flow will be shared among all active subscribers. Thus no extra cache readings will be
+ * done for subsequent subscribers and they will immediately receive the most recent cache data.
+ * Original cache will be unsubscribed after [keepCacheSubscribedTimeout] since last active
+ * subscriber is unsubscribed.
  *
- * **Cache expiration**
+ * Cache flow can be defined manually or using external libraries such as Room, DataStore, etc.
  *
- * Cache expiration can be controlled by [cacheExpiration] object which will define how long it is
- * left before the cache should be considered as expired. If cached data is expired then it will be
- * immediately refreshed using [loader], otherwise an automatic refresh will be scheduled after the
- * expiration timeout as returned by [cacheExpiration].
+ * **Cache expiration and invalidation**
  *
- * It is important that newly loaded data always has expiration time greater than `0`, otherwise
- * an assertion error will be thrown to prevent endless refresh cycle.
+ * Cache expiration is controlled by [expiration] policy which defines how long it is left before
+ * the cache should be considered as expired. If cached data is expired then it will be immediately
+ * refreshed, otherwise an automatic refresh will be scheduled after the expiration timeout as
+ * returned by [expiration] provider.
+ *
+ * It is important that newly loaded data is not immediately expired, otherwise it can stuck in an
+ * endless refresh cycle.
+ *
+ * The cache can also be completely invalidated using the [invalidation] policy. If the cache is
+ * considered invalid then an empty value will be returned instead.
+ *
+ * The common usage of [expiration] and [invalidation] policies assumes tracking of the time when
+ * the data was loaded and then define minimal time when the data is still considered "fresh" using
+ * [expiration] and maximal time after which the data should not be used in any circumstances using
+ * [invalidation].
  *
  * **Retries and connectivity**
  *
- * If data loading failed (e.g. exception was thrown by the [loader]) and no new data was stored
- * into the cache then automatic retry will be scheduled after a timeout specified with
- * [loadRetryTime].
+ * If data loading failed (e.g. exception was thrown by the loader) and no new data was stored into
+ * the cache then automatic retry will be scheduled after a timeout specified with [retryTime].
  *
  * If [connectivity] is set to a non-null instance then it will be used to detect when the internet
  * connection becomes available to automatically retry failed requests instead of waiting for the
  * next retry time.
  *
- * Automatic retries can be disabled by setting [loadRetryTime] to [Long.MAX_VALUE] and
- * [connectivity] to `null`.
+ * Automatic retries can be disabled by setting [retryTime] to [Long.MAX_VALUE] and [connectivity]
+ * to `null`.
  */
 class InflowConfig<T> internal constructor() {
-    internal var cache: Flow<T>? = null; private set
-    internal var cacheWriter: (suspend (T) -> Unit)? = null; private set
-    internal var cacheExpiration: ExpirationProvider<T> = ExpiresIfNull(); private set
-    internal var cacheInvalidation: ExpirationProvider<T>? = null; private set
-    internal var cacheInvalidationEmpty: T? = null; private set
-    internal var cacheKeepSubscribedTimeout: Long = 1_000L; private set // 1 sec
-    internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
-    internal var loader: (suspend (ProgressTracker) -> T)? = null; private set
-    internal var loadRetryTime: Long = 60_000; private set // 1 min
-    internal var loadDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
+
+    internal var data: InflowData<T>? = null; private set
+    internal var expiration: ExpirationProvider<T> = ExpiresIfNull(); private set
+    internal var invalidation: ExpirationProvider<T>? = null; private set
+    internal var invalidationEmpty: T? = null; private set
+    internal var keepCacheSubscribedTimeout: Long = 1_000L; private set // 1 sec
+    internal var retryTime: Long = 60_000; private set // 1 min
     internal var connectivity: InflowConnectivity? = InflowConnectivity.Default; private set
+    internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
+    internal var loadDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
     internal var logId: String = "NO_ID"; private set
 
+
     /**
-     * Flow of cached data. This flow should always emit `null` (or empty) value if no data is
-     * cached yet to trigger the loading process. The cache will be subscribed using
-     * [cacheDispatcher] to allow sharing it between several subscribers.
+     * Sets local and remote data sources.
+     *
+     * @param cache Flow of cached data. This flow should always emit some empty value (e.g. `null`)
+     * if no data is cached yet to trigger the loading process. The cache will be subscribed and
+     * un-subscribed on demand using [cacheDispatcher] to allow sharing it between several
+     * downstream subscribers. See [Inflow.data].
+     *
+     * @param loader Suspending function that will be called using [loadDispatcher] to load a new
+     * data. **It is loader's responsibility to save the data into the cache** and it is expected
+     * that once the loader is executed the new data will be emitted by the `cache` shortly.
+     * Only one loader request will run at a time, meaning there will never be parallel requests
+     * of the same data.
+     *
+     * **Important:** The newly loaded data should not be expired according to [expiration] policy
+     * to avoid endless loadings.
      */
-    fun cache(flow: Flow<T>) {
-        cache = flow
+    fun data(cache: Flow<T>, loader: suspend (ProgressTracker) -> Unit) {
+        data = InflowData(cache, loader)
     }
 
     /**
-     * Suspending function that will be called using [cacheDispatcher] to save newly loaded data
-     * into the cache.
+     * Variant of [data] function that allows providing a cache [writer] as a separate parameter.
+     *
+     * In this case the [loader] should just return the newly loaded data and the [writer] will be
+     * responsible to actually save it into the cache (using [cacheDispatcher]).
      */
-    fun cacheWriter(action: suspend (T) -> Unit) {
-        cacheWriter = action
+    fun <R> data(
+        cache: Flow<T>,
+        writer: suspend (R) -> Unit,
+        loader: suspend (ProgressTracker) -> R
+    ) {
+        data(cache) {
+            val result = loader(it)
+            withContext(cacheDispatcher) { writer(result) }
+        }
     }
 
     /**
-     * Uses in-memory cache that will start with a value provided by [initialValue].
-     * Both [cache] and [cacheWriter] will be set up to use the memory cache.
+     * Variant of [data] function that allows providing the [loader][loaderFlow] (as a flow) and
+     * cache [writer] as separate parameters.
+     *
+     * In this case the [loaderFlow] can emit several loaded values and the [writer] will be
+     * responsible to actually save them into the cache (using [cacheDispatcher]).
      */
-    fun cacheInMemoryDeferred(initialValue: suspend () -> T) {
-        val mem = MutableSharedFlow<T>(replay = 1)
+    @JvmName("dataFlow")
+    fun <R> data(
+        cache: Flow<T>,
+        writer: suspend (R) -> Unit,
+        loaderFlow: suspend (ProgressTracker) -> Flow<R>
+    ) {
+        data(cache) {
+            loaderFlow(it).collect { withContext(cacheDispatcher) { writer(it) } }
+        }
+    }
+
+    /**
+     * Variant of [data] function that will create and use in-memory cache for all loaded values.
+     * By contract the cache should always emit an empty value in the beginning thus an extra
+     * [initial] value is required as well.
+     *
+     * In this case the [loader] should just return the newly loaded data and it will be
+     * automatically saved into memory cache.
+     *
+     * @return Writer function that can be used to update the in-memory cache from the outside.
+     */
+    fun data(
+        initial: T,
+        loader: suspend (ProgressTracker) -> T
+    ): suspend (T) -> Unit {
+        val memory = MutableSharedFlow<T>(replay = 1).apply { tryEmit(initial) }
+        data(memory) { memory.emit(loader(it)) }
+        return memory::emit
+    }
+
+    /**
+     * Variant of [data] function that will create and use in-memory cache for all loaded values.
+     * By contract the cache should always emit an empty value in the beginning thus an extra
+     * [initial] value is required as well. The deferred [initial] value will be only called once
+     * on first cache access.
+     *
+     * In this case the [loader] should just return the newly loaded data and it will be
+     * automatically saved into memory cache.
+     *
+     * @return Writer function that can be used to update the in-memory cache from the outside.
+     */
+    fun data(
+        initial: suspend () -> T,
+        loader: suspend (ProgressTracker) -> T
+    ): suspend (T) -> Unit {
+        val memory = MutableSharedFlow<T>(replay = 1)
+
+        // By contract the cache should always emit, we need to initialize it on first start
         val initialized = AtomicBoolean()
-        // By contract the cache should always emit, we need to initialize it if not yet
-        cache = mem.onSubscription {
+        val cache = memory.onSubscription {
             if (initialized.compareAndSet(expect = false, update = true)) {
-                mem.tryEmit(initialValue())
+                memory.tryEmit(initial())
             }
         }
-        cacheWriter = { mem.emit(it) }
+
+        data(cache) { memory.emit(loader(it)) }
+        return {
+            initialized.set(true) // No need to initialize the cache anymore
+            memory.emit(it)
+        }
     }
 
-    /**
-     * Uses in-memory cache that will start with [initialValue].
-     * Both [cache] and [cacheWriter] will be set up to use the memory cache.
-     */
-    fun cacheInMemory(initialValue: T) {
-        cacheInMemoryDeferred { initialValue }
-    }
 
     /**
      * Cache expiration policy, see [ExpirationProvider]. Uses [ExpiresIfNull] policy by default.
      */
-    fun cacheExpiration(expiresIn: ExpirationProvider<T>) {
-        cacheExpiration = expiresIn
+    fun expiration(expiresIn: ExpirationProvider<T>) {
+        expiration = expiresIn
     }
 
     /**
      * Cache invalidation policy, see [ExpirationProvider].
      * By default the cache is considered to be valid all the time.
      *
-     * Provided [emptyValue] will be emitted each time invalid data is emitted by original [cache]
+     * Provided [emptyValue] will be emitted each time invalid data is emitted by original cache
      * and automatically after the expiration time defined by [invalidIn] policy.
      *
-     * Note that [cacheWriter] **will not** be called with [emptyValue] to clear the cache because
-     * it is hard to guarantee that newly loaded valid data was not already saved
-     *
-     * **Important: [emptyValue] should be 'expired' according to [cacheExpiration] policy,
-     * otherwise invalid data will not be automatically refreshed.**
+     * **Important:** [emptyValue] should be 'expired' according to [expiration] policy, otherwise
+     * invalid data will not be automatically refreshed.
      */
-    // TODO: We can add extra logic for safe cacheWrite(emptyValue) call, does it make sense?
-    fun cacheInvalidation(invalidIn: ExpirationProvider<T>, emptyValue: T) {
-        cacheInvalidation = invalidIn
-        cacheInvalidationEmpty = emptyValue
+    fun invalidation(invalidIn: ExpirationProvider<T>, emptyValue: T) {
+        invalidation = invalidIn
+        invalidationEmpty = emptyValue
     }
 
     /**
-     * Time to keep active [cache] subscription even if there are no other subscribers currently.
-     * If there are still no subscribers after that time the [cache] will be unsubscribed.
+     * Time to keep active cache subscription even if there are no other subscribers currently.
+     * If there are still no subscribers after that time the cache will be unsubscribed.
      * See [Inflow.data].
      *
-     * It can be useful to avoid extra readings from cold [cache] flow while switching app screens.
+     * It can be useful to avoid extra readings from cold cache flow while switching app screens.
      *
      * Set to 1 second by default.
      */
-    fun cacheKeepSubscribedTimeout(timeoutMillis: Long) {
-        cacheKeepSubscribedTimeout = timeoutMillis
+    fun keepCacheSubscribedTimeout(timeoutMillis: Long) {
+        keepCacheSubscribedTimeout = timeoutMillis
     }
 
     /**
-     * Coroutine dispatcher that will be used to subscribe to [cache] and save new data using
-     * [cacheWriter]. Uses [Dispatchers.IO] by default.
+     * The time to wait before repeating unsuccessful loading call.
+     * Set to 1 minute by default.
+     *
+     * Note that retry time should be greater than the time needed for the cache to propagate from
+     * "save to cache" call to the emission from cache flow. Otherwise the loading call will be
+     * retried even if the data was already successfully loaded which can lead to an infinite cycle.
+     *
+     * **It is advised to set retry time at least to a few seconds. Cannot be <= 0.**
+     */
+    fun retryTime(retryTimeMillis: Long) {
+        retryTime = retryTimeMillis
+    }
+
+    /**
+     * Connectivity state provider that will be used to automatically retry failed requests when
+     * internet connection is established.
+     *
+     * Set to global [InflowConnectivity.Default] provider by default, which in turn is set to
+     * `null` unless initialized with a real provider.
+     *
+     * Android library provides a default implementation for the network connectivity.
+     */
+    fun connectivity(provider: InflowConnectivity?) {
+        connectivity = provider
+    }
+
+    /**
+     * Coroutine dispatcher that will be used to subscribe to the cache and to save new data using
+     * cache writers which can be found in some of the [data] method variants.
+     *
+     * Uses [Dispatchers.IO] by default.
      */
     fun cacheDispatcher(dispatcher: CoroutineDispatcher) {
         cacheDispatcher = dispatcher
     }
 
     /**
-     * Suspending function that will be called using [loadDispatcher] to load a new data.
+     * Coroutine dispatcher that will be used when calling the loader.
      *
-     * **Important. The newly loaded data must not be expired according to [cacheExpiration] policy.
-     * [AssertionError] will be thrown otherwise to prevent endless loading.**
-     */
-    fun loader(action: suspend (ProgressTracker) -> T) {
-        loader = action
-    }
-
-    /**
-     * The time to wait before repeating unsuccessful [loader] call.
-     * Set to 1 minute by default.
-     *
-     * Note that retry time should be greater than the time needed for the cache to propagate from
-     * [cacheWriter] call to emission from [cache], otherwise the [loader] will be called again
-     * even if the data was already successfully loaded which can end up in an infinite cycle.
-     * **It is advised to set retry time at least to a few seconds. Cannot be <= 0.**
-     */
-    fun loadRetryTime(retryTimeMillis: Long) {
-        loadRetryTime = retryTimeMillis
-    }
-
-    /**
-     * Coroutine dispatcher that will be used when calling [loader].
      * Uses [Dispatchers.IO] by default.
      */
     fun loadDispatcher(dispatcher: CoroutineDispatcher) {
         loadDispatcher = dispatcher
-    }
-
-    /**
-     * Connectivity state provider that will be used to automatically retry failed request when
-     * internet connection is established.
-     *
-     * Set to global [InflowConnectivity.Default] provider by default, which in turn is set to
-     * `null` unless explicitly initialized with a real provider.
-     *
-     * Android library provides a default implementation for the network connectivity.
-     */
-    fun connectivity(provider: InflowConnectivity?) {
-        connectivity = provider
     }
 
     /**
@@ -207,3 +284,9 @@ class InflowConfig<T> internal constructor() {
     }
 
 }
+
+
+internal class InflowData<T>(
+    val cache: Flow<T>,
+    val loader: suspend (ProgressTracker) -> Unit
+)

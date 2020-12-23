@@ -2,9 +2,9 @@ package inflow.utils
 
 import inflow.Inflow
 import inflow.InflowConfig
-import inflow.InflowConnectivity
 import inflow.Progress
 import inflow.inflow
+import inflow.loading
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,8 +12,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -48,23 +46,10 @@ internal fun <T> runThreads(block: suspend CoroutineScope.() -> T) =
 internal fun TestCoroutineScope.testInflow(
     block: InflowConfig<Int?>.() -> Unit
 ): Inflow<Int?> = inflow {
-    if (InflowConnectivity.Default == null) {
-        InflowConnectivity.Default = object : InflowConnectivity {
-            override val connected = MutableStateFlow(true)
-        }
-    }
-
     logId("TEST")
-
-    cacheInMemory(null)
-
     var count = 0
-    loader {
-        delay(100L)
-        count++
-    }
-
-    loadRetryTime(100L)
+    data(initial = null) { delay(100L); count++ }
+    retryTime(100L)
 
     block()
 
@@ -90,9 +75,9 @@ internal data class TestTracker(
     var idle: Int = 0
 )
 
-internal fun Inflow<*>.isIdle(): Boolean = progress().value === Progress.Idle
+internal suspend fun Inflow<*>.isIdle(): Boolean = !loading().first()
 
-internal suspend fun StateFlow<Progress>.waitIdle() = first { it === Progress.Idle }
+internal suspend fun Flow<Progress>.waitIdle() = first { it === Progress.Idle }
 
 
 /**
