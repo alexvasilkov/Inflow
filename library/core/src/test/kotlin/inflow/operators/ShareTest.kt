@@ -7,8 +7,8 @@ import inflow.STRESS_TIMEOUT
 import inflow.internal.share
 import inflow.utils.AtomicInt
 import inflow.utils.log
+import inflow.utils.runReal
 import inflow.utils.runStressTest
-import inflow.utils.runThreads
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -59,7 +60,7 @@ class ShareTest : BaseTest() {
     private fun testWithTimeout(
         keepSubscribedTimeout: Long,
         flow: Flow<Unit?> = MutableStateFlow(null)
-    ): Int = runThreads {
+    ): Int = runReal {
         val cacheState = AtomicInt()
         val cacheCalls = AtomicInt()
 
@@ -72,8 +73,8 @@ class ShareTest : BaseTest() {
                 cacheState.decrementAndGet()
             }
 
-        val scope = CoroutineScope(Dispatchers.IO)
-        val shared = cache.share(scope, keepSubscribedTimeout)
+        val scope = CoroutineScope(EmptyCoroutineContext)
+        val shared = cache.share(scope, Dispatchers.IO, keepSubscribedTimeout)
 
         runStressTest(logId, STRESS_RUNS) {
             // Calling shared flow several times to provoke more races

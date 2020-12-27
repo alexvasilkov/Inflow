@@ -1,14 +1,18 @@
 package inflow.operators
 
 import inflow.BaseTest
+import inflow.LoadTracker
 import inflow.Progress
 import inflow.internal.Loader
 import inflow.utils.TestTracker
 import inflow.utils.runTest
+import inflow.utils.testDispatcher
 import inflow.utils.track
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestCoroutineScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -20,7 +24,7 @@ class LoaderTest : BaseTest() {
 
     @Test
     fun `IF loaded THEN progress state is tracked`() = runTest {
-        val loader = Loader(logId, this) { delay(100L) }
+        val loader = createLoader { delay(100L) }
         loader.load(repeatIfRunning = false)
 
         assertSame(Progress.Active, loader.progress.value, "In loading state")
@@ -30,7 +34,7 @@ class LoaderTest : BaseTest() {
 
     @Test
     fun `IF exception THEN progress state is tracked`() = runTest {
-        val loader = Loader(logId, this) { delay(100L); throw RuntimeException() }
+        val loader = createLoader { delay(100L); throw RuntimeException() }
         loader.load(repeatIfRunning = false)
 
         assertSame(Progress.Active, loader.progress.value, "In loading state")
@@ -41,7 +45,7 @@ class LoaderTest : BaseTest() {
     @Test
     fun `IF exception THEN error is tracked`() = runTest {
         val exception = RuntimeException()
-        val loader = Loader(logId, this) { delay(100L); throw exception }
+        val loader = createLoader { delay(100L); throw exception }
         loader.load(repeatIfRunning = false)
 
         assertNull(loader.error.value, "No error in the beginning")
@@ -51,7 +55,7 @@ class LoaderTest : BaseTest() {
 
     @Test
     fun `IF started THEN error is cleared`() = runTest {
-        val loader = Loader(logId, this) { delay(100L); throw RuntimeException() }
+        val loader = createLoader { delay(100L); throw RuntimeException() }
 
         loader.load(repeatIfRunning = false)
         delay(100L)
@@ -64,7 +68,7 @@ class LoaderTest : BaseTest() {
 
     @Test
     fun `IF started several times THEN one action runs at a time`() = runTest {
-        val loader = Loader(logId, this) { delay(100L) }
+        val loader = createLoader { delay(100L) }
 
         val job1 = loader.load(repeatIfRunning = false)
 
@@ -80,7 +84,7 @@ class LoaderTest : BaseTest() {
 
     @Test
     fun `IF started with repeat and already running THEN extra action`() = runTest { job ->
-        val loader = Loader(logId, this) { delay(100L); throw RuntimeException() }
+        val loader = createLoader { delay(100L); throw RuntimeException() }
 
         val progressTracker = TestTracker()
         launch(job) { loader.progress.track(progressTracker) }
@@ -109,5 +113,10 @@ class LoaderTest : BaseTest() {
         assertEquals(expected = 1, actual = errorsCount, "Error in the end of second refresh")
         assertEquals(TestTracker(1, 2), progressTracker, "Not loading in the end of second refresh")
     }
+
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun TestCoroutineScope.createLoader(action: suspend (LoadTracker) -> Unit) =
+        Loader(logId, this, testDispatcher, action)
 
 }

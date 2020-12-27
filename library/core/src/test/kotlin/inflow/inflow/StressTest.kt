@@ -9,10 +9,9 @@ import inflow.forceRefresh
 import inflow.inflow
 import inflow.utils.AtomicInt
 import inflow.utils.isIdle
+import inflow.utils.runReal
 import inflow.utils.runStressTest
-import inflow.utils.runThreads
 import inflow.utils.waitIdle
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
@@ -32,7 +31,7 @@ class StressTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF observe several inflows THEN no deadlocks`() = runThreads {
+    fun `IF observe several inflows THEN no deadlocks`() = runReal {
         runStressTest(logId, STRESS_RUNS) { i ->
             for (j in 0 until 2) {
                 val inflow = inflow<Unit?> {
@@ -41,10 +40,8 @@ class StressTest : BaseTest() {
                     retryTime(Long.MAX_VALUE)
                 }
 
-                val job = Job()
-
                 // Subscribing to start auto refresh
-                launch(job) { inflow.data().collect() }
+                val job = launch { inflow.data().collect() }
 
                 // Waiting till the end
                 inflow.error().first { it != null }
@@ -61,7 +58,7 @@ class StressTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF refresh several inflows THEN no deadlocks`() = runThreads {
+    fun `IF refresh several inflows THEN no deadlocks`() = runReal {
         runStressTest(logId, STRESS_RUNS) { i ->
             for (j in 0 until 2) {
                 val inflow = inflow<Unit?> {
@@ -93,7 +90,7 @@ class StressTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF observe single inflow from several threads THEN no deadlocks`() = runThreads {
+    fun `IF observe single inflow from several threads THEN no deadlocks`() = runReal {
         val cacheState = AtomicInt()
 
         val inflow = inflow<Unit?> {

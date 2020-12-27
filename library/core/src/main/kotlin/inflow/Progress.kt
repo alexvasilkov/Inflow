@@ -20,7 +20,7 @@ sealed class Progress {
     object Active : Progress()
 
     /**
-     * Loading progress ([current] / [total]) as tracked by [ProgressTracker] instance passed to
+     * Loading progress ([current] / [total]) as tracked by [LoadTracker] instance passed to
      * the loader (see [InflowConfig.data]).
      *
      * Percentage can be calculated with [rate] function.
@@ -37,6 +37,10 @@ sealed class Progress {
 /**
  * Intermediate loading progress tracker.
  */
-interface ProgressTracker {
+interface LoadTracker {
+    /**
+     * Allows tracking intermediate loading state that can be collected with [Inflow.progress] as
+     * [Progress.State].
+     */
     fun state(current: Double, total: Double)
 }

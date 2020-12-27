@@ -3,12 +3,14 @@ package inflow
 import inflow.utils.AtomicBoolean
 import inflow.utils.inflowVerbose
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onSubscription
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 
 /**
  * Configuration params to create a new [Inflow], with default values.
@@ -84,6 +86,9 @@ class InflowConfig<T> internal constructor() {
     internal var connectivity: InflowConnectivity? = InflowConnectivity.Default; private set
     internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
     internal var loadDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
+    private var _scope: CoroutineScope? = null
+    internal val scope: CoroutineScope
+        get() = _scope ?: CoroutineScope(Job()).apply { _scope = this }
     internal var logId: String = "NO_ID"; private set
 
 
@@ -104,7 +109,7 @@ class InflowConfig<T> internal constructor() {
      * **Important:** The newly loaded data should not be expired according to [expiration] policy
      * to avoid endless loadings.
      */
-    fun data(cache: Flow<T>, loader: suspend (ProgressTracker) -> Unit) {
+    fun data(cache: Flow<T>, loader: suspend (LoadTracker) -> Unit) {
         data = InflowData(cache, loader)
     }
 
@@ -117,11 +122,13 @@ class InflowConfig<T> internal constructor() {
     fun <R> data(
         cache: Flow<T>,
         writer: suspend (R) -> Unit,
-        loader: suspend (ProgressTracker) -> R
+        loader: suspend (LoadTracker) -> R
     ) {
         data(cache) {
             val result = loader(it)
-            withContext(cacheDispatcher) { writer(result) }
+            // Calling from scope to propagate exceptions and crash the scope.
+            // If scope is cancelled then cache writes will be skipped.
+            scope.launch(cacheDispatcher) { writer(result) }.join()
         }
     }
 
@@ -136,10 +143,14 @@ class InflowConfig<T> internal constructor() {
     fun <R> data(
         cache: Flow<T>,
         writer: suspend (R) -> Unit,
-        loaderFlow: suspend (ProgressTracker) -> Flow<R>
+        loaderFlow: suspend (LoadTracker) -> Flow<R>
     ) {
         data(cache) {
-            loaderFlow(it).collect { withContext(cacheDispatcher) { writer(it) } }
+            loaderFlow(it).collect { result ->
+                // Calling from scope to propagate exceptions and crash the scope.
+                // If scope is cancelled then cache writes will be skipped.
+                scope.launch(cacheDispatcher) { writer(result) }.join()
+            }
         }
     }
 
@@ -155,7 +166,7 @@ class InflowConfig<T> internal constructor() {
      */
     fun data(
         initial: T,
-        loader: suspend (ProgressTracker) -> T
+        loader: suspend (LoadTracker) -> T
     ): suspend (T) -> Unit {
         val memory = MutableSharedFlow<T>(replay = 1).apply { tryEmit(initial) }
         data(memory) { memory.emit(loader(it)) }
@@ -175,7 +186,7 @@ class InflowConfig<T> internal constructor() {
      */
     fun data(
         initial: suspend () -> T,
-        loader: suspend (ProgressTracker) -> T
+        loader: suspend (LoadTracker) -> T
     ): suspend (T) -> Unit {
         val memory = MutableSharedFlow<T>(replay = 1)
 
@@ -222,9 +233,16 @@ class InflowConfig<T> internal constructor() {
      * If there are still no subscribers after that time the cache will be unsubscribed.
      * See [Inflow.data].
      *
-     * It can be useful to avoid extra readings from cold cache flow while switching app screens.
+     * It can be useful to avoid extra readings from slow cold cache flow while e.g. switching app's
+     * screens.
      *
-     * Set to 1 second by default.
+     * If set to `0` then the cache will be immediately unsubscribed once last [Inflow.data]
+     * subscriber is gone. If set to `Long.MAX_VALUE` then the cache will be kept subscribed
+     * forever (until [scope] is cancelled), it means that any changes to the cache will be
+     * immediately observed and cached by the shared cache used for [Inflow.data] and all new
+     * subscribers won't have to wait for cache reads.
+     *
+     * Must be >= 0. Set to 1 second by default.
      */
     fun keepCacheSubscribedTimeout(timeoutMillis: Long) {
         keepCacheSubscribedTimeout = timeoutMillis
@@ -277,6 +295,18 @@ class InflowConfig<T> internal constructor() {
     }
 
     /**
+     * Inflow execution scope. Can be used to cancel the Inflow execution or handle errors.
+     *
+     * Note that it is not really necessary to cancel the Inflow as it will not have any running
+     * jobs once it has no active subscribers and the cache is unsubscribed after
+     * [keepCacheSubscribedTimeout]. If [keepCacheSubscribedTimeout] is big or if no loading and
+     * cache writing are desirable anymore then the scope can be cancelled explicitly.
+     */
+    fun scope(scope: CoroutineScope) {
+        _scope = scope
+    }
+
+    /**
      * Log id to distinguish this `Inflow` from others when in verbose mode ([inflowVerbose]).
      */
     fun logId(logId: String) {
@@ -288,5 +318,5 @@ class InflowConfig<T> internal constructor() {
 
 internal class InflowData<T>(
     val cache: Flow<T>,
-    val loader: suspend (ProgressTracker) -> Unit
+    val loader: suspend (LoadTracker) -> Unit
 )

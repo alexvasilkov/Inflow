@@ -6,6 +6,7 @@ import inflow.Progress
 import inflow.inflow
 import inflow.loading
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,7 +20,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 
 /**
  * Runs a test with specific job that is guaranteed to be cancelled in the end.
@@ -27,19 +27,16 @@ import kotlin.test.assertFailsWith
  * Useful to run long-running tasks that should be canceled in the end of the test.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-internal fun runTest(testBody: suspend TestCoroutineScope.(Job) -> Unit) {
-    runBlockingTest {
-        val job = Job()
-        try {
-            testBody(job)
-        } finally {
-            job.cancel()
-        }
+internal fun runTest(testBody: suspend TestCoroutineScope.(Job) -> Unit) = runBlockingTest {
+    val job = Job()
+    try {
+        testBody(job)
+    } finally {
+        job.cancel()
     }
 }
 
-internal fun <T> runThreads(block: suspend CoroutineScope.() -> T) =
-    runBlocking(Dispatchers.IO, block)
+internal fun <T> runReal(block: suspend CoroutineScope.() -> T) = runBlocking(Dispatchers.IO, block)
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -57,9 +54,8 @@ internal fun TestCoroutineScope.testInflow(
     loadDispatcher(testDispatcher)
 }
 
-@OptIn(ExperimentalStdlibApi::class)
-@ExperimentalCoroutinesApi
-private val TestCoroutineScope.testDispatcher: CoroutineDispatcher
+@OptIn(ExperimentalStdlibApi::class, ExperimentalCoroutinesApi::class)
+val TestCoroutineScope.testDispatcher: CoroutineDispatcher
     get() = coroutineContext[CoroutineDispatcher.Key] as CoroutineDispatcher
 
 
@@ -116,24 +112,16 @@ internal suspend fun runStressTest(
     inflowVerbose = wasVerbose
 }
 
-
-internal suspend inline fun <reified T : Throwable> assertCrash(block: () -> Unit) {
-    // Using real threading along with setDefaultUncaughtExceptionHandler to receive errors
-    // thrown inside coroutines. There is no other way to get internal errors without changing
-    // Inflow API and allow setting custom coroutine context instead of just a dispatcher.
-    val handler = Thread.getDefaultUncaughtExceptionHandler()
-
-    var error: Throwable? = null
-    Thread.setDefaultUncaughtExceptionHandler { _, e -> error = e }
-
-    assertFailsWith(T::class) {
-        block()
-        delay(50L) // Waiting for error to propagate
-        throw error!!
-    }
-
-    Thread.setDefaultUncaughtExceptionHandler(handler)
+@OptIn(ExperimentalCoroutinesApi::class)
+internal suspend fun TestCoroutineScope.catchScopeException(
+    block: suspend TestCoroutineScope.(CoroutineScope) -> Unit
+): Throwable? {
+    var caught: Throwable? = null
+    val handler = CoroutineExceptionHandler { _, th -> caught = th }
+    block(CoroutineScope(handler))
+    return caught
 }
+
 
 internal fun getLogMessage(block: () -> Unit): String? {
     val wasVerbose = inflowVerbose

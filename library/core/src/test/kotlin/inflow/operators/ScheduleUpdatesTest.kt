@@ -7,8 +7,8 @@ import inflow.ExpiresIf
 import inflow.internal.scheduleUpdates
 import inflow.utils.TestTracker
 import inflow.utils.now
+import inflow.utils.runReal
 import inflow.utils.runTest
-import inflow.utils.runThreads
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,7 +64,7 @@ class ScheduleUpdatesTest : BaseTest() {
     }
 
     @Test
-    fun `IF cache is expiring THEN new updates are called`() = runThreads {
+    fun `IF cache is expiring THEN new updates are called`() = runReal {
         val cache = MutableStateFlow(0L)
 
         var counter = 0

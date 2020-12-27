@@ -13,7 +13,7 @@ interface InflowDeferred<T> {
      *
      * Note that explicit call to the underlying cache will be made (bypassing the shared cache)
      * right after the loading completes to ensure all data is only coming from the cache as a
-     * source of truth.
+     * single source of truth.
      *
      * @see Deferred.await
      */

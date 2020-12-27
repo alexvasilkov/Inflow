@@ -7,11 +7,11 @@ import inflow.InflowConfig
 import inflow.InflowDeferred
 import inflow.RefreshParam
 import inflow.RefreshParam.IfExpiresIn
+import inflow.utils.doOnCancel
 import inflow.utils.log
 import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -30,8 +30,9 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
     private val fromCacheDirectly: suspend () -> T
 
     private val logId = config.logId
-    private val cacheScope = CoroutineScope(config.cacheDispatcher)
-    private val loadScope = CoroutineScope(config.loadDispatcher)
+    private val scope = config.scope
+    private val cacheDispatcher = config.cacheDispatcher
+    private val loadDispatcher = config.loadDispatcher
 
     private val cacheExpiration = config.expiration
 
@@ -48,7 +49,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         require(retryTime > 0L) { "`loadRetryTime` should be positive" }
 
         // Preparing the loader that will track its `progress` and `error` state
-        loader = Loader(logId, loadScope, loaderFromConfig)
+        loader = Loader(logId, scope, loadDispatcher, loaderFromConfig)
 
         // Checking for cached data invalidation if configured
         val cacheInvalidation = config.invalidation
@@ -71,7 +72,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         fromCacheDirectly = { cacheWithInvalidation.first() }
 
         // Sharing the cache to allow several subscribers
-        cache = cacheWithInvalidation.share(cacheScope, cacheTimeout)
+        cache = cacheWithInvalidation.share(scope, cacheDispatcher, cacheTimeout)
 
         // Preparing a flow that will emit cached data each time the data is changed
         // or connectivity provider signals about active connection
@@ -80,7 +81,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         // Preparing `auto` cache that will schedule data updates whenever it is subscribed and
         // cached data is expired
         auto = cache.doWhileSubscribed {
-            loadScope.launch {
+            scope.launch(loadDispatcher) {
                 scheduleUpdates(logId, cacheRepeated, cacheExpiration, retryTime) {
                     loader.load(repeatIfRunning = false).join()
                 }
@@ -101,18 +102,23 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
 
         val deferred = DeferredDelegate()
         if (ifExpiresIn != null) {
-            // We need to request latest cached value first to check its expiration.
-            // We don't care about threading and can wait for the cache in any dispatcher.
-            cacheScope.launch(Dispatchers.Unconfined) {
-                val cached = cache.first() // Won't trigger extra cache read if already subscribed
+            // We need to request latest cached value first to check its expiration
+            val job = scope.launch(cacheDispatcher) {
+                // Getting cached value, it won't trigger extra cache read if already subscribed.
+                // If scope is cancelled while we're waiting for the cache then shared cache
+                // should throw cancellation exception.
+                val cached = cache.first()
+
                 if (cacheExpiration.expiresIn(cached) > ifExpiresIn.expiresIn) {
                     // Not expired, returning cached value as is
-                    deferred.delegateToData(CompletableDeferred(cached))
+                    deferred.onValue(cached)
                 } else {
                     // Expired, requesting refresh
                     deferred.delegateToLoader(loader.load(repeatIfRunning))
                 }
             }
+            // If scope is cancelled then we need to notify our deferred object
+            job.doOnCancel(deferred::onCancelled)
         } else {
             deferred.delegateToLoader(loader.load(repeatIfRunning))
         }
@@ -120,7 +126,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
     }
 
 
-    // A deferred implementation that can delegate either to actual CompletableDeferred or to
+    // A deferred implementation that can delegate either to actual value / error or to
     // loader's deferred result (in which case the result will be requested from cache explicitly)
     private inner class DeferredDelegate : InflowDeferred<T> {
         private val delegateLoader = atomic<CompletableDeferred<Unit>?>(null)
@@ -132,8 +138,15 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
             notifier.complete()
         }
 
-        fun delegateToData(loader: CompletableDeferred<T>) {
-            delegateData.value = loader
+        fun onValue(value: T) {
+            delegateData.value = CompletableDeferred(value)
+            notifier.complete()
+        }
+
+        fun onCancelled(exception: CancellationException) {
+            val result = CompletableDeferred<T>()
+            result.completeExceptionally(exception)
+            delegateData.value = result
             notifier.complete()
         }
 
@@ -141,7 +154,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
             // Waiting for the delegates
             notifier.join()
 
-            // If data delegate is provided then we'll use it
+            // If data delegate is provided then we'll just use it as is
             delegateData.value?.apply { return await() }
 
             // Loading and awaiting the result (we are only interested in a thrown exception here)
@@ -149,14 +162,22 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
             // Reading latest value directly from original cache as shared cache may not have the
             // latest version yet. I.e. the loader completed and saved the data into the cache but
             // it was not observed by the shared cache yet.
-            return withContext(cacheScope.coroutineContext) { fromCacheDirectly() }
+            return withContext(cacheDispatcher) {
+                // Cache errors are not expected, they should crash the scope (and the app)
+                try {
+                    fromCacheDirectly()
+                } catch (th: Throwable) {
+                    scope.launch(cacheDispatcher) { throw th }.join()
+                    throw th
+                }
+            }
         }
 
         override suspend fun join() {
             // Waiting for the delegates
             notifier.join()
 
-            // If data delegate is provided then we'll use it first
+            // If data delegate is provided then we'll just use it as is
             delegateData.value?.apply { return join() }
 
             // Else joining loader's delegate

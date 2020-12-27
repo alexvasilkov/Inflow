@@ -79,7 +79,7 @@ interface Inflow<T> {
      * Current loading progress.
      * It will emit [Progress.Active] once the loading is started and [Progress.Idle] in the end.
      * Optionally it is also possible to track loading state ([Progress.State]) using
-     * [ProgressTracker] object passed to the loader set in [InflowConfig.data].
+     * [LoadTracker] object passed to the loader set in [InflowConfig.data].
      * Only one request can run at a time.
      *
      * It will always repeat the most recent state when starting collecting.

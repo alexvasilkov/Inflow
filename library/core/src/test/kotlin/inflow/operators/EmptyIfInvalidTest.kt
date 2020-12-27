@@ -6,8 +6,8 @@ import inflow.ExpiresIfNull
 import inflow.ExpiresIn
 import inflow.internal.emptyIfInvalid
 import inflow.utils.now
+import inflow.utils.runReal
 import inflow.utils.runTest
-import inflow.utils.runThreads
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
@@ -37,7 +37,7 @@ class EmptyIfInvalidTest : BaseTest() {
     }
 
     @Test
-    fun `IF becomes invalid THEN emit as-is and then emit empty value`() = runThreads {
+    fun `IF becomes invalid THEN emit as-is and then emit empty value`() = runReal {
         val startTime = now()
         val orig = flowOf<Long?>(startTime)
         val invalidIn = ExpiresIn<Long?>(duration = 30L, loadedAt = { it ?: 0L })

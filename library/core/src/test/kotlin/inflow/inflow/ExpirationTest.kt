@@ -9,8 +9,8 @@ import inflow.ExpiresIn
 import inflow.cached
 import inflow.inflow
 import inflow.utils.now
+import inflow.utils.runReal
 import inflow.utils.runTest
-import inflow.utils.runThreads
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -73,7 +73,7 @@ class ExpirationTest : BaseTest() {
         testExpiration(ExpiresIn(30L) { it })
     }
 
-    private fun testExpiration(expiration: ExpirationProvider<Long>) = runThreads {
+    private fun testExpiration(expiration: ExpirationProvider<Long>) = runReal {
         var counter = 0
         val inflow = inflow<Long> {
             // In both test cases initial expiresIn will be 0L

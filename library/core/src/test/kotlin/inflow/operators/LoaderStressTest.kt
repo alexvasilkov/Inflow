@@ -8,8 +8,9 @@ import inflow.STRESS_TIMEOUT
 import inflow.internal.Loader
 import inflow.utils.AtomicInt
 import inflow.utils.log
+import inflow.utils.runReal
 import inflow.utils.runStressTest
-import inflow.utils.runThreads
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
@@ -22,9 +23,9 @@ class LoaderStressTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF repeatIfRunning=false and join() THEN only one action runs at a time`() = runThreads {
+    fun `IF repeatIfRunning=false and join() THEN only one action runs at a time`() = runReal {
         val loads = AtomicInt()
-        val loader = Loader(logId, this) { delay(100L); loads.getAndIncrement() }
+        val loader = Loader(logId, this, Dispatchers.IO) { delay(100L); loads.getAndIncrement() }
 
         runStressTest(logId, STRESS_RUNS) { loader.load(repeatIfRunning = false).join() }
 
@@ -37,8 +38,8 @@ class LoaderStressTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF repeatIfRunning=true and await() THEN finishes with no deadlocks`() = runThreads {
-        val loader = Loader(logId, this) {}
+    fun `IF repeatIfRunning=true and await() THEN finishes with no deadlocks`() = runReal {
+        val loader = Loader(logId, this, Dispatchers.IO) {}
         runStressTest(logId, STRESS_RUNS) { loader.load(repeatIfRunning = true).await() }
         assertSame(Progress.Idle, loader.progress.value, "Finished")
     }

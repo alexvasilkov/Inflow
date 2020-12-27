@@ -6,9 +6,9 @@ import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.internal.doWhileSubscribed
 import inflow.utils.AtomicInt
+import inflow.utils.runReal
 import inflow.utils.runStressTest
 import inflow.utils.runTest
-import inflow.utils.runThreads
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -61,7 +61,7 @@ class DoWhileSubscribedTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF collecting from several threads THEN job is started and stopped`() = runThreads {
+    fun `IF collecting from several threads THEN job is started and stopped`() = runReal {
         val state = AtomicInt()
         val flow = MutableStateFlow(0)
         val tracked = flow.doWhileSubscribed {

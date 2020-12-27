@@ -4,8 +4,7 @@ import inflow.BaseTest
 import inflow.Inflow
 import inflow.cache
 import inflow.cached
-import inflow.inflow
-import inflow.utils.assertCrash
+import inflow.utils.catchScopeException
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import kotlinx.coroutines.CoroutineScope
@@ -14,11 +13,13 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 class CacheTest : BaseTest() {
 
@@ -92,16 +93,65 @@ class CacheTest : BaseTest() {
         assertNotNull(item, "Item is finally loaded")
     }
 
+
     @Test
-    fun `IF cache throws exception THEN crash`() = runTest {
-        assertCrash<RuntimeException> {
-            val inflow = inflow<Unit> {
-                data(flow { throw RuntimeException() }) {}
+    fun `IF cache flow throws exception THEN crash`() = runTest {
+        val exception = RuntimeException()
+        val caught = catchScopeException { scope ->
+            val inflow = testInflow {
+                data(flow { throw exception }) {}
+                scope(scope)
+            }
+
+            // Cache read will throw cancellation exception but we only care about scope exception
+            runCatching { inflow.cached() }
+        }
+        assertSame(exception, caught, "Exception is handled")
+    }
+
+    @Test
+    fun `IF cache flow throws exception with await() THEN crash`() = runTest {
+        val exception = RuntimeException()
+        val caught = catchScopeException { scope ->
+            val inflow = testInflow {
+                data(flow { throw exception }) {}
+                scope(scope)
+            }
+
+            // Await call will throw its own exception, but we only care about scope exception
+            runCatching { inflow.refresh().await() }
+        }
+        assertSame(exception, caught, "Exception is handled")
+    }
+
+    @Test
+    fun `IF cache writer throws exception THEN crash`() = runTest {
+        val exception = RuntimeException()
+        val caught = catchScopeException { scope ->
+            val inflow = testInflow {
+                data(cache = flowOf(0), writer = { throw exception }, loader = { 1 })
+                scope(scope)
             }
 
             inflow.refresh()
         }
+        assertSame(exception, caught, "Exception is handled")
     }
+
+    @Test
+    fun `IF cache writer throws exception (with flow loader) THEN crash`() = runTest {
+        val exception = RuntimeException()
+        val caught = catchScopeException { scope ->
+            val inflow = testInflow {
+                data(cache = flowOf(0), writer = { throw exception }, loaderFlow = { flowOf(1) })
+                scope(scope)
+            }
+
+            inflow.refresh()
+        }
+        assertSame(exception, caught, "Exception is handled")
+    }
+
 
     @Test
     fun `IF in-memory cache is used THEN data is cached`() = runTest { job ->

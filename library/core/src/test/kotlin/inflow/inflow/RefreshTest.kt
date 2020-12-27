@@ -15,9 +15,9 @@ import inflow.utils.AtomicInt
 import inflow.utils.isIdle
 import inflow.utils.log
 import inflow.utils.now
+import inflow.utils.runReal
 import inflow.utils.runStressTest
 import inflow.utils.runTest
-import inflow.utils.runThreads
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -35,7 +35,9 @@ class RefreshTest : BaseTest() {
 
     @Test
     fun `IF refresh is called THEN data is loaded`() = runTest {
-        val inflow = testInflow {}
+        val inflow = testInflow {
+            keepCacheSubscribedTimeout(0L)
+        }
 
         inflow.refresh()
 
@@ -60,6 +62,7 @@ class RefreshTest : BaseTest() {
                     }
                 }
             )
+            keepCacheSubscribedTimeout(0L)
         }
 
         assertNull(inflow.cached(), "Starts with null")
@@ -74,7 +77,9 @@ class RefreshTest : BaseTest() {
 
     @Test
     fun `IF refresh with Repeat THEN loading is repeated`() = runTest {
-        val inflow = testInflow {}
+        val inflow = testInflow {
+            keepCacheSubscribedTimeout(0L)
+        }
 
         inflow.refresh()
 
@@ -102,6 +107,7 @@ class RefreshTest : BaseTest() {
         val inflow = testInflow {
             data(initial = -1) { 0 }
             expiration(ExpiresIn(50L) { now() })
+            keepCacheSubscribedTimeout(0L)
         }
 
         val item1 = inflow.fresh()
@@ -122,6 +128,7 @@ class RefreshTest : BaseTest() {
     fun `IF refresh with IfExpiresIn has error THEN error is thrown by await()`() = runTest {
         val inflow = testInflow {
             data(initial = null) { throw RuntimeException() }
+            keepCacheSubscribedTimeout(0L)
         }
 
         assertFailsWith<RuntimeException> {
@@ -131,13 +138,14 @@ class RefreshTest : BaseTest() {
 
 
     @Test
-    fun `IF refresh is called with blocking loader THEN data is loaded`() = runThreads {
+    fun `IF refresh is called with blocking loader THEN data is loaded`() = runReal {
         val inflow = inflow<Int> {
             data(initial = 0) {
                 @Suppress("BlockingMethodInNonBlockingContext")
                 Thread.sleep(50L)
                 1
             }
+            keepCacheSubscribedTimeout(0L)
         }
 
         inflow.refresh().join()
@@ -150,10 +158,11 @@ class RefreshTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF refresh with Repeat and await() THEN all waiters get same result`() = runThreads {
+    fun `IF refresh with Repeat and await() THEN all waiters get same result`() = runReal {
         val loads = AtomicInt()
         val inflow = inflow<Int> {
             data(initial = -1) { delay(100L); loads.getAndIncrement() }
+            keepCacheSubscribedTimeout(0L)
         }
 
         var commonResult: Int? = null

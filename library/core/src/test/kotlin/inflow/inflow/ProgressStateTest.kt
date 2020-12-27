@@ -2,10 +2,10 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.DataParam.CacheOnly
+import inflow.LoadTracker
 import inflow.Progress.Active
 import inflow.Progress.Idle
 import inflow.Progress.State
-import inflow.ProgressTracker
 import inflow.loading
 import inflow.utils.TestTracker
 import inflow.utils.runTest
@@ -82,7 +82,7 @@ class ProgressStateTest : BaseTest() {
 
     @Test
     fun `IF state is tracked THEN progress state is triggered`() = runTest {
-        lateinit var trackerOutside: ProgressTracker
+        lateinit var trackerOutside: LoadTracker
         val inflow = testInflow {
             data(initial = null) { tracker ->
                 trackerOutside = tracker

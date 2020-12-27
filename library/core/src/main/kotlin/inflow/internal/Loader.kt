@@ -1,10 +1,12 @@
 package inflow.internal
 
+import inflow.LoadTracker
 import inflow.Progress
-import inflow.ProgressTracker
+import inflow.utils.doOnCancel
 import inflow.utils.log
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +18,8 @@ import kotlinx.coroutines.launch
 internal class Loader(
     private val logId: String,
     private val scope: CoroutineScope,
-    private val action: suspend (ProgressTracker) -> Unit
+    private val dispatcher: CoroutineDispatcher,
+    private val action: suspend (LoadTracker) -> Unit
 ) {
     private val _progress = MutableStateFlow<Progress>(Progress.Idle)
     val progress = _progress.asStateFlow()
@@ -43,7 +46,7 @@ internal class Loader(
             getActiveJobAndCleanUp(repeatIfRunning)?.let { return it.deferred }
         }
 
-        scope.launch {
+        val task = scope.launch(dispatcher) {
             // This point can only be reached if previous job is null or in FINISHING state,
             // otherwise our `jobRef` lock cannot be released (see `getActiveJobAndCleanUp`).
             // We need to wait for previous job (`loadExclusively()`) to completely finish.
@@ -65,6 +68,8 @@ internal class Loader(
             prevJobRef.compareAndSet(expect = job, update = null)
             jobRef.compareAndSet(expect = job, update = null)
         }
+        // If scope is cancelled then we need to notify our deferred object
+        task.doOnCancel(job.deferred::completeExceptionally)
 
         return job.deferred
     }
@@ -128,7 +133,7 @@ internal class Loader(
     }
 
 
-    private inner class Tracker : ProgressTracker {
+    private inner class Tracker : LoadTracker {
         private var isActive = true
 
         fun disable() {

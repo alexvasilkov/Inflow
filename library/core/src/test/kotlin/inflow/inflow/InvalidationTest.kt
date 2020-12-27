@@ -7,8 +7,8 @@ import inflow.cached
 import inflow.inflow
 import inflow.utils.getLogMessage
 import inflow.utils.now
+import inflow.utils.runReal
 import inflow.utils.runTest
-import inflow.utils.runThreads
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
 import kotlin.test.Test
@@ -56,7 +56,7 @@ class InvalidationTest : BaseTest() {
     }
 
     @Test
-    fun `IF becomes invalid THEN emit as-is and then emit empty value`() = runThreads {
+    fun `IF becomes invalid THEN emit as-is and then emit empty value`() = runReal {
         val start = now()
         val inflow = inflow<Long?> {
             data(start) { throw RuntimeException() }

@@ -2,9 +2,12 @@ package inflow.internal
 
 import inflow.ExpirationProvider
 import inflow.InflowConnectivity
+import inflow.utils.doOnCancel
 import inflow.utils.log
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,61 +37,76 @@ import kotlinx.coroutines.launch
  *
  * We could use Kotlin's `.shareIn()` operator but it spins a never ending collecting job
  * while we want to have no hanging jobs once there are no cache subscribers left.
+ * Also we want the resulting flow to throw a cancellation exception once the [scope] is cancelled,
+ * which is not supported by `.shareIn()` as well (it will just hang forever).
  */
 @ExperimentalCoroutinesApi
 internal fun <T> Flow<T>.share(
     scope: CoroutineScope,
+    dispatcher: CoroutineDispatcher,
     keepSubscribedTimeout: Long
 ): Flow<T> {
     val orig = this
-    val shared = MutableSharedFlow<T>(replay = 1)
+    val shared = MutableSharedFlow<Any?>( // T || CancellationException
+        replay = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
 
     val lock = reentrantLock()
     var subscriptionsCount = 0
-    var collectJobRef: Job? = null
-    var completeJobRef: Job? = null
+    var collectJob: Job? = null
+    var completeJob: Job? = null
+    var generation = 0
+
+    // Once the scope is cancelled we want all collectors to receive a cancellation exception
+    // Note that `tryEmit` is always successful because of BufferOverflow.DROP_OLDEST
+    scope.doOnCancel(dispatcher, shared::tryEmit)
 
     return shared
         .onSubscription {
-            val collectJob = lock.withLock {
+            lock.withLock {
                 // We are only interested in the first subscription
                 if (subscriptionsCount++ != 0) return@onSubscription
 
                 // Cancelling completion job, if running
-                completeJobRef?.cancel()
-                completeJobRef = null
+                completeJob?.cancel()
+                completeJob = null
+                generation++
 
                 // Collector job may still be active if it is not unsubscribed by timeout yet.
                 // We'll only start new collect job if there is no other active job.
-                if (collectJobRef != null) return@onSubscription
-
-                Job().apply { collectJobRef = this }
-            }
-
-            scope.launch(collectJob) { orig.collect(shared::emit) }
-        }
-        .onCompletion {
-            val completeJob = lock.withLock {
-                // We are only interested in the last un-subscription
-                if (--subscriptionsCount != 0) return@onCompletion
-                // Creating completion job under lock
-                Job().apply { completeJobRef = this }
-            }
-
-            // Scheduling collector job cancellation
-            // Using UNDISPATCHED start to immediately cancel the job if timeout is 0
-            scope.launch(completeJob, start = CoroutineStart.UNDISPATCHED) {
-                delay(keepSubscribedTimeout)
-
-                // Cancelling latest collector job under lock
-                lock.withLock {
-                    if (completeJobRef != completeJob) return@launch
-                    val collectJob = collectJobRef ?: return@launch
-                    collectJobRef = null
-                    collectJob.cancel()
-                    shared.resetReplayCache() // We cannot keep reply cache anymore
+                if (collectJob == null) {
+                    collectJob = scope.launch(dispatcher) {
+                        orig.collect(shared::emit)
+                    }
                 }
             }
+        }
+        .onCompletion {
+            lock.withLock {
+                // We are only interested in the last un-subscription
+                if (--subscriptionsCount != 0) return@onCompletion
+
+                // Scheduling collector job cancellation
+                // Using UNDISPATCHED start to immediately cancel the job if timeout is 0
+                val currentGeneration = generation
+                completeJob = scope.launch(dispatcher, start = CoroutineStart.UNDISPATCHED) {
+                    delay(keepSubscribedTimeout)
+
+                    // Cancelling latest collector job under lock
+                    lock.withLock {
+                        if (currentGeneration != generation) return@launch
+                        collectJob?.cancel()
+                        collectJob = null
+                        shared.resetReplayCache() // We cannot keep reply cache anymore
+                    }
+                }
+            }
+        }
+        .map { data -> // T || CancellationException
+            if (data is CancellationException) throw data
+            @Suppress("UNCHECKED_CAST")
+            data as T
         }
 }
 
