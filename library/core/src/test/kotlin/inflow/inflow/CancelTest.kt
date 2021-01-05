@@ -126,7 +126,10 @@ class CancelTest : BaseTest() {
     @Test
     fun `IF scope is cancelled THEN refresh join() is immediate`() = runTest { job ->
         val scope = CoroutineScope(EmptyCoroutineContext)
-        val inflow = testInflow { scope(scope) }
+        val inflow = testInflow {
+            data(initial = null) { delay(100L); 0 }
+            scope(scope)
+        }
         scope.cancel()
 
         var joined = false
@@ -145,7 +148,10 @@ class CancelTest : BaseTest() {
 
     private fun testAwaitIsCancelled(vararg params: RefreshParam) = runTest { job ->
         val scope = CoroutineScope(EmptyCoroutineContext)
-        val inflow = testInflow { scope(scope) }
+        val inflow = testInflow {
+            data(initial = null) { delay(100L); 0 }
+            scope(scope)
+        }
         scope.cancel()
 
         var awaitCancelled = false

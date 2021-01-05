@@ -8,6 +8,7 @@ import inflow.internal.emptyIfInvalid
 import inflow.utils.now
 import inflow.utils.runReal
 import inflow.utils.runTest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
@@ -18,6 +19,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
+@ExperimentalCoroutinesApi
 class EmptyIfInvalidTest : BaseTest() {
 
     @Test

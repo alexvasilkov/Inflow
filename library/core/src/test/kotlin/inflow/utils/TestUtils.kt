@@ -40,19 +40,12 @@ internal fun <T> runReal(block: suspend CoroutineScope.() -> T) = runBlocking(Di
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
-internal fun TestCoroutineScope.testInflow(
-    block: InflowConfig<Int?>.() -> Unit
-): Inflow<Int?> = inflow {
-    logId("TEST")
-    var count = 0
-    data(initial = null) { delay(100L); count++ }
-    retryTime(100L)
-
-    block()
-
-    cacheDispatcher(testDispatcher)
-    loadDispatcher(testDispatcher)
-}
+internal fun TestCoroutineScope.testInflow(block: InflowConfig<Int?>.() -> Unit): Inflow<Int?> =
+    inflow {
+        cacheDispatcher(testDispatcher)
+        loadDispatcher(testDispatcher)
+        block()
+    }
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalCoroutinesApi::class)
 val TestCoroutineScope.testDispatcher: CoroutineDispatcher

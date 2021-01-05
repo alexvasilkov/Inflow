@@ -8,7 +8,7 @@ import kotlinx.coroutines.Deferred
 interface InflowDeferred<T> {
 
     /**
-     * Awaits for completion of the loading and resumes when the loading is complete, returning the
+     * Awaits for completion of the loading and resumes when the loading is completed, returning the
      * data or throwing an exception.
      *
      * Note that explicit call to the underlying cache will be made (bypassing the shared cache)

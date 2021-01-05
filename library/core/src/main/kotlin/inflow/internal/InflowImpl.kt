@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalCoroutinesApi::class) // It is our internal details, no need to enforce it
+@OptIn(ExperimentalCoroutinesApi::class)
 internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
 
     private val cache: Flow<T>
@@ -33,30 +33,26 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
     private val scope = config.scope
     private val cacheDispatcher = config.cacheDispatcher
     private val loadDispatcher = config.loadDispatcher
-
     private val cacheExpiration = config.expiration
 
     init {
-        // Config validation
         val dataFromConfig = requireNotNull(config.data) { "`data` (cache and loader) is required" }
         val loaderFromConfig = dataFromConfig.loader
         val cacheFromConfig = dataFromConfig.cache
-
         val cacheTimeout = config.keepCacheSubscribedTimeout
-        require(cacheTimeout >= 0L) { "`cacheKeepSubscribedTimeout` cannot be negative" }
-
         val retryTime = config.retryTime
-        require(retryTime > 0L) { "`loadRetryTime` should be positive" }
+        val cacheInvalidation = config.invalidation
+        val cacheInvalidationEmpty = config.invalidationEmpty
+        val connectivity = config.connectivity
 
         // Preparing the loader that will track its `progress` and `error` state
         loader = Loader(logId, scope, loadDispatcher, loaderFromConfig)
 
         // Checking for cached data invalidation if configured
-        val cacheInvalidation = config.invalidation
         val cacheWithInvalidation = if (cacheInvalidation != null) {
             // If invalidation provider is set then empty value will never be null for non-null `T`
             @Suppress("UNCHECKED_CAST")
-            val emptyValue = config.invalidationEmpty as T
+            val emptyValue = cacheInvalidationEmpty as T
 
             val expirationOfEmptyValue = cacheExpiration.expiresIn(emptyValue)
             if (expirationOfEmptyValue > 0L) {
@@ -76,7 +72,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
 
         // Preparing a flow that will emit cached data each time the data is changed
         // or connectivity provider signals about active connection
-        val cacheRepeated = config.connectivity.asSignalingFlow().flatMapLatest { cache }
+        val cacheRepeated = connectivity.asSignalingFlow().flatMapLatest { cache }
 
         // Preparing `auto` cache that will schedule data updates whenever it is subscribed and
         // cached data is expired

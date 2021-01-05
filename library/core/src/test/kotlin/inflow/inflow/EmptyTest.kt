@@ -1,0 +1,27 @@
+package inflow.inflow
+
+import inflow.BaseTest
+import inflow.cached
+import inflow.emptyInflow
+import inflow.utils.runTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+class EmptyTest : BaseTest() {
+
+    @Test
+    fun `IF empty inflow THEN only initial value is returned`() = runTest {
+        val inflow = emptyInflow(0)
+        assertEquals(expected = 0, actual = inflow.cached(), "Initial value")
+        assertEquals(expected = 0, actual = inflow.refresh().await(), "Refresh value is the same")
+    }
+
+    @Test
+    fun `IF empty inflow with null THEN null is returned`() = runTest {
+        val inflow = emptyInflow<Unit?>()
+        assertNull(actual = inflow.cached(), "Value is null")
+        assertNull(actual = inflow.refresh().await(), "Refreshed value is still null")
+    }
+
+}

@@ -1,3 +1,5 @@
+@file:Suppress("FunctionName") // Function names are pretending to be interface constructors
+
 package inflow
 
 import inflow.utils.now
@@ -6,7 +8,7 @@ import inflow.utils.now
  * Expiration time provider to control when the data should be automatically refreshed (or
  * invalidated). See [expiresIn] method.
  *
- * Default implementations: [ExpiresIfNull], [ExpiresAt], [ExpiresIn], [ExpiresIf].
+ * Default implementations: [ExpiresNever], [ExpiresIfNull], [ExpiresAt], [ExpiresIn], [ExpiresIf].
  */
 interface ExpirationProvider<T> {
     /**
@@ -27,14 +29,24 @@ interface ExpirationProvider<T> {
 }
 
 
+private val never = object : ExpirationProvider<Any?> {
+    override fun expiresIn(data: Any?) = Long.MAX_VALUE
+}
+
 private val ifNull = object : ExpirationProvider<Any?> {
     override fun expiresIn(data: Any?) = if (data == null) 0L else Long.MAX_VALUE
 }
 
 /**
+ * The data will never be automatically refreshed.
+ */
+@Suppress("UNCHECKED_CAST") // Pretending to be a class
+fun <T> ExpiresNever(): ExpirationProvider<T> = never as ExpirationProvider<T>
+
+/**
  * Only refresh the data if it's `null`, otherwise it will never be refreshed.
  */
-@Suppress("UNCHECKED_CAST", "FunctionName") // Pretending to be a class
+@Suppress("UNCHECKED_CAST") // Pretending to be a class
 fun <T> ExpiresIfNull(): ExpirationProvider<T> = ifNull as ExpirationProvider<T>
 
 /**
@@ -45,7 +57,6 @@ fun <T> ExpiresIfNull(): ExpirationProvider<T> = ifNull as ExpirationProvider<T>
  *
  * The time should be in milliseconds since unix epoch.
  */
-@Suppress("FunctionName") // Pretending to be a class
 fun <T> ExpiresAt(expiresAt: (T) -> Long): ExpirationProvider<T> {
     return object : ExpirationProvider<T> {
         override fun expiresIn(data: T): Long {
@@ -71,7 +82,6 @@ fun <T> ExpiresAt(expiresAt: (T) -> Long): ExpirationProvider<T> {
  * The time from [loadedAt] should be in milliseconds since unix epoch.
  * Duration time is also in milliseconds.
  */
-@Suppress("FunctionName") // Pretending to be a class
 fun <T> ExpiresIn(duration: Long, loadedAt: (T) -> Long): ExpirationProvider<T> {
     require(duration > 0L) { "Expiration duration ($duration) should be > 0" }
 
@@ -96,7 +106,6 @@ fun <T> ExpiresIn(duration: Long, loadedAt: (T) -> Long): ExpirationProvider<T> 
  * For example [ExpiresIfNull] can be implemented as `ExpiresIf(Long.MAX_VALUE) { it == null }`,
  * meaning that we'll check for nullability once but won't ever need to check it again.
  */
-@Suppress("FunctionName") // Pretending to be a class
 fun <T> ExpiresIf(interval: Long, isExpired: (T) -> Boolean): ExpirationProvider<T> {
     require(interval > 0L) { "Expiration check interval ($interval) should be > 0" }
 

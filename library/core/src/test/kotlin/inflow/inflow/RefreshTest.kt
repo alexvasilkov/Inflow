@@ -36,7 +36,8 @@ class RefreshTest : BaseTest() {
     @Test
     fun `IF refresh is called THEN data is loaded`() = runTest {
         val inflow = testInflow {
-            keepCacheSubscribedTimeout(0L)
+            var count = 0
+            data(initial = null) { delay(100L); count++ }
         }
 
         inflow.refresh()
@@ -78,7 +79,8 @@ class RefreshTest : BaseTest() {
     @Test
     fun `IF refresh with Repeat THEN loading is repeated`() = runTest {
         val inflow = testInflow {
-            keepCacheSubscribedTimeout(0L)
+            var count = 0
+            data(initial = null) { delay(100L); count++ }
         }
 
         inflow.refresh()

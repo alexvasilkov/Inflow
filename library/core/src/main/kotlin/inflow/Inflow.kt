@@ -4,9 +4,12 @@ import inflow.DataParam.CacheOnly
 import inflow.RefreshParam.IfExpiresIn
 import inflow.RefreshParam.Repeat
 import inflow.internal.InflowImpl
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
@@ -40,13 +43,21 @@ import kotlinx.coroutines.flow.map
  * A simple usage can look like this:
  *
  * ```
- * val someData = inflow<SomeData> {
+ * val companies = inflow<List<Companies>?> {
  *     data(
- *         cache = dao.getSomeData()
- *         writer = dao::saveSomeData
- *         loader = { api.loadSomeData() }
+ *         cache = dao.getCompaniesList()
+ *         writer = dao::saveCompaniesList
+ *         loader = { api.loadCompaniesList() }
  *     )
  * }
+ *
+ * companies.data()
+ *     .onEach(::showCompanies)
+ *     .launchIn(lifecycleScope)
+ *
+ * companies.loading()
+ *     .onEach(::showLoading)
+ *     .launchIn(lifecycleScope)
  * ```
  *
  * **See [InflowConfig] for all the available configuration options.**
@@ -114,11 +125,39 @@ interface Inflow<T> {
 }
 
 
+/* ---------------------------------------------------------------------------------------------- */
+/* Builders                                                                                       */
+/* ---------------------------------------------------------------------------------------------- */
+
 /**
  * Creates a new [Inflow] using provided [InflowConfig] configuration.
  */
 fun <T> inflow(block: InflowConfig<T>.() -> Unit): Inflow<T> =
     InflowImpl(InflowConfig<T>().apply(block))
+
+
+private val emptyInflow: Inflow<Any?> by lazy { emptyInflow(null) }
+
+/**
+ * Creates an [Inflow] that emits `null` and does not load any extra data.
+ */
+@Suppress("UNCHECKED_CAST")
+fun <T> emptyInflow(): Inflow<T?> = emptyInflow as Inflow<T?>
+
+/**
+ * Creates an [Inflow] that emits [initial] value (by contract an Inflow should always emit) and
+ * does not load any extra data.
+ */
+fun <T> emptyInflow(initial: T): Inflow<T> = inflow {
+    data(cache = flowOf(initial), loader = {})
+    expiration(ExpiresNever())
+    keepCacheSubscribedTimeout(0L)
+    retryTime(Long.MAX_VALUE)
+    connectivity(null)
+    cacheDispatcher(Dispatchers.Unconfined)
+    loadDispatcher(Dispatchers.Unconfined)
+    scope(GlobalScope)
+}
 
 
 /* ---------------------------------------------------------------------------------------------- */
@@ -170,7 +209,7 @@ sealed class RefreshParam {
 
 
 /* ---------------------------------------------------------------------------------------------- */
-/* Useful extensions                                                                              */
+/* Extensions                                                                                     */
 /* ---------------------------------------------------------------------------------------------- */
 
 /**

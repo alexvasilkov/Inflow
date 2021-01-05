@@ -2,7 +2,6 @@ package inflow.internal
 
 import inflow.ExpirationProvider
 import inflow.InflowConnectivity
-import inflow.utils.doOnCancel
 import inflow.utils.log
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
@@ -28,6 +27,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
@@ -58,10 +58,6 @@ internal fun <T> Flow<T>.share(
     var completeJob: Job? = null
     var generation = 0
 
-    // Once the scope is cancelled we want all collectors to receive a cancellation exception
-    // Note that `tryEmit` is always successful because of BufferOverflow.DROP_OLDEST
-    scope.doOnCancel(dispatcher, shared::tryEmit)
-
     return shared
         .onSubscription {
             lock.withLock {
@@ -78,6 +74,15 @@ internal fun <T> Flow<T>.share(
                 if (collectJob == null) {
                     collectJob = scope.launch(dispatcher) {
                         orig.collect(shared::emit)
+                    }
+                    // Once the scope is cancelled collectors should receive cancellation exception.
+                    // Note: `tryEmit` is always successful because of BufferOverflow.DROP_OLDEST
+                    collectJob!!.invokeOnCompletion {
+                        if (!scope.isActive) {
+                            val exception = it as? CancellationException
+                                ?: CancellationException("Error during cache read")
+                            shared.tryEmit(exception)
+                        }
                     }
                 }
             }
@@ -141,7 +146,7 @@ internal fun <T> Flow<T>.doWhileSubscribed(action: () -> Job): Flow<T> {
  * Also schedules extra emission of [emptyValue] once the data becomes invalid according to
  * expiration time provided by [invalidIn].
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@ExperimentalCoroutinesApi
 internal fun <T> Flow<T>.emptyIfInvalid(
     logId: String,
     invalidIn: ExpirationProvider<T>,
@@ -184,7 +189,7 @@ internal fun <T> Flow<T>.emptyIfInvalid(
  * Also when a new data is successfully loaded and saved the [cache] flow should return a new data
  * with expiration timeout greater than 0, otherwise we will enter infinite loading cycle.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@ExperimentalCoroutinesApi
 internal suspend fun <T> scheduleUpdates(
     logId: String,
     cache: Flow<T>,

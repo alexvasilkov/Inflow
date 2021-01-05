@@ -6,6 +6,7 @@ import inflow.ExpiresAt
 import inflow.ExpiresIf
 import inflow.ExpiresIfNull
 import inflow.ExpiresIn
+import inflow.ExpiresNever
 import inflow.cached
 import inflow.inflow
 import inflow.utils.now
@@ -22,11 +23,28 @@ import kotlin.test.assertFailsWith
 class ExpirationTest : BaseTest() {
 
     @Test
+    fun `IF ExpiresNever THEN no updates`() =
+        runTest { job ->
+            var counter = 0
+            val inflow = testInflow {
+                data(initial = null) { counter++; throw RuntimeException() }
+                retryTime(100L)
+                expiration(ExpiresNever())
+            }
+
+            launch(job) { inflow.data().collect() }
+
+            delay(300L)
+            assertEquals(expected = 0, counter, "0 updates")
+        }
+
+    @Test
     fun `IF ExpiresIfNull AND cache is null AND cannot load THEN update and few retries`() =
         runTest { job ->
             var counter = 0
             val inflow = testInflow {
                 data(initial = null) { counter++; throw RuntimeException() }
+                retryTime(100L)
                 expiration(ExpiresIfNull())
             }
 
@@ -39,7 +57,10 @@ class ExpirationTest : BaseTest() {
     @Test
     fun `IF ExpiresIfNull AND cache is null AND can load THEN update and no retries`() =
         runTest { job ->
-            val inflow = testInflow {}
+            val inflow = testInflow {
+                var count = 0
+                data(initial = null) { delay(100L); count++ }
+            }
 
             launch(job) { inflow.data().collect() }
 

@@ -20,7 +20,9 @@ class TransformTest : BaseTest() {
 
     @Test
     fun `IF mapped THEN same progress state`() = runTest { job ->
-        val inflow: Inflow<Int?> = testInflow {}
+        val inflow: Inflow<Int?> = testInflow {
+            data(initial = null) { 0 }
+        }
         val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         val trackerOrig = TestTracker()
@@ -46,7 +48,9 @@ class TransformTest : BaseTest() {
 
     @Test
     fun `IF mapped THEN mapped data`() = runTest {
-        val inflow: Inflow<Int?> = testInflow {}
+        val inflow: Inflow<Int?> = testInflow {
+            data(initial = null) { 0 }
+        }
         val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         val item1 = mapped.data().first { it != null }
@@ -58,7 +62,9 @@ class TransformTest : BaseTest() {
 
     @Test
     fun `IF mapped THEN can be refreshed with join`() = runTest {
-        val inflow: Inflow<Int?> = testInflow {}
+        val inflow: Inflow<Int?> = testInflow {
+            data(initial = null) { 0 }
+        }
         val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         mapped.refresh().join()
@@ -66,7 +72,9 @@ class TransformTest : BaseTest() {
 
     @Test
     fun `IF mapped THEN can be refreshed with await`() = runTest {
-        val inflow: Inflow<Int?> = testInflow {}
+        val inflow: Inflow<Int?> = testInflow {
+            data(initial = null) { 0 }
+        }
         val mapped: Inflow<String?> = inflow.map { it?.toString() }
 
         val mappedItem = mapped.refresh().await()

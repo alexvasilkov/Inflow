@@ -9,6 +9,7 @@ import inflow.utils.TestTracker
 import inflow.utils.now
 import inflow.utils.runReal
 import inflow.utils.runTest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
+@ExperimentalCoroutinesApi
 class ScheduleUpdatesTest : BaseTest() {
 
     @Test

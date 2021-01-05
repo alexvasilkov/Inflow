@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical">
+
+    <Button
+        android:id="@+id/blocked"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:text="UI blocked?"
+        tools:ignore="HardcodedText" />
+
+    <TextView
+        android:id="@+id/time"
+        style="@style/TextAppearance.MaterialComponents.Headline6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        tools:text="12:34:56" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <TextView
+            style="@style/TextAppearance.MaterialComponents.Body1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:text="Progress:"
+            tools:ignore="HardcodedText" />
+
+        <TextView
+            android:id="@+id/progress"
+            style="@style/TextAppearance.MaterialComponents.Body1"
+            android:layout_width="60sp"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:textStyle="bold"
+            tools:text="Active" />
+
+    </LinearLayout>
+
+</LinearLayout>

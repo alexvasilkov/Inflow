@@ -62,6 +62,7 @@ class ConnectivityTest : BaseTest() {
     @Test
     fun `IF not connected THEN still call initial update`() = runTest { job ->
         val inflow = testInflow {
+            data(initial = null) { 0 }
             connectivity(object : InflowConnectivity {
                 override val connected = MutableStateFlow(false)
             })
@@ -71,7 +72,6 @@ class ConnectivityTest : BaseTest() {
         var item: Int? = null
         launch(job) { inflow.data().collect { item = it } }
 
-        delay(100L)
         assertNotNull(item, "Loaded on subscription")
     }
 

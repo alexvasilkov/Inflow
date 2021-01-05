@@ -6,6 +6,7 @@ import inflow.cache
 import inflow.cached
 import inflow.utils.catchScopeException
 import inflow.utils.runTest
+import inflow.utils.testDispatcher
 import inflow.utils.testInflow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -188,7 +189,8 @@ class CacheTest : BaseTest() {
         var count = 0
         val inflow = testInflow {
             data(initial = { delay(100L); count++ }) { throw RuntimeException() }
-            keepCacheSubscribedTimeout(0L)
+            // delay() call above will switch to Default dispatcher, but it is not an expected case
+            cacheDispatcher(testDispatcher)
         }
 
         var item1: Int? = null
@@ -211,7 +213,6 @@ class CacheTest : BaseTest() {
         var count = 0
         val inflow = testInflow {
             writer = data(initial = { count++ }) { throw RuntimeException() }
-            keepCacheSubscribedTimeout(0L)
         }
 
         writer(-1)

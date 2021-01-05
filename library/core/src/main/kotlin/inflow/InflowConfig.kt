@@ -2,6 +2,7 @@ package inflow
 
 import inflow.utils.AtomicBoolean
 import inflow.utils.inflowVerbose
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,19 +78,53 @@ import kotlinx.coroutines.launch
  */
 class InflowConfig<T> internal constructor() {
 
-    internal var data: InflowData<T>? = null; private set
-    internal var expiration: ExpirationProvider<T> = ExpiresIfNull(); private set
-    internal var invalidation: ExpirationProvider<T>? = null; private set
-    internal var invalidationEmpty: T? = null; private set
-    internal var keepCacheSubscribedTimeout: Long = 1_000L; private set // 1 sec
-    internal var retryTime: Long = 60_000; private set // 1 min
-    internal var connectivity: InflowConnectivity? = InflowConnectivity.Default; private set
-    internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
-    internal var loadDispatcher: CoroutineDispatcher = Dispatchers.IO; private set
+    @JvmField
+    @JvmSynthetic
+    internal var data: InflowData<T>? = null
+
+    private var memoryCacheUsed = false
+
+    @JvmField
+    @JvmSynthetic
+    internal var expiration: ExpirationProvider<T> = ExpiresIfNull()
+
+    @JvmField
+    @JvmSynthetic
+    internal var invalidation: ExpirationProvider<T>? = null
+
+    @JvmField
+    @JvmSynthetic
+    internal var invalidationEmpty: T? = null
+
+    @JvmField
+    @JvmSynthetic
+    internal var keepCacheSubscribedTimeout: Long = 1_000L // 1 sec
+
+    @JvmField
+    @JvmSynthetic
+    internal var retryTime: Long = 60_000L // 1 min
+
+    @JvmField
+    @JvmSynthetic
+    internal var connectivity: InflowConnectivity? = InflowConnectivity.Default
+
+    @JvmField
+    @JvmSynthetic
+    internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    @JvmField
+    @JvmSynthetic
+    internal var loadDispatcher: CoroutineDispatcher = Dispatchers.IO
+
     private var _scope: CoroutineScope? = null
+
+    @get:JvmSynthetic
     internal val scope: CoroutineScope
         get() = _scope ?: CoroutineScope(Job()).apply { _scope = this }
-    internal var logId: String = "NO_ID"; private set
+
+    @JvmField
+    @JvmSynthetic
+    internal var logId: String = "NO_ID"
 
 
     /**
@@ -98,7 +133,8 @@ class InflowConfig<T> internal constructor() {
      * @param cache Flow of cached data. This flow should always emit some empty value (e.g. `null`)
      * if no data is cached yet to trigger the loading process. The cache will be subscribed and
      * un-subscribed on demand using [cacheDispatcher] to allow sharing it between several
-     * downstream subscribers. See [Inflow.data].
+     * downstream subscribers. See [Inflow.data]. Any errors thrown by the cache will propagate into
+     * the [scope] and eventually crash the app if no custom error handler was provided.
      *
      * @param loader Suspending function that will be called using [loadDispatcher] to load a new
      * data. **It is loader's responsibility to save the data into the cache** and it is expected
@@ -110,6 +146,7 @@ class InflowConfig<T> internal constructor() {
      * to avoid endless loadings.
      */
     fun data(cache: Flow<T>, loader: suspend (LoadTracker) -> Unit) {
+        require(data == null) { "Data is already set, cannot call `data()` again" }
         data = InflowData(cache, loader)
     }
 
@@ -162,6 +199,9 @@ class InflowConfig<T> internal constructor() {
      * In this case the [loader] should just return the newly loaded data and it will be
      * automatically saved into memory cache.
      *
+     * Note that [keepCacheSubscribedTimeout] will be automatically set to 0L and attempt to set
+     * it to anything greater than 0L will throw [IllegalArgumentException].
+     *
      * @return Writer function that can be used to update the in-memory cache from the outside.
      */
     fun data(
@@ -170,6 +210,7 @@ class InflowConfig<T> internal constructor() {
     ): suspend (T) -> Unit {
         val memory = MutableSharedFlow<T>(replay = 1).apply { tryEmit(initial) }
         data(memory) { memory.emit(loader(it)) }
+        setMemoryCacheUsed()
         return memory::emit
     }
 
@@ -181,6 +222,9 @@ class InflowConfig<T> internal constructor() {
      *
      * In this case the [loader] should just return the newly loaded data and it will be
      * automatically saved into memory cache.
+     *
+     * Note that [keepCacheSubscribedTimeout] will be automatically set to 0L and attempt to set
+     * it to anything greater than 0L will throw [IllegalArgumentException].
      *
      * @return Writer function that can be used to update the in-memory cache from the outside.
      */
@@ -199,12 +243,19 @@ class InflowConfig<T> internal constructor() {
         }
 
         data(cache) { memory.emit(loader(it)) }
+        setMemoryCacheUsed()
+
         return {
             initialized.set(true) // No need to initialize the cache anymore
             memory.emit(it)
         }
     }
 
+    private fun setMemoryCacheUsed() {
+        memoryCacheUsed = true
+        keepCacheSubscribedTimeout = 0L // No need to keep subscription to fast in-memory cache
+        cacheDispatcher = Dispatchers.Unconfined // In-memory cache don't need real dispatcher
+    }
 
     /**
      * Cache expiration policy, see [ExpirationProvider]. Uses [ExpiresIfNull] policy by default.
@@ -219,6 +270,10 @@ class InflowConfig<T> internal constructor() {
      *
      * Provided [emptyValue] will be emitted each time invalid data is emitted by original cache
      * and automatically after the expiration time defined by [invalidIn] policy.
+     *
+     * *For example if an item emitted by the cache will be invalid in 1 minute then once 1 minute
+     * is passed all active subscribers will receive [emptyValue] even if no extra items were
+     * emitted by cache.*
      *
      * **Important:** [emptyValue] should be 'expired' according to [expiration] policy, otherwise
      * invalid data will not be automatically refreshed.
@@ -242,9 +297,15 @@ class InflowConfig<T> internal constructor() {
      * immediately observed and cached by the shared cache used for [Inflow.data] and all new
      * subscribers won't have to wait for cache reads.
      *
+     * Setting a big timeout should be avoided unless a proper cancellation strategy is implemented.
+     *
      * Must be >= 0. Set to 1 second by default.
      */
     fun keepCacheSubscribedTimeout(timeoutMillis: Long) {
+        require(timeoutMillis >= 0L) { "`keepCacheSubscribedTimeout` cannot be negative" }
+        if (memoryCacheUsed) {
+            require(timeoutMillis == 0L) { "`keepCacheSubscribedTimeout` should be 0 when using in-memory cache" }
+        }
         keepCacheSubscribedTimeout = timeoutMillis
     }
 
@@ -259,6 +320,7 @@ class InflowConfig<T> internal constructor() {
      * **It is advised to set retry time at least to a few seconds. Cannot be <= 0.**
      */
     fun retryTime(retryTimeMillis: Long) {
+        require(retryTimeMillis > 0L) { "`retryTime` should be positive" }
         retryTime = retryTimeMillis
     }
 
@@ -294,13 +356,21 @@ class InflowConfig<T> internal constructor() {
         loadDispatcher = dispatcher
     }
 
+
     /**
-     * Inflow execution scope. Can be used to cancel the Inflow execution or handle errors.
+     * Coroutine scope used for shared cache subscription and for the loader.
+     * Can be used to cancel cache subscription and loader execution, or handle uncaught errors.
      *
-     * Note that it is not really necessary to cancel the Inflow as it will not have any running
+     * When the scope is cancelled the [Inflow] will unsubscribe from the cache (all current and
+     * future subscribers will get [CancellationException]) and will cancel the loader and automatic
+     * refresh.
+     * Note that the loader needs to manually check if its current coroutine context is active with
+     * `coroutineContext.isActive` and stop loading / saving into cache otherwise.
+     *
+     * It is generally unnecessary to manually cancel the Inflow as it will not have any hanging
      * jobs once it has no active subscribers and the cache is unsubscribed after
-     * [keepCacheSubscribedTimeout]. If [keepCacheSubscribedTimeout] is big or if no loading and
-     * cache writing are desirable anymore then the scope can be cancelled explicitly.
+     * [keepCacheSubscribedTimeout]. If this timeout is big or if no loading and cache writing is
+     * desirable anymore then the Inflow's scope can be cancelled explicitly.
      */
     fun scope(scope: CoroutineScope) {
         _scope = scope

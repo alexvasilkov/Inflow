@@ -15,7 +15,9 @@ class DataTest : BaseTest() {
 
     @Test
     fun `IF expired data is subscribed THEN refresh is triggered`() = runTest { job ->
-        val inflow = testInflow {}
+        val inflow = testInflow {
+            data(initial = null) { delay(100L); 0 }
+        }
 
         var item: Int? = Int.MIN_VALUE
         launch(job) { inflow.data().collect { item = it } }

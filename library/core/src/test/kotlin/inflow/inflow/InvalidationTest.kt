@@ -36,6 +36,7 @@ class InvalidationTest : BaseTest() {
             // Empty value (-1) is not expired according to ExpiresIfNull policy, it should
             // trigger a warning
             testInflow {
+                data(initial = null) { 0 }
                 expiration(ExpiresIfNull())
                 invalidation(invalidIn = ExpiresIfNull(), emptyValue = -1)
             }

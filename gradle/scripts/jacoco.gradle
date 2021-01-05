@@ -10,7 +10,12 @@ task jacocoCoverage(type: JacocoReport, dependsOn: 'test') {
 
     check.dependsOn name
 
-    def classes = fileTree(dir: "$buildDir/classes/kotlin/main")
+    def classesFilter = [
+            // Inlined functions, excluding false-negative reports
+            '**/InflowsConfig$builder$*',
+            '**/InflowsCombinedConfig$builder$*'
+    ]
+    def classes = fileTree(dir: "$buildDir/classes/kotlin/main", excludes: classesFilter)
     def sources = files(new File(projectDir, 'src/main/kotlin'))
     def coverageData = fileTree(dir: new File(buildDir, 'jacoco'), include: '*.exec')
 

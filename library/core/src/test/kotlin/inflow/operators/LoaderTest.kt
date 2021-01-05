@@ -20,6 +20,7 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
+@ExperimentalCoroutinesApi
 class LoaderTest : BaseTest() {
 
     @Test
@@ -115,7 +116,6 @@ class LoaderTest : BaseTest() {
     }
 
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     private fun TestCoroutineScope.createLoader(action: suspend (LoadTracker) -> Unit) =
         Loader(logId, this, testDispatcher, action)
 

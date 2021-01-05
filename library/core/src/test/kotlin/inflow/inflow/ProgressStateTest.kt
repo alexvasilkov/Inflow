@@ -26,7 +26,9 @@ class ProgressStateTest : BaseTest() {
     @Test
     fun `IF refresh is called THEN progress is triggered`() = runTest { job ->
         val tracker = TestTracker()
-        val inflow = testInflow {}
+        val inflow = testInflow {
+            data(initial = null) { delay(100L); 0 }
+        }
 
         launch(job) {
             inflow.progress().track(tracker)
@@ -46,7 +48,9 @@ class ProgressStateTest : BaseTest() {
     @Test
     fun `IF data is subscribed THEN progress is triggered`() = runTest { job ->
         val tracker = TestTracker()
-        val inflow = testInflow {}
+        val inflow = testInflow {
+            data(initial = null) { delay(100L); 0 }
+        }
 
         launch(job) {
             inflow.progress().track(tracker)
@@ -55,7 +59,7 @@ class ProgressStateTest : BaseTest() {
         assertEquals(TestTracker(0, 1), tracker, "Not loading by default")
 
         // Briefly subscribing to trigger refresh
-        launch(job) { inflow.data().take(1).collect() }
+        launch { inflow.data().take(1).collect() }
 
         assertEquals(TestTracker(1, 1), tracker, "Refresh is started but not finished")
 
@@ -67,13 +71,15 @@ class ProgressStateTest : BaseTest() {
     @Test
     fun `IF data is subscribed with CacheOnly THEN progress is not triggered`() = runTest { job ->
         val tracker = TestTracker()
-        val inflow = testInflow {}
+        val inflow = testInflow {
+            data(initial = null) { delay(100L); 0 }
+        }
 
         launch(job) { inflow.progress().track(tracker) }
 
         assertEquals(TestTracker(0, 1), tracker, "Not loading by default")
 
-        launch(job) { inflow.data(CacheOnly).first() }
+        launch { inflow.data(CacheOnly).first() }
 
         delay(1000L)
 
