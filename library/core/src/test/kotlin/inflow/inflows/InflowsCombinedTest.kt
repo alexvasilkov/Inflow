@@ -172,6 +172,8 @@ class InflowsCombinedTest : BaseTest() {
             inflow.progress().waitIdle()
         }
 
+        inflow.data().first { it != null }
+
         assertEquals(expected = params.value, actual = inflow.cached(), "Last param is loaded")
     }
 
