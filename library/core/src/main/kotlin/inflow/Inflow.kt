@@ -1,6 +1,7 @@
 package inflow
 
 import inflow.DataParam.CacheOnly
+import inflow.ErrorParam.SkipIfCollected
 import inflow.RefreshParam.IfExpiresIn
 import inflow.RefreshParam.Repeat
 import inflow.internal.InflowImpl
@@ -8,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -108,7 +110,7 @@ interface Inflow<T> {
      * It will always repeat the most recent error when starting collecting so the UI code may want
      * to save latest handled error locally to avoid showing duplicate errors.
      */
-    fun error(): Flow<Throwable?>
+    fun error(vararg params: ErrorParam): Flow<Throwable?>
 
     /**
      * Manually requests data refresh from a remote source. The request will start immediately
@@ -171,8 +173,28 @@ sealed class DataParam {
     /**
      * Returned data flow will not trigger automatic data refresh and will just return the flow of
      * cached data.
+     *
+     * See [cache()][cache] and [cached()][cached] extensions.
      */
     object CacheOnly : DataParam()
+}
+
+/**
+ * Parameters for [Inflow.error] method: [SkipIfCollected].
+ */
+sealed class ErrorParam {
+    /**
+     * If an error was already collected once then all other collectors will not receive it anymore
+     * (they will get `null` instead).
+     *
+     * Can be used to ensure that each error is shown to the user only once.
+     *
+     * Note that errors collected without this parameter (i.e. just collecting `error()` flow) will
+     * not be considered as handled.
+     *
+     * See [unhandledError()][unhandledError] extension.
+     */
+    object SkipIfCollected : ErrorParam()
 }
 
 /**
@@ -187,6 +209,8 @@ sealed class RefreshParam {
      * It can be useful in situations when remote data was changed (e.g. because of POST or PUT
      * request) and we need to ensure that newly loaded data reflects that changes. Otherwise
      * previous refresh may return stale data.
+     *
+     * See [forceRefresh()][forceRefresh] extension.
      */
     object Repeat : RefreshParam()
 
@@ -199,6 +223,8 @@ sealed class RefreshParam {
      * For example if cached value expires in 5 minutes and [expiresIn] is set to 2 minutes then
      * no refresh will be done and the cached value will be returned as-is. But if [expiresIn] is
      * set to 10 minutes then a new refresh request will be triggered.
+     *
+     * See [fresh()][fresh] extension.
      */
     data class IfExpiresIn(val expiresIn: Long) : RefreshParam() {
         init {
@@ -242,6 +268,14 @@ suspend fun <T> Inflow<T>.fresh(expiresIn: Long = 0L): T = refresh(IfExpiresIn(e
  * Shortcut for `refresh(RefreshParam.Repeat)`.
  */
 fun <T> Inflow<T>.forceRefresh(): InflowDeferred<T> = refresh(Repeat)
+
+/**
+ * If an error was already collected once then all other collectors will not receive it anymore.
+ * See [SkipIfCollected].
+ *
+ * Shortcut for `error(ErrorParam.SkipIfCollected).filterNotNull()`.
+ */
+fun <T> Inflow<T>.unhandledError(): Flow<Throwable> = error(SkipIfCollected).filterNotNull()
 
 /**
  * Provides a simple flow of `false` (if [Progress.Idle]) and `true` (otherwise) values.

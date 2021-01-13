@@ -28,12 +28,16 @@ import kotlinx.coroutines.launch
  * results (with progress and errors tracking). When new search query arrives previous request will
  * be skipped and the new one will be tracked instead.*
  *
- * **Important**: Parameters flow is expected to emit initial value immediately upon subscription,
+ * **Important**: parameters flow is expected to emit initial value immediately upon subscription,
  * otherwise resulting Inflow will not return any [data][Inflow.data], [progress][Inflow.progress]
  * or [error][Inflow.error] until first parameter is emitted. Use empty parameter as initial value
  * along with [emptyInflow] if there is no parameter expected in the beginning.
  *
- * [StateFlow] or [Inflow.data] are best candidates for parameters providers.
+ * [StateFlow] and [Inflow.data] are good candidates for parameters providers.
+ *
+ * **Important**: parameters of type `P` should provide a correct implementation of
+ * [equals][Any.equals] and [hashCode][Any.hashCode] since they will be used as [Map] keys.
+ * Primitive types and data classes are the best candidates.
  */
 fun <P, T> Flow<P>.asInflow(block: InflowsCombinedConfig<P, T>.() -> Unit): Inflow<T> =
     InflowsCombined(this, InflowsCombinedConfig<P, T>().apply(block))
@@ -155,6 +159,7 @@ private class InflowsCombined<P, T>(
 
     private val shared = params
         .map(inflows::get) // Creating a new Inflow for each parameter or using cached one
+        .distinctUntilChanged { old, new -> old === new } // Filtering duplicate Inflow instances
         .share(scope, dispatcher, 0L) // Sharing the flow to reuse params subscription
 
     override fun data(vararg params: DataParam) = shared
@@ -164,8 +169,8 @@ private class InflowsCombined<P, T>(
         .flatMapLatest(Inflow<T>::progress)
         .distinctUntilChanged() // Avoiding [Idle, Idle] sequences
 
-    override fun error() = shared
-        .flatMapLatest(Inflow<T>::error)
+    override fun error(vararg params: ErrorParam) = shared
+        .flatMapLatest { it.error(*params) }
         .distinctUntilChanged { old, new -> old == null && new == null } // No subsequent nulls
 
     override fun refresh(vararg params: RefreshParam): InflowDeferred<T> {

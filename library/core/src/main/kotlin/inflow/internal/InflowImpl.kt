@@ -2,6 +2,7 @@ package inflow.internal
 
 import inflow.DataParam
 import inflow.DataParam.CacheOnly
+import inflow.ErrorParam
 import inflow.Inflow
 import inflow.InflowConfig
 import inflow.InflowDeferred
@@ -15,8 +16,10 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -34,6 +37,8 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
     private val cacheDispatcher = config.cacheDispatcher
     private val loadDispatcher = config.loadDispatcher
     private val cacheExpiration = config.expiration
+
+    private val handledError = atomic<Throwable?>(null)
 
     init {
         val dataFromConfig = requireNotNull(config.data) { "`data` (cache and loader) is required" }
@@ -85,12 +90,28 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         }
     }
 
-    override fun data(vararg params: DataParam): Flow<T> =
-        if (params.contains(CacheOnly)) cache else auto
+    override fun data(vararg params: DataParam) = if (params.contains(CacheOnly)) cache else auto
 
     override fun progress() = loader.progress
 
-    override fun error() = loader.error
+    override fun error(vararg params: ErrorParam): Flow<Throwable?> {
+        val skipIfCollected = params.contains(ErrorParam.SkipIfCollected)
+        return if (skipIfCollected) {
+            loader.error
+                .map { error ->
+                    val handled = handledError.value
+                    if (error !== handled) {
+                        handledError.compareAndSet(expect = handled, update = error)
+                        error
+                    } else {
+                        null
+                    }
+                }
+                .distinctUntilChanged { old, new -> old == null && new == null }
+        } else {
+            loader.error
+        }
+    }
 
     override fun refresh(vararg params: RefreshParam): InflowDeferred<T> {
         val ifExpiresIn = params.find { it is IfExpiresIn } as IfExpiresIn?

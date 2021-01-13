@@ -30,10 +30,9 @@ import kotlinx.atomicfu.locks.withLock
  *     .launchIn(lifecycleScope)
  * ```
  *
- * **Important**: parameters of type `P` should have a correct implementations for [Any.equals] and
- * [Any.hashCode] since they will be used as [Map] keys. Primitive types and data classes are the
- * best candidates.
- *
+ * **Important**: parameters of type `P` should provide a correct implementation of
+ * [equals][Any.equals] and [hashCode][Any.hashCode] since they will be used as [Map] keys.
+ * Primitive types and data classes are the best candidates.
  */
 interface Inflows<P, T> {
     /**

@@ -2,6 +2,7 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.forceRefresh
+import inflow.unhandledError
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
@@ -38,6 +39,26 @@ class ErrorStateTest : BaseTest() {
 
         delay(100L)
         assertNotNull(error, "Error is collected again")
+    }
+
+    @Test
+    fun `IF unhandled error requested THEN error is only collected once`() = runTest { job ->
+        val inflow = testInflow {
+            data(initial = null) { throw RuntimeException() }
+        }
+
+        var error1: Throwable? = null
+        launch(job) { inflow.unhandledError().collect { error1 = it } }
+
+        var error2: Throwable? = null
+        launch(job) { inflow.unhandledError().collect { error2 = it } }
+
+        assertNull(error1, "No error 1 in the beginning")
+        assertNull(error2, "No error 2 in the beginning")
+
+        inflow.refresh()
+        assertNotNull(error1, "Error 1 is collected")
+        assertNull(error2, "Error 2 is not collected")
     }
 
     @Test

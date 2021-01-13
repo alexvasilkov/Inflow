@@ -10,7 +10,7 @@ fun <T, R> Inflow<T>.map(mapper: suspend (T) -> R): Inflow<R> {
 
         override fun progress() = orig.progress()
 
-        override fun error() = orig.error()
+        override fun error(vararg params: ErrorParam) = orig.error(*params)
 
         override fun refresh(vararg params: RefreshParam): InflowDeferred<R> {
             val resultOrig = orig.refresh(*params)
