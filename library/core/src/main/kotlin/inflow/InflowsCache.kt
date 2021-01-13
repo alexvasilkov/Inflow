@@ -1,12 +1,15 @@
 package inflow
 
 import inflow.utils.now
+import kotlinx.atomicfu.locks.reentrantLock
+import kotlinx.atomicfu.locks.withLock
 
 
 /**
  * Cache provider used to keep entries in memory to avoid frequent initializations.
  *
- * Implementations are not required to be thread-safe as they will be synchronized externally.
+ * Implementations are required to be thread-safe because [get] and [clear] methods can be
+ * potentially called from different threads.
  */
 interface InflowsCache<K, V> {
     /**
@@ -48,12 +51,14 @@ internal class InflowsCacheImpl<K, V>(
 
     private var onRemove: ((V) -> Unit)? = null
 
+    private val lock = reentrantLock()
+
     init {
         require(maxSize >= 1) { "Max cache size should be >= 1" }
         require(expireAfterAccess >= 0) { "Expire after access timeout should be >= 0" }
     }
 
-    override fun get(key: K, provider: (K) -> V): V {
+    override fun get(key: K, provider: (K) -> V): V = lock.withLock {
         access.remove(key) // Removing the key to later add it back into the end of the list
         val currentValue = values.remove(key)
         val value = currentValue ?: provider(key)
@@ -102,7 +107,7 @@ internal class InflowsCacheImpl<K, V>(
         }
     }
 
-    override fun clear() {
+    override fun clear(): Unit = lock.withLock {
         for (old in values.values) onRemove?.invoke(old)
         access.clear()
         values.clear()

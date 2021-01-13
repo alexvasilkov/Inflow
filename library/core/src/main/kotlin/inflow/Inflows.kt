@@ -1,8 +1,5 @@
 package inflow
 
-import kotlinx.atomicfu.locks.reentrantLock
-import kotlinx.atomicfu.locks.withLock
-
 /**
  * Collection of on-demand [Inflow]s where each Inflow is created for a specific parameter.
  *
@@ -124,14 +121,9 @@ private class InflowsImpl<P, T>(config: InflowsConfig<P, T>) : Inflows<P, T> {
 
     private val factory = requireNotNull(config.factory) { "Inflows factory is required" }
     private val cache = config.cache ?: inflowsCache()
-    private val lock = reentrantLock()
 
-    override fun get(param: P): Inflow<T> {
-        return lock.withLock { cache.get(param, factory) }
-    }
+    override fun get(param: P): Inflow<T> = cache.get(param, factory)
 
-    override fun clear() {
-        lock.withLock { cache.clear() }
-    }
+    override fun clear() = cache.clear()
 
 }
