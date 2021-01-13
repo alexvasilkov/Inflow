@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     package="com.alexvasilkov.inflow">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
+        android:name=".App"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.Inflow"
-        tools:ignore="AllowBackup">
+        android:supportsRtl="false"
+        android:theme="@style/Theme.App">
 
         <activity
-            android:name=".TestActivity"
-            android:screenOrientation="portrait">
+            android:name=".StartActivity"
+            android:theme="@style/Theme.App.Full">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -24,6 +24,29 @@
             </intent-filter>
 
         </activity>
+
+        <activity
+            android:name=".se.ui.list.QuestionsListActivity"
+            android:theme="@style/Theme.App.Full"
+            android:windowSoftInputMode="adjustPan" />
+
+        <activity
+            android:name=".se.ui.auth.AuthResultActivity"
+            android:screenOrientation="portrait">
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="auth"
+                    android:scheme="inflow" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".time.TimeActivity" />
 
     </application>
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="window_background">#202021</color>
+    <color name="status_bar">#2d2d2e</color>
+    <color name="nav_bar">#2d2d2e</color>
+
+    <color name="primary">#308dc2</color>
+    <color name="accent">#f1632a</color>
+    <color name="surface">#2d2d2e</color>
+
+</resources>

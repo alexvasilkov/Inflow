@@ -1,3 +1,14 @@
 <resources>
+
     <string name="app_name">Inflow</string>
+
+    <string name="se_title">StackOverflow</string>
+    <string name="se_search_hint">Search</string>
+    <string name="se_search_error">Cannot load questions</string>
+    <string name="se_search_error_title">Error loading questions</string>
+    <string name="se_search_retry">Retry</string>
+    <string name="se_search_empty">No questions found</string>
+
+    <string name="time_title">Time Flow</string>
+
 </resources>
