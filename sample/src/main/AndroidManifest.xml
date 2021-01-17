@@ -30,6 +30,8 @@
             android:theme="@style/Theme.App.Full"
             android:windowSoftInputMode="adjustPan" />
 
+        <activity android:name=".se.ui.profile.ProfileActivity" />
+
         <activity
             android:name=".se.ui.auth.AuthResultActivity"
             android:screenOrientation="portrait">

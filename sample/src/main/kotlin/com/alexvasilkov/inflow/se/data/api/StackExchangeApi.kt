@@ -1,5 +1,6 @@
 package com.alexvasilkov.inflow.se.data.api
 
+import com.alexvasilkov.inflow.se.data.api.response.ProfileJson
 import com.alexvasilkov.inflow.se.data.api.response.QuestionJson
 import com.alexvasilkov.inflow.se.data.api.response.ResponseJson
 import retrofit2.http.GET
@@ -14,8 +15,14 @@ interface StackExchangeApi {
         @Query("pagesize") pageSize: Int
     ): ResponseJson<QuestionJson>
 
+    @AuthRequired
+    @GET("me?site=stackoverflow")
+    suspend fun profile(): ResponseJson<ProfileJson>
+
+
     companion object {
         const val apiUrl = "https://api.stackexchange.com/2.2/"
+        const val apiKey = "cymsuMGg4UTNwhzs6aVYJw(("
 
         private const val clientId = 19433
         const val authRedirectUrl = "inflow://auth"

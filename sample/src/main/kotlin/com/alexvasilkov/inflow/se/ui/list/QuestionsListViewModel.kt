@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 
@@ -33,12 +34,13 @@ class QuestionsListViewModel(
 
     private val questions = repo.searchQuestions(questionsQuery)
 
+    // While collecting this flow the loading and refresh API calls will be made automatically
     val list: Flow<List<Question>?> = questions.data()
 
-    private val state: Flow<State> =
-        combine(questions.cache(), questions.loading()) { list, loading ->
-            State(loaded = list != null, empty = list.isNullOrEmpty(), loading = loading)
-        }
+    private val state: Flow<State> = combine(questions.cache(), questions.loading(), ::State)
+        // The new cache can arrive earlier than `loading = false` event, we want the UI to skip
+        // showing unnecessary "refreshState" right after "loadingState" in this case
+        .distinctUntilChanged { old, new -> old.loading && new.loading && old.empty && !new.empty }
 
     val emptyState: Flow<Boolean> = state.map { it.loaded && it.empty && !it.loading }
 
@@ -53,10 +55,9 @@ class QuestionsListViewModel(
     fun refresh() = questions.refresh()
 
 
-    private class State(
-        val loaded: Boolean,
-        val empty: Boolean,
-        val loading: Boolean
-    )
+    private class State(list: List<Question>?, val loading: Boolean) {
+        val loaded: Boolean = list != null
+        val empty: Boolean = list.isNullOrEmpty()
+    }
 
 }

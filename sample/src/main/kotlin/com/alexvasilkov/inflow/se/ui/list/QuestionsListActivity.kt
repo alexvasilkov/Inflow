@@ -27,7 +27,7 @@ class QuestionsListActivity : AppCompatActivity() {
 
         val views = SeQuestionsListScreenBinding.inflate(layoutInflater)
         setContentView(views.root)
-        setTitle(R.string.se_title)
+        setTitle(R.string.se_search_title)
 
         setSupportActionBar(views.toolbar)
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)

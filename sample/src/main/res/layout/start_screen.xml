@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
@@ -12,18 +13,38 @@
         android:src="@drawable/ic_launcher_foreground" />
 
     <Button
-        android:id="@+id/stack_exchange"
+        android:id="@+id/stack_exchange_search"
         style="@style/App.Button.Outlined"
         android:layout_width="240dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="@string/se_title" />
+        android:layout_marginBottom="8dp"
+        android:text="@string/se_search_start"
+        app:icon="@drawable/ic_stackoverflow_48dp"
+        app:iconPadding="-24dp"
+        app:iconSize="24dp"
+        app:iconTint="@android:color/transparent"
+        app:iconTintMode="src_atop" />
+
+    <Button
+        android:id="@+id/stack_exchange_profile"
+        style="@style/App.Button.Outlined"
+        android:layout_width="240dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="@string/se_profile_start"
+        app:icon="@drawable/ic_stackoverflow_48dp"
+        app:iconPadding="-24dp"
+        app:iconSize="24dp"
+        app:iconTint="@android:color/transparent"
+        app:iconTintMode="src_atop" />
 
     <Button
         android:id="@+id/time"
         style="@style/App.Button.Outlined"
         android:layout_width="240dp"
         android:layout_height="wrap_content"
-        android:text="@string/time_title" />
+        android:text="@string/time_title"
+        app:icon="@drawable/ic_hourglass_24dp"
+        app:iconPadding="-24dp" />
 
 </LinearLayout>

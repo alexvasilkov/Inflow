@@ -27,14 +27,14 @@ class TimeActivity : AppCompatActivity() {
         // "Loading" current time every second. Using small delay to observe loading state.
         // (Updating time only once per second is not really accurate, but it's fine for the demo).
         val time = inflow<Long> {
-            data(initial = now()) { delay(200L); now() }
-            expiration(ExpiresIn(1_000L - 200L) { it })
+            data(initial = now()) { delay(250L); now() }
+            expiration(ExpiresIn(1_000L - 250L) { it })
             loadDispatcher(Dispatchers.Main.immediate)
         }
 
         val formatter = SimpleDateFormat("HH:mm:ss", Locale.ENGLISH)
         time.data().whileStarted(this) { views.time.text = formatter.format(it) }
-        time.loading().whileStarted(this) { views.time.animate().alpha(if (it) 0.4f else 1f) }
+        time.loading().whileStarted(this) { views.time.animate().alpha(if (it) 0f else 1f) }
     }
 
 }

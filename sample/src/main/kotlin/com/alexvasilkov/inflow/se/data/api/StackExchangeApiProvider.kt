@@ -22,8 +22,9 @@ class StackExchangeApiProvider(
 
         val client = OkHttpClient.Builder()
             .handleErrors(moshi)
-            .setDebugLogger(Level.BODY)
+            .setApiKey()
             .setAuth()
+            .setDebugLogger(Level.BODY)
             .build()
 
         return Retrofit.Builder()
@@ -41,12 +42,19 @@ class StackExchangeApiProvider(
         return addInterceptor(interceptor)
     }
 
+    private fun OkHttpClient.Builder.setApiKey() = addInterceptor { chain ->
+        val url = chain.request().url
+        val newUrl = url.newBuilder().addQueryParameter("key", StackExchangeApi.apiKey).build()
+        val newRequest = chain.request().newBuilder().url(newUrl).build()
+        chain.proceed(newRequest)
+    }
+
     private fun OkHttpClient.Builder.setAuth() = addInterceptor { chain ->
         val request = if (chain.request().isAuthRequired()) {
             val token = auth.token ?: throw StackExchangeException("Not authenticated")
-            chain.request().newBuilder()
-                .header("Authorization", "Bearer $token")
-                .build()
+            val url = chain.request().url
+            val newUrl = url.newBuilder().addQueryParameter("access_token", token).build()
+            chain.request().newBuilder().url(newUrl).build()
         } else {
             chain.request()
         }

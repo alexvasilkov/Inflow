@@ -2,13 +2,21 @@
 
     <string name="app_name">Inflow</string>
 
-    <string name="se_title">StackOverflow</string>
+    <string name="se_search_start">Search</string>
+    <string name="se_search_title">StackOverflow</string>
     <string name="se_search_hint">Search</string>
     <string name="se_search_error">Cannot load questions</string>
     <string name="se_search_error_title">Error loading questions</string>
     <string name="se_search_retry">Retry</string>
     <string name="se_search_empty">No questions found</string>
 
-    <string name="time_title">Time Flow</string>
+    <string name="se_profile_start">Profile</string>
+    <string name="se_profile_title">StackOverflow Profile</string>
+    <string name="se_profile_login_info">Log in to view your profile</string>
+    <string name="se_profile_login">Log in</string>
+    <string name="se_profile_logout">Log out</string>
+    <string name="se_profile_error">Cannot load profile</string>
+
+    <string name="time_title">Time</string>
 
 </resources>

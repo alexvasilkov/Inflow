@@ -2,15 +2,35 @@ package com.alexvasilkov.inflow.se.data
 
 import com.alexvasilkov.inflow.ext.now
 import com.alexvasilkov.inflow.se.data.api.StackExchangeApi
+import inflow.ExpiresAt
+import inflow.ExpiresNever
+import inflow.Inflow
+import inflow.cache
+import inflow.cached
+import inflow.inflow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 class StackExchangeAuth {
 
-    private var auth: Auth? = null // Only keeping it in memory
-    val token: String?
-        get() = auth?.let { if (it.expiresAt <= now()) null else it.token }
-
     val authUrl: String = StackExchangeApi.authUrl
 
+    private val authCache = MutableStateFlow<Auth?>(null) // Only keeping it in memory
+
+    // Using an Inflow for auth data to automatically emit `null` when token becomes invalid
+    private val auth: Inflow<Auth?> = inflow {
+        data(cache = authCache, loader = {})
+        expiration(ExpiresNever()) // No way we can refresh it automatically
+        invalidation(emptyValue = null, ExpiresAt { it?.expiresAt ?: Long.MAX_VALUE })
+    }
+
+    val authState: Flow<Boolean> = auth.cache().map { it != null }
+
+    val token: String?; get() = runBlocking { auth.cached()?.token } // Should never block
+
+    /** Parses access token out of callback url. */
     fun handleAuthRedirect(url: String) {
         if (!url.startsWith(StackExchangeApi.authRedirectUrl)) return
 
@@ -28,11 +48,11 @@ class StackExchangeAuth {
         val token = params["access_token"] ?: error("No access token")
         val expiresIn = params["expires"]?.toLong()
         val expiresAt = if (expiresIn == null) Long.MAX_VALUE else now() + expiresIn * 1000L
-        auth = Auth(token, expiresAt)
+        authCache.value = Auth(token, expiresAt)
     }
 
     fun logout() {
-        auth = null
+        authCache.value = null
     }
 
 
