@@ -4,13 +4,13 @@ import inflow.BaseTest
 import inflow.ExpiresIn
 import inflow.RefreshParam
 import inflow.RefreshParam.Repeat
-import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.cached
 import inflow.forceRefresh
 import inflow.fresh
 import inflow.inflow
+import inflow.refreshIfExpired
 import inflow.utils.AtomicInt
 import inflow.utils.isIdle
 import inflow.utils.log
@@ -112,10 +112,10 @@ class RefreshTest : BaseTest() {
             keepCacheSubscribedTimeout(0L)
         }
 
-        val item1 = inflow.fresh()
+        val item1 = inflow.refreshIfExpired().await()
         assertEquals(expected = -1, actual = item1, "Cached item is returned as-is")
 
-        val item2 = inflow.fresh(expiresIn = 100L)
+        val item2 = inflow.refreshIfExpired(expiresIn = 100L).await()
         assertEquals(expected = 0, actual = item2, "New item is loaded")
     }
 
@@ -168,7 +168,7 @@ class RefreshTest : BaseTest() {
         }
 
         var commonResult: Int? = null
-        runStressTest(logId, STRESS_RUNS) {
+        runStressTest {
             val result = inflow.forceRefresh().await()
             synchronized(inflow) { if (commonResult == null) commonResult = result }
             // All waiters should receive the latest loaded item

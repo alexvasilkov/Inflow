@@ -83,6 +83,8 @@ interface Inflow<T> {
      * while it has at least one subscriber and according to expiration policy set with
      * [InflowConfig.expiration]. This behavior can be disabled by using [CacheOnly] param.
      *
+     * See [cache()][cache] and [cached()][cached] extensions.
+     *
      * @param params Optional parameters, see [DataParam].
      * If parameter of the same type is passed several times then only first parameter will be used.
      */
@@ -100,6 +102,8 @@ interface Inflow<T> {
      * Note: if a new refresh is explicitly requested with [refresh] and [Repeat] param
      * while running another refresh, the new request will run immediately after first request is
      * finished without emitting consequent [Progress.Active] and [Progress.Idle] values.
+     *
+     * See [loading()][loading] extension.
      */
     fun progress(): Flow<Progress>
 
@@ -107,14 +111,17 @@ interface Inflow<T> {
      * Recent error caught during refresh requests or `null` if latest request was successful.
      * Will be set back to `null` immediately after new refresh is started.
      *
-     * It will always repeat the most recent error when starting collecting so the UI code may want
-     * to save latest handled error locally to avoid showing duplicate errors.
+     * It will always repeat the most recent error when starting collecting.
+     * Use [unhandledError()][unhandledError] extension to avoid showing duplicate errors.
      */
     fun error(vararg params: ErrorParam): Flow<Throwable?>
 
     /**
      * Manually requests data refresh from a remote source. The request will start immediately
      * (unless [IfExpiresIn] param is used) and can be observed using returned deferred object.
+     *
+     * See [refreshIfExpired()][refreshIfExpired], [fresh()][fresh], [forceRefresh()][forceRefresh]
+     * extensions.
      *
      * @param params Optional parameters for refresh request, see [RefreshParam].
      * If parameter of the same type is passed several times then only first parameter will be used.
@@ -224,7 +231,7 @@ sealed class RefreshParam {
      * no refresh will be done and the cached value will be returned as-is. But if [expiresIn] is
      * set to 10 minutes then a new refresh request will be triggered.
      *
-     * See [fresh()][fresh] extension.
+     * See [refreshIfExpired()][refreshIfExpired] and [fresh()][fresh] extensions.
      */
     data class IfExpiresIn(val expiresIn: Long) : RefreshParam() {
         init {
@@ -270,6 +277,15 @@ suspend fun <T> Inflow<T>.fresh(expiresIn: Long = 0L): T = refresh(IfExpiresIn(e
 fun <T> Inflow<T>.forceRefresh(): InflowDeferred<T> = refresh(Repeat)
 
 /**
+ * If latest cached data is expiring in more than [expiresIn] milliseconds then it will be returned
+ * as-is. Otherwise a new request will be triggered. See [IfExpiresIn].
+ *
+ * Shortcut for `refresh(RefreshParam.IfExpiresIn(expiresIn))`.
+ */
+fun <T> Inflow<T>.refreshIfExpired(expiresIn: Long = 0L): InflowDeferred<T> =
+    refresh(IfExpiresIn(expiresIn))
+
+/**
  * If an error was already collected once then all other collectors will not receive it anymore.
  * See [SkipIfCollected].
  *
@@ -278,7 +294,8 @@ fun <T> Inflow<T>.forceRefresh(): InflowDeferred<T> = refresh(Repeat)
 fun <T> Inflow<T>.unhandledError(): Flow<Throwable> = error(SkipIfCollected).filterNotNull()
 
 /**
- * Provides a simple flow of `false` (if [Progress.Idle]) and `true` (otherwise) values.
+ * Similar to [progress][Inflow.progress], but provides a simple flow of `false`
+ * (if [Progress.Idle]) and `true` (otherwise) values.
  */
 fun <T> Inflow<T>.loading(): Flow<Boolean> = progress()
     .map { it != Progress.Idle }

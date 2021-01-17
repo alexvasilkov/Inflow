@@ -3,7 +3,6 @@ package inflow.inflow
 import inflow.BaseTest
 import inflow.ExpirationProvider
 import inflow.ExpiresAt
-import inflow.ExpiresIf
 import inflow.ExpiresIfNull
 import inflow.ExpiresIn
 import inflow.ExpiresNever
@@ -132,13 +131,6 @@ class ExpirationTest : BaseTest() {
         val expiration = ExpiresIn<Int>(Long.MAX_VALUE) { 1L }
         val expiresIn = expiration.expiresIn(0)
         assertEquals(expected = Long.MAX_VALUE, actual = expiresIn, "Never expires")
-    }
-
-    @Test
-    fun `IF ExpiresIf AND interval is 0 THEN error`() = runTest {
-        assertFailsWith<IllegalArgumentException> {
-            ExpiresIf<Int>(interval = 0L) { false }
-        }
     }
 
 }

@@ -98,18 +98,20 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         val skipIfCollected = params.contains(ErrorParam.SkipIfCollected)
         return if (skipIfCollected) {
             loader.error
-                .map { error ->
-                    val handled = handledError.value
-                    if (error !== handled) {
-                        handledError.compareAndSet(expect = handled, update = error)
-                        error
-                    } else {
-                        null
-                    }
-                }
+                .map(::handleError)
                 .distinctUntilChanged { old, new -> old == null && new == null }
         } else {
             loader.error
+        }
+    }
+
+    private fun handleError(error: Throwable?): Throwable? {
+        val handled = handledError.value
+        return if (error !== handled && error === loader.error.value) {
+            val set = handledError.compareAndSet(expect = handled, update = error)
+            if (set) error else null
+        } else {
+            null
         }
     }
 

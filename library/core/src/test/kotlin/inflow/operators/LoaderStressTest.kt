@@ -2,7 +2,6 @@ package inflow.operators
 
 import inflow.BaseTest
 import inflow.Progress
-import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.internal.Loader
@@ -27,7 +26,7 @@ class LoaderStressTest : BaseTest() {
         val loads = AtomicInt()
         val loader = Loader(logId, this, Dispatchers.IO) { delay(100L); loads.getAndIncrement() }
 
-        runStressTest(logId, STRESS_RUNS) { loader.load(repeatIfRunning = false).join() }
+        runStressTest { loader.load(repeatIfRunning = false).join() }
 
         log(logId) { "Loads: ${loads.get()}" }
         // There must be much more than one loading event (around STRESS_RUNS / 4 / 100), but it is
@@ -40,7 +39,7 @@ class LoaderStressTest : BaseTest() {
     @Timeout(STRESS_TIMEOUT)
     fun `IF repeatIfRunning=true and await() THEN finishes with no deadlocks`() = runReal {
         val loader = Loader(logId, this, Dispatchers.IO) {}
-        runStressTest(logId, STRESS_RUNS) { loader.load(repeatIfRunning = true).await() }
+        runStressTest { loader.load(repeatIfRunning = true).await() }
         assertSame(Progress.Idle, loader.progress.value, "Finished")
     }
 

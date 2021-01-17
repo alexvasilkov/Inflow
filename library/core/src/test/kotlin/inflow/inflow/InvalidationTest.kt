@@ -21,10 +21,10 @@ class InvalidationTest : BaseTest() {
 
     @Test
     fun `IF invalid THEN emit empty value`() = runTest {
-        val invalidIn = ExpiresIn<Int?>(1L) { if (it == -1) 0L else Long.MAX_VALUE }
+        val provider = ExpiresIn<Int?>(1L) { if (it == -1) 0L else Long.MAX_VALUE }
         val inflow = testInflow {
             data(initial = -1) { 0 }
-            invalidation(invalidIn = invalidIn, emptyValue = -2)
+            invalidation(emptyValue = -2, provider = provider)
         }
 
         assertEquals(expected = -2, actual = inflow.cached(), "Empty value is returned")
@@ -38,7 +38,7 @@ class InvalidationTest : BaseTest() {
             testInflow {
                 data(initial = null) { 0 }
                 expiration(ExpiresIfNull())
-                invalidation(invalidIn = ExpiresIfNull(), emptyValue = -1)
+                invalidation(emptyValue = -1, provider = ExpiresIfNull())
             }
         }
 
@@ -50,7 +50,7 @@ class InvalidationTest : BaseTest() {
     fun `IF valid THEN emit as-is`() = runTest {
         val inflow = testInflow {
             data(initial = -1) { 0 }
-            invalidation(invalidIn = ExpiresIfNull(), emptyValue = null)
+            invalidation(emptyValue = null, provider = ExpiresIfNull())
         }
 
         assertEquals(expected = -1, actual = inflow.cached(), "Item is returned")
@@ -61,7 +61,7 @@ class InvalidationTest : BaseTest() {
         val start = now()
         val inflow = inflow<Long?> {
             data(start) { throw RuntimeException() }
-            invalidation(invalidIn = ExpiresIn(30L) { it ?: 0L }, emptyValue = null)
+            invalidation(emptyValue = null, provider = ExpiresIn(30L) { it ?: 0L })
         }
 
         assertEquals(expected = start, actual = inflow.cached(), "Orig item is emitted")

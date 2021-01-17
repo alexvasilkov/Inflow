@@ -1,7 +1,6 @@
 package inflow.operators
 
 import inflow.BaseTest
-import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.internal.share
@@ -76,7 +75,7 @@ class ShareTest : BaseTest() {
         val scope = CoroutineScope(EmptyCoroutineContext)
         val shared = cache.share(scope, Dispatchers.IO, keepSubscribedTimeout)
 
-        runStressTest(logId, STRESS_RUNS) {
+        runStressTest {
             // Calling shared flow several times to provoke more races
             shared.first()
             shared.first()

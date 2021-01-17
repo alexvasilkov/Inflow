@@ -1,7 +1,6 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.ExpirationProvider
 import inflow.Inflow
 import inflow.RefreshParam
 import inflow.cache
@@ -87,10 +86,8 @@ class CancelTest : BaseTest() {
         val inflow = testInflow {
             var count = 0
             data(initial = null) { count++ }
-            expiration(object : ExpirationProvider<Int?> {
-                // null at 0, 0 at 100, 1 at 200, etc
-                override fun expiresIn(data: Int?) = (data ?: -1) * 100L + 100L - currentTime
-            })
+            // null at 0, 0 at 100, 1 at 200, etc:
+            expiration { data -> (data ?: -1) * 100L + 100L - currentTime }
             scope(scope)
         }
 

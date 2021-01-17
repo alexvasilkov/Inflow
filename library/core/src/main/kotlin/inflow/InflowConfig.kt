@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
@@ -202,16 +203,17 @@ class InflowConfig<T> internal constructor() {
      * Note that [keepCacheSubscribedTimeout] will be automatically set to 0L and attempt to set
      * it to anything greater than 0L will throw [IllegalArgumentException].
      *
-     * @return Writer function that can be used to update the in-memory cache from the outside.
+     * @return Writer that can be used to update the in-memory cache from the outside.
      */
     fun data(
         initial: T,
         loader: suspend (LoadTracker) -> T
-    ): suspend (T) -> Unit {
-        val memory = MutableSharedFlow<T>(replay = 1).apply { tryEmit(initial) }
-        data(memory) { memory.emit(loader(it)) }
+    ): MemoryCacheWriter<T> {
+        val memory = MutableSharedFlow<T>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        memory.tryEmit(initial)
+        data(memory) { memory.tryEmit(loader(it)) }
         setMemoryCacheUsed()
-        return memory::emit
+        return MemoryCacheWriter(memory::tryEmit)
     }
 
     /**
@@ -226,13 +228,13 @@ class InflowConfig<T> internal constructor() {
      * Note that [keepCacheSubscribedTimeout] will be automatically set to 0L and attempt to set
      * it to anything greater than 0L will throw [IllegalArgumentException].
      *
-     * @return Writer function that can be used to update the in-memory cache from the outside.
+     * @return Writer that can be used to update the in-memory cache from the outside.
      */
     fun data(
         initial: suspend () -> T,
         loader: suspend (LoadTracker) -> T
-    ): suspend (T) -> Unit {
-        val memory = MutableSharedFlow<T>(replay = 1)
+    ): MemoryCacheWriter<T> {
+        val memory = MutableSharedFlow<T>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
         // By contract the cache should always emit, we need to initialize it on first start
         val initialized = AtomicBoolean()
@@ -242,12 +244,12 @@ class InflowConfig<T> internal constructor() {
             }
         }
 
-        data(cache) { memory.emit(loader(it)) }
+        data(cache) { memory.tryEmit(loader(it)) }
         setMemoryCacheUsed()
 
-        return {
+        return MemoryCacheWriter {
             initialized.set(true) // No need to initialize the cache anymore
-            memory.emit(it)
+            memory.tryEmit(it)
         }
     }
 
@@ -260,8 +262,8 @@ class InflowConfig<T> internal constructor() {
     /**
      * Cache expiration policy, see [ExpirationProvider]. Uses [ExpiresIfNull] policy by default.
      */
-    fun expiration(expiresIn: ExpirationProvider<T>) {
-        expiration = expiresIn
+    fun expiration(provider: ExpirationProvider<T>) {
+        expiration = provider
     }
 
     /**
@@ -269,7 +271,7 @@ class InflowConfig<T> internal constructor() {
      * By default the cache is considered to be valid all the time.
      *
      * Provided [emptyValue] will be emitted each time invalid data is emitted by original cache
-     * and automatically after the expiration time defined by [invalidIn] policy.
+     * and automatically after the expiration time defined by [provider] policy.
      *
      * *For example if an item emitted by the cache will be invalid in 1 minute then once 1 minute
      * is passed all active subscribers will receive [emptyValue] even if no extra items were
@@ -278,8 +280,8 @@ class InflowConfig<T> internal constructor() {
      * **Important:** [emptyValue] should be 'expired' according to [expiration] policy, otherwise
      * invalid data will not be automatically refreshed.
      */
-    fun invalidation(invalidIn: ExpirationProvider<T>, emptyValue: T) {
-        invalidation = invalidIn
+    fun invalidation(emptyValue: T, provider: ExpirationProvider<T>) {
+        invalidation = provider
         invalidationEmpty = emptyValue
     }
 
@@ -390,3 +392,10 @@ internal class InflowData<T>(
     val cache: Flow<T>,
     val loader: suspend (LoadTracker) -> Unit
 )
+
+/**
+ * Allows updating in-memory cache created by some of the [InflowConfig.data] methods variants.
+ */
+fun interface MemoryCacheWriter<T> {
+    operator fun invoke(data: T)
+}

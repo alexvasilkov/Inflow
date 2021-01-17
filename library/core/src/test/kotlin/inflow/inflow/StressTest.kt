@@ -1,7 +1,6 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.cache
@@ -32,7 +31,7 @@ class StressTest : BaseTest() {
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
     fun `IF observe several inflows THEN no deadlocks`() = runReal {
-        runStressTest(logId, STRESS_RUNS) { i ->
+        runStressTest { i ->
             for (j in 0 until 2) {
                 val inflow = inflow<Unit?> {
                     logId("$i/$j")
@@ -59,7 +58,7 @@ class StressTest : BaseTest() {
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
     fun `IF refresh several inflows THEN no deadlocks`() = runReal {
-        runStressTest(logId, STRESS_RUNS) { i ->
+        runStressTest { i ->
             for (j in 0 until 2) {
                 val inflow = inflow<Unit?> {
                     logId("$i/$j")
@@ -103,7 +102,7 @@ class StressTest : BaseTest() {
             retryTime(Long.MAX_VALUE)
         }
 
-        runStressTest(logId, STRESS_RUNS) {
+        runStressTest {
             inflow.data().first { it != null }
             inflow.error().first { it == null }
             inflow.progress().waitIdle()

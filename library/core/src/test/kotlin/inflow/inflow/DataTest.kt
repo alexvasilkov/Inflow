@@ -1,7 +1,7 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.ExpiresIf
+import inflow.MemoryCacheWriter
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import kotlinx.coroutines.delay
@@ -30,11 +30,11 @@ class DataTest : BaseTest() {
 
     @Test
     fun `IF expired cache is emitted during loading THEN no extra refresh`() = runTest { job ->
-        lateinit var writer: suspend (Int?) -> Unit
+        lateinit var writer: MemoryCacheWriter<Int?>
         val inflow = testInflow {
             var count = 0
             writer = data(initial = -1) { delay(100L); count++ }
-            expiration(ExpiresIf(Long.MAX_VALUE) { it == null || it < 0 })
+            expiration { if (it == null || it < 0) 0L else Long.MAX_VALUE }
         }
 
         var item: Int? = Int.MIN_VALUE

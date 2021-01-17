@@ -3,7 +3,6 @@ package inflow.operators
 import inflow.BaseTest
 import inflow.ExpirationProvider
 import inflow.ExpiresAt
-import inflow.ExpiresIf
 import inflow.internal.scheduleUpdates
 import inflow.utils.TestTracker
 import inflow.utils.now
@@ -84,25 +83,6 @@ class ScheduleUpdatesTest : BaseTest() {
         assertEquals(expected = 3, counter, "Several updates called")
 
         job.cancel()
-    }
-
-    @Test
-    fun `IF using dynamic expiration that never expires THEN no updates`() = runTest { job ->
-        var expired = false
-        var counter = 0
-        launch(job) {
-            scheduleWithDefaults(
-                expiration = ExpiresIf(interval = 100L) { expired },
-                loader = { counter++ }
-            )
-        }
-
-        delay(1000L)
-        assertEquals(expected = 0, counter, "No updates")
-
-        expired = true
-        delay(100L)
-        assertEquals(expected = 1, counter, "Update is called once expired")
     }
 
 

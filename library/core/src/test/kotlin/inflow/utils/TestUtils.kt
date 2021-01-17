@@ -3,6 +3,7 @@ package inflow.utils
 import inflow.Inflow
 import inflow.InflowConfig
 import inflow.Progress
+import inflow.STRESS_RUNS
 import inflow.inflow
 import inflow.loading
 import kotlinx.coroutines.CoroutineDispatcher
@@ -73,8 +74,7 @@ internal suspend fun Flow<Progress>.waitIdle() = first { it === Progress.Idle }
  * Runs several iterations of same action at a constant rate of 4 actions per second.
  */
 internal suspend fun runStressTest(
-    logId: String,
-    runs: Int,
+    runs: Int = STRESS_RUNS,
     block: suspend CoroutineScope.(Int) -> Unit
 ) {
     val wasVerbose = inflowVerbose
@@ -93,7 +93,7 @@ internal suspend fun runStressTest(
     }
 
     while (counter.get() != runs) {
-        log(logId) { "Counter: ${counter.get()}" }
+        log("stress") { "Counter: ${counter.get()}" }
         delay(100L)
     }
 

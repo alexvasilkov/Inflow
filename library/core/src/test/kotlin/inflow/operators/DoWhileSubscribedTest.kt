@@ -1,7 +1,6 @@
 package inflow.operators
 
 import inflow.BaseTest
-import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.internal.doWhileSubscribed
@@ -76,7 +75,7 @@ class DoWhileSubscribedTest : BaseTest() {
             }
         }
 
-        runStressTest(logId, STRESS_RUNS) { tracked.first() }
+        runStressTest { tracked.first() }
 
         assertEquals(expected = 0, actual = state.get(), "Tracked job is cancelled")
     }

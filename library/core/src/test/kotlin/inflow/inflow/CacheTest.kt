@@ -2,6 +2,7 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.Inflow
+import inflow.MemoryCacheWriter
 import inflow.cache
 import inflow.cached
 import inflow.utils.catchScopeException
@@ -209,7 +210,7 @@ class CacheTest : BaseTest() {
 
     @Test
     fun `IF in-memory cache is manually initialized THEN initializer is not called`() = runTest {
-        lateinit var writer: suspend (Int) -> Unit
+        lateinit var writer: MemoryCacheWriter<Int?>
         var count = 0
         val inflow = testInflow {
             writer = data(initial = { count++ }) { throw RuntimeException() }

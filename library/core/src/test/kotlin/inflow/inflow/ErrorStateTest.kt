@@ -1,17 +1,27 @@
 package inflow.inflow
 
 import inflow.BaseTest
+import inflow.STRESS_TAG
+import inflow.STRESS_TIMEOUT
 import inflow.forceRefresh
+import inflow.inflow
 import inflow.unhandledError
+import inflow.utils.runReal
+import inflow.utils.runStressTest
 import inflow.utils.runTest
 import inflow.utils.testInflow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Timeout
+import java.util.Collections
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ErrorStateTest : BaseTest() {
 
@@ -41,24 +51,33 @@ class ErrorStateTest : BaseTest() {
         assertNotNull(error, "Error is collected again")
     }
 
+
     @Test
-    fun `IF unhandled error requested THEN error is only collected once`() = runTest { job ->
-        val inflow = testInflow {
-            data(initial = null) { throw RuntimeException() }
+    @Tag(STRESS_TAG)
+    @Timeout(STRESS_TIMEOUT)
+    fun `IF unhandled error requested THEN error is only collected once`() = runReal {
+        var lastError: RuntimeException? = null
+        val inflow = inflow<Unit?> {
+            data(initial = null) { lastError = RuntimeException(); throw lastError!! }
         }
 
-        var error1: Throwable? = null
-        launch(job) { inflow.unhandledError().collect { error1 = it } }
+        val jobs = mutableListOf<Job>()
+        val errors = Collections.synchronizedList(mutableListOf<Throwable>())
 
-        var error2: Throwable? = null
-        launch(job) { inflow.unhandledError().collect { error2 = it } }
+        repeat(1_000) {
+            jobs += launch {
+                inflow.unhandledError().collect { errors.add(it) }
+            }
+        }
 
-        assertNull(error1, "No error 1 in the beginning")
-        assertNull(error2, "No error 2 in the beginning")
+        runStressTest { inflow.refresh().join() }
 
-        inflow.refresh()
-        assertNotNull(error1, "Error 1 is collected")
-        assertNull(error2, "Error 2 is not collected")
+        jobs.forEach(Job::cancel)
+
+        val noDuplicates = errors.toSet()
+
+        assertEquals(errors.size, noDuplicates.size, "Each error is only collected once")
+        assertTrue(noDuplicates.contains(lastError!!), "Last error is collected")
     }
 
     @Test

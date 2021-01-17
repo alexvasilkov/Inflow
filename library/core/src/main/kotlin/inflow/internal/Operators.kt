@@ -144,35 +144,28 @@ internal fun <T> Flow<T>.doWhileSubscribed(action: () -> Job): Flow<T> {
 /**
  * Checks if the data emitted from [this] flow is invalid and returns [emptyValue] instead.
  * Also schedules extra emission of [emptyValue] once the data becomes invalid according to
- * expiration time provided by [invalidIn].
+ * expiration time provided by [invalidation].
  */
 @ExperimentalCoroutinesApi
 internal fun <T> Flow<T>.emptyIfInvalid(
     logId: String,
-    invalidIn: ExpirationProvider<T>,
+    invalidation: ExpirationProvider<T>,
     emptyValue: T
 ): Flow<T> = flatMapLatest { data ->
     flow {
         // Getting invalidation time
-        var expiration = invalidIn.expiresIn(data)
+        val invalidIn = invalidation.expiresIn(data)
 
         // Returning the data, if valid
-        if (expiration > 0L) emit(data)
-
-        // Waiting for expiration timeout and re-checking it again in case it's dynamic,
-        // meaning that `expiresIn` may just define the next time to check the expiration
-        // while expiration logic itself may not be time-based.
-        while (true) {
-            if (expiration <= 0L) break
-
-            if (expiration < Long.MAX_VALUE) {
-                log(logId) { "Cache will be invalid in ${expiration}ms" }
+        if (invalidIn > 0L) {
+            emit(data)
+            if (invalidIn < Long.MAX_VALUE) {
+                log(logId) { "Cache will be invalid in ${invalidIn}ms" }
             }
-            // Waiting for the data to become invalid
-            delay(expiration)
-            // Checking expiration again, in most cases it should be <= 0L by now
-            expiration = invalidIn.expiresIn(data)
         }
+
+        // Waiting for the data to become invalid
+        delay(invalidIn)
 
         log(logId) { "Cache is invalid, returning empty value" }
         emit(emptyValue)
@@ -206,18 +199,11 @@ internal suspend fun <T> scheduleUpdates(
             // the data is finally loaded and cached, which in turn should trigger a new data
             // to be sent to us and this flow will be cancelled and re-scheduled.
             flow {
-                // Waiting for expiration timeout and re-checking it again in case it's dynamic,
-                // meaning that `expiresIn` may just define the next time to check the expiration
-                // while expiration logic itself may not be time-based.
-                while (true) {
-                    val expiresIn = expiration.expiresIn(data)
-                    if (expiresIn <= 0L) break
-
-                    if (expiresIn < Long.MAX_VALUE) {
-                        log(logId) { "Cache is expiring in ${expiresIn}ms" }
-                    }
-                    delay(expiresIn)
+                val expiresIn = expiration.expiresIn(data)
+                if (expiresIn > 0L && expiresIn < Long.MAX_VALUE) {
+                    log(logId) { "Cache is expiring in ${expiresIn}ms" }
                 }
+                delay(expiresIn)
 
                 log(logId) { "Cache is expired" }
                 emit(Unit)

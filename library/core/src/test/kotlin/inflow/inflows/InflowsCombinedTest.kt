@@ -3,7 +3,6 @@ package inflow.inflows
 import inflow.BaseTest
 import inflow.Inflow
 import inflow.Progress
-import inflow.STRESS_RUNS
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
 import inflow.asInflow
@@ -165,7 +164,7 @@ class InflowsCombinedTest : BaseTest() {
             }
         }
 
-        runStressTest(logId, STRESS_RUNS) { i ->
+        runStressTest { i ->
             if (i % 100 == 0) params.value++
             inflow.data().first()
             inflow.error().first()
