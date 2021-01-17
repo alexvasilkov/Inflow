@@ -1,8 +1,8 @@
 package com.alexvasilkov.inflow.time
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import com.alexvasilkov.inflow.R
+import com.alexvasilkov.inflow.base.BaseActivity
 import com.alexvasilkov.inflow.databinding.TimeScreenBinding
 import com.alexvasilkov.inflow.ext.now
 import com.alexvasilkov.inflow.ext.whileStarted
@@ -14,7 +14,7 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class TimeActivity : AppCompatActivity() {
+class TimeActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

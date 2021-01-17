@@ -2,11 +2,11 @@ package com.alexvasilkov.inflow.se.ui.auth
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
+import com.alexvasilkov.inflow.base.BaseActivity
 import com.alexvasilkov.inflow.se.ui.profile.ProfileActivity
 import org.koin.android.viewmodel.ext.android.viewModel
 
-class AuthResultActivity : AppCompatActivity() {
+class AuthResultActivity : BaseActivity() {
 
     private val viewModel: AuthResultViewModel by viewModel()
 

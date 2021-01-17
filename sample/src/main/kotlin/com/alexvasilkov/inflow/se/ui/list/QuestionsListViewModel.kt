@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 
@@ -38,6 +39,8 @@ class QuestionsListViewModel(
     val list: Flow<List<Question>?> = questions.data()
 
     private val state: Flow<State> = combine(questions.cache(), questions.loading(), ::State)
+        // Avoiding initial state, not an error yet
+        .dropWhile { !it.loaded && !it.loading }
         // The new cache can arrive earlier than `loading = false` event, we want the UI to skip
         // showing unnecessary "refreshState" right after "loadingState" in this case
         .distinctUntilChanged { old, new -> old.loading && new.loading && old.empty && !new.empty }

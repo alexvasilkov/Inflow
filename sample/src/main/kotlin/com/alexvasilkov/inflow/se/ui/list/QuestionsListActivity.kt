@@ -3,12 +3,12 @@ package com.alexvasilkov.inflow.se.ui.list
 import android.os.Bundle
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.core.widget.addTextChangedListener
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.alexvasilkov.inflow.R
+import com.alexvasilkov.inflow.base.BaseActivity
 import com.alexvasilkov.inflow.databinding.SeQuestionsListScreenBinding
 import com.alexvasilkov.inflow.ext.dp
 import com.alexvasilkov.inflow.ext.hideKeyboard
@@ -18,7 +18,7 @@ import com.google.android.material.appbar.AppBarLayout
 import org.koin.android.viewmodel.ext.android.viewModel
 
 
-class QuestionsListActivity : AppCompatActivity() {
+class QuestionsListActivity : BaseActivity() {
 
     private val viewModel: QuestionsListViewModel by viewModel()
 

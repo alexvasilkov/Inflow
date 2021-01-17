@@ -1,17 +1,17 @@
 package com.alexvasilkov.inflow.se.ui.profile
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import coil.load
 import com.alexvasilkov.inflow.R
+import com.alexvasilkov.inflow.base.BaseActivity
 import com.alexvasilkov.inflow.databinding.SeProfileScreenBinding
 import com.alexvasilkov.inflow.ext.openUrl
 import com.alexvasilkov.inflow.ext.toast
 import com.alexvasilkov.inflow.ext.whileStarted
 import org.koin.android.viewmodel.ext.android.viewModel
 
-class ProfileActivity : AppCompatActivity() {
+class ProfileActivity : BaseActivity() {
 
     private val viewModel: ProfileViewModel by viewModel()
 
