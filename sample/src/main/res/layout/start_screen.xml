@@ -3,14 +3,25 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
+    android:gravity="center_horizontal"
     android:orientation="vertical">
+
+    <Space
+        android:layout_width="1dp"
+        android:layout_height="0dp"
+        android:layout_weight="0.5" />
 
     <ImageView
         android:layout_width="240dp"
         android:layout_height="240dp"
         android:scaleType="fitCenter"
-        android:src="@drawable/ic_launcher_foreground" />
+        android:src="@drawable/ic_launcher_foreground"
+        app:tint="?colorPrimary" />
+
+    <Space
+        android:layout_width="1dp"
+        android:layout_height="0dp"
+        android:layout_weight="0.5" />
 
     <Button
         android:id="@+id/stack_exchange_search"
@@ -46,5 +57,10 @@
         android:text="@string/time_title"
         app:icon="@drawable/ic_hourglass_24dp"
         app:iconPadding="-24dp" />
+
+    <Space
+        android:layout_width="1dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
 </LinearLayout>
