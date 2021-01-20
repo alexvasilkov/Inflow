@@ -1,9 +1,8 @@
 package com.alexvasilkov.inflow
 
 import android.app.Application
-import com.alexvasilkov.inflow.se.di.stackExchangeModules
+import com.alexvasilkov.inflow.di.initDi
 import inflow.android.InflowAndroid
-import org.koin.core.context.startKoin
 
 class App : Application() {
 
@@ -12,9 +11,7 @@ class App : Application() {
 
         InflowAndroid.init(applicationContext) // TODO: Implement auto loading
 
-        startKoin {
-            modules(stackExchangeModules)
-        }
+        initDi()
     }
 
 }

@@ -13,7 +13,7 @@
         android:theme="@style/Theme.App">
 
         <activity
-            android:name=".StartActivity"
+            android:name=".ui.StartActivity"
             android:theme="@style/Theme.App.Full">
 
             <intent-filter>
@@ -26,14 +26,14 @@
         </activity>
 
         <activity
-            android:name=".se.ui.list.QuestionsListActivity"
+            android:name=".ui.questions.QuestionsListActivity"
             android:theme="@style/Theme.App.Full"
             android:windowSoftInputMode="adjustPan" />
 
-        <activity android:name=".se.ui.profile.ProfileActivity" />
+        <activity android:name=".ui.profile.ProfileActivity" />
 
         <activity
-            android:name=".se.ui.auth.AuthResultActivity"
+            android:name=".ui.profile.auth.AuthResultActivity"
             android:screenOrientation="portrait">
 
             <intent-filter>
@@ -48,7 +48,7 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".time.TimeActivity" />
+        <activity android:name=".ui.time.TimeActivity" />
 
     </application>
 
