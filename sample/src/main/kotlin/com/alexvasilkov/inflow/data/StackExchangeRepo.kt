@@ -14,11 +14,13 @@ import inflow.inflow
 import inflow.inflowsCache
 import inflow.map
 import inflow.refreshIfExpired
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class StackExchangeRepo(
     private val api: StackExchangeApi,
     private val auth: StackExchangeAuth

@@ -10,10 +10,12 @@ import inflow.ExpiresIn
 import inflow.inflow
 import inflow.loading
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TimeActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

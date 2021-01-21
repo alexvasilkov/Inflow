@@ -8,6 +8,7 @@ import inflow.utils.AtomicInt
 import inflow.utils.runReal
 import inflow.utils.runStressTest
 import inflow.utils.runTest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -22,6 +23,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@ExperimentalCoroutinesApi
 class DoWhileSubscribedTest : BaseTest() {
 
     @Test

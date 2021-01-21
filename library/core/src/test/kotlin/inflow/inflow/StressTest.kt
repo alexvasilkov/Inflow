@@ -11,6 +11,7 @@ import inflow.utils.isIdle
 import inflow.utils.runReal
 import inflow.utils.runStressTest
 import inflow.utils.waitIdle
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
@@ -25,6 +26,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+@ExperimentalCoroutinesApi
 class StressTest : BaseTest() {
 
     @Test

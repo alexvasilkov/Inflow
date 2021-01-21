@@ -12,6 +12,7 @@ import inflow.utils.now
 import inflow.utils.runReal
 import inflow.utils.runTest
 import inflow.utils.testInflow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -19,6 +20,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
+@ExperimentalCoroutinesApi
 class ExpirationTest : BaseTest() {
 
     @Test

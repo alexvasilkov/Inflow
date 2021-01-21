@@ -4,10 +4,12 @@ import inflow.BaseTest
 import inflow.inflow
 import inflow.utils.runTest
 import inflow.utils.testInflow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
+@ExperimentalCoroutinesApi
 class ConfigTest : BaseTest() {
 
     @Test

@@ -10,6 +10,7 @@ import inflow.utils.runReal
 import inflow.utils.runStressTest
 import inflow.utils.runTest
 import inflow.utils.testInflow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -23,6 +24,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@ExperimentalCoroutinesApi
 class ErrorStateTest : BaseTest() {
 
     @Test

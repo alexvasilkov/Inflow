@@ -23,6 +23,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+@ExperimentalCoroutinesApi
 class CancelTest : BaseTest() {
 
     @Test
@@ -79,7 +80,6 @@ class CancelTest : BaseTest() {
     }
 
 
-    @ExperimentalCoroutinesApi
     @Test
     fun `IF scope is cancelled THEN automatic refresh is cancelled`() = runTest { job ->
         val scope = CoroutineScope(EmptyCoroutineContext)

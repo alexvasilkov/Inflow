@@ -5,6 +5,7 @@ import inflow.InflowConnectivity
 import inflow.cached
 import inflow.utils.runTest
 import inflow.utils.testInflow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -13,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
+@ExperimentalCoroutinesApi
 class ConnectivityTest : BaseTest() {
 
     @Test

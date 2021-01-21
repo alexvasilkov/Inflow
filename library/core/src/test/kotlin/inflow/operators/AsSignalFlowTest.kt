@@ -4,6 +4,7 @@ import inflow.BaseTest
 import inflow.InflowConnectivity
 import inflow.internal.asSignalingFlow
 import inflow.utils.runTest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -11,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+@ExperimentalCoroutinesApi
 class AsSignalFlowTest : BaseTest() {
 
     @Test

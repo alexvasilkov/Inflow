@@ -4,6 +4,7 @@ import inflow.BaseTest
 import inflow.MemoryCacheWriter
 import inflow.utils.runTest
 import inflow.utils.testInflow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -11,6 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+@ExperimentalCoroutinesApi
 class DataTest : BaseTest() {
 
     @Test

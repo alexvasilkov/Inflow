@@ -4,10 +4,12 @@ import inflow.BaseTest
 import inflow.cached
 import inflow.emptyInflow
 import inflow.utils.runTest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+@ExperimentalCoroutinesApi
 class EmptyTest : BaseTest() {
 
     @Test

@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
  * [equals][Any.equals] and [hashCode][Any.hashCode] since they will be used as [Map] keys.
  * Primitive types and data classes are the best candidates.
  */
+@ExperimentalCoroutinesApi
 fun <P, T> Flow<P>.asInflow(block: InflowsCombinedConfig<P, T>.() -> Unit): Inflow<T> =
     InflowsCombined(this, InflowsCombinedConfig<P, T>().apply(block))
 
@@ -98,6 +99,7 @@ class InflowsCombinedConfig<P, T> internal constructor() {
      * ```
      */
     @JvmSynthetic // Avoiding coverage report issues
+    @ExperimentalCoroutinesApi
     inline fun builder(crossinline block: InflowConfig<T>.(P) -> Unit) {
         factory { params -> inflow { block(params) } }
     }
@@ -144,7 +146,7 @@ class InflowsCombinedConfig<P, T> internal constructor() {
  * [Inflow] implementation that delegates to other Inflows created dynamically for each param from
  * params flow.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@ExperimentalCoroutinesApi
 private class InflowsCombined<P, T>(
     params: Flow<P>,
     config: InflowsCombinedConfig<P, T>

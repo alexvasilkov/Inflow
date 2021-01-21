@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.test.assertEquals
 
 /**
@@ -27,7 +28,7 @@ import kotlin.test.assertEquals
  *
  * Useful to run long-running tasks that should be canceled in the end of the test.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@ExperimentalCoroutinesApi
 internal fun runTest(testBody: suspend TestCoroutineScope.(Job) -> Unit) = runBlockingTest {
     val job = Job()
     try {
@@ -41,17 +42,18 @@ internal fun <T> runReal(block: suspend CoroutineScope.() -> T) =
     runBlocking(Dispatchers.Default, block)
 
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@ExperimentalCoroutinesApi
 internal fun TestCoroutineScope.testInflow(block: InflowConfig<Int?>.() -> Unit): Inflow<Int?> =
     inflow {
         cacheDispatcher(testDispatcher)
         loadDispatcher(testDispatcher)
         block()
+        coroutineContext.plus(Dispatchers.Default)
     }
 
-@OptIn(ExperimentalStdlibApi::class, ExperimentalCoroutinesApi::class)
+@ExperimentalCoroutinesApi
 val TestCoroutineScope.testDispatcher: CoroutineDispatcher
-    get() = coroutineContext[CoroutineDispatcher.Key] as CoroutineDispatcher
+    get() = coroutineContext[ContinuationInterceptor] as CoroutineDispatcher
 
 
 internal suspend fun Flow<Progress>.track(tracker: TestTracker) {
@@ -106,7 +108,7 @@ internal suspend fun runStressTest(
     inflowVerbose = wasVerbose
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@ExperimentalCoroutinesApi
 internal suspend fun TestCoroutineScope.catchScopeException(
     block: suspend TestCoroutineScope.(CoroutineScope) -> Unit
 ): Throwable? {

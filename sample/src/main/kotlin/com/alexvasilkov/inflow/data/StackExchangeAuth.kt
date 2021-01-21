@@ -8,11 +8,13 @@ import inflow.Inflow
 import inflow.cache
 import inflow.cached
 import inflow.inflow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class StackExchangeAuth {
 
     val authUrl: String = StackExchangeApi.authUrl

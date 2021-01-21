@@ -6,6 +6,7 @@ import inflow.RefreshParam.IfExpiresIn
 import inflow.RefreshParam.Repeat
 import inflow.internal.InflowImpl
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -141,22 +142,26 @@ interface Inflow<T> {
 /**
  * Creates a new [Inflow] using provided [InflowConfig] configuration.
  */
+@ExperimentalCoroutinesApi
 fun <T> inflow(block: InflowConfig<T>.() -> Unit): Inflow<T> =
     InflowImpl(InflowConfig<T>().apply(block))
 
 
+@ExperimentalCoroutinesApi
 private val emptyInflow: Inflow<Any?> by lazy { emptyInflow(null) }
 
 /**
  * Creates an [Inflow] that emits `null` and does not load any extra data.
  */
 @Suppress("UNCHECKED_CAST")
+@ExperimentalCoroutinesApi
 fun <T> emptyInflow(): Inflow<T?> = emptyInflow as Inflow<T?>
 
 /**
  * Creates an [Inflow] that emits [initial] value (by contract an Inflow should always emit) and
  * does not load any extra data.
  */
+@ExperimentalCoroutinesApi
 fun <T> emptyInflow(initial: T): Inflow<T> = inflow {
     data(cache = flowOf(initial), loader = {})
     expiration(ExpiresNever())

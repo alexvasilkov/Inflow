@@ -1,5 +1,7 @@
 package inflow
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+
 /**
  * Collection of on-demand [Inflow]s where each Inflow is created for a specific parameter.
  *
@@ -97,6 +99,7 @@ class InflowsConfig<P, T> internal constructor() {
      * ```
      */
     @JvmSynthetic // Avoiding coverage report issues
+    @ExperimentalCoroutinesApi
     inline fun builder(crossinline block: InflowConfig<T>.(P) -> Unit) {
         factory { params -> inflow { block(params) } }
     }

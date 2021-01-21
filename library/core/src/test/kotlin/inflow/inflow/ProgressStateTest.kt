@@ -11,6 +11,7 @@ import inflow.utils.TestTracker
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import inflow.utils.track
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
@@ -21,6 +22,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
+@ExperimentalCoroutinesApi
 class ProgressStateTest : BaseTest() {
 
     @Test

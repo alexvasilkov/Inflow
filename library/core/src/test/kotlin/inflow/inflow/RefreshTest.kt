@@ -19,6 +19,7 @@ import inflow.utils.runReal
 import inflow.utils.runStressTest
 import inflow.utils.runTest
 import inflow.utils.testInflow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
@@ -31,6 +32,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
+@ExperimentalCoroutinesApi
 class RefreshTest : BaseTest() {
 
     @Test

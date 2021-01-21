@@ -9,6 +9,7 @@ import inflow.utils.TestTracker
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import inflow.utils.track
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.test.Test
@@ -16,6 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 
+@ExperimentalCoroutinesApi
 class TransformTest : BaseTest() {
 
     @Test
