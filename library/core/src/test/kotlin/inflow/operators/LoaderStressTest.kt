@@ -24,7 +24,10 @@ class LoaderStressTest : BaseTest() {
     @Timeout(STRESS_TIMEOUT)
     fun `IF repeatIfRunning=false and join() THEN only one action runs at a time`() = runReal {
         val loads = AtomicInt()
-        val loader = Loader(logId, this, Dispatchers.IO) { delay(100L); loads.getAndIncrement() }
+        val loader = Loader(logId, this, Dispatchers.Default) {
+            delay(100L)
+            loads.getAndIncrement()
+        }
 
         runStressTest { loader.load(repeatIfRunning = false).join() }
 
@@ -38,7 +41,7 @@ class LoaderStressTest : BaseTest() {
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
     fun `IF repeatIfRunning=true and await() THEN finishes with no deadlocks`() = runReal {
-        val loader = Loader(logId, this, Dispatchers.IO) {}
+        val loader = Loader(logId, this, Dispatchers.Default) {}
         runStressTest { loader.load(repeatIfRunning = true).await() }
         assertSame(Progress.Idle, loader.progress.value, "Finished")
     }

@@ -111,11 +111,11 @@ class InflowConfig<T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.IO
+    internal var cacheDispatcher: CoroutineDispatcher = Dispatchers.Default
 
     @JvmField
     @JvmSynthetic
-    internal var loadDispatcher: CoroutineDispatcher = Dispatchers.IO
+    internal var loadDispatcher: CoroutineDispatcher = Dispatchers.Default
 
     private var _scope: CoroutineScope? = null
 
@@ -343,7 +343,10 @@ class InflowConfig<T> internal constructor() {
      * Coroutine dispatcher that will be used to subscribe to the cache and to save new data using
      * cache writers which can be found in some of the [data] method variants.
      *
-     * Uses [Dispatchers.IO] by default.
+     * Well written suspend functions should be safe to call from any thread ("main-safety"
+     * principle). Thus you should rarely care about the dispatcher used to access the cache.
+     *
+     * Uses [Dispatchers.Default] by default.
      */
     fun cacheDispatcher(dispatcher: CoroutineDispatcher) {
         cacheDispatcher = dispatcher
@@ -352,7 +355,10 @@ class InflowConfig<T> internal constructor() {
     /**
      * Coroutine dispatcher that will be used when calling the loader.
      *
-     * Uses [Dispatchers.IO] by default.
+     * Well written suspend functions should be safe to call from any thread ("main-safety"
+     * principle). Thus you should rarely care about the dispatcher used for the loader.
+     *
+     * Uses [Dispatchers.Default] by default.
      */
     fun loadDispatcher(dispatcher: CoroutineDispatcher) {
         loadDispatcher = dispatcher

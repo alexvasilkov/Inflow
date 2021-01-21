@@ -37,7 +37,8 @@ internal fun runTest(testBody: suspend TestCoroutineScope.(Job) -> Unit) = runBl
     }
 }
 
-internal fun <T> runReal(block: suspend CoroutineScope.() -> T) = runBlocking(Dispatchers.IO, block)
+internal fun <T> runReal(block: suspend CoroutineScope.() -> T) =
+    runBlocking(Dispatchers.Default, block)
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -80,7 +81,7 @@ internal suspend fun runStressTest(
     val wasVerbose = inflowVerbose
     inflowVerbose = false // Avoiding spamming in logs
 
-    val scope = CoroutineScope(Dispatchers.IO)
+    val scope = CoroutineScope(Dispatchers.Default)
     val counter = AtomicInt()
 
     val start = now()

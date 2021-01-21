@@ -73,7 +73,7 @@ class ShareTest : BaseTest() {
             }
 
         val scope = CoroutineScope(EmptyCoroutineContext)
-        val shared = cache.share(scope, Dispatchers.IO, keepSubscribedTimeout)
+        val shared = cache.share(scope, Dispatchers.Default, keepSubscribedTimeout)
 
         runStressTest {
             // Calling shared flow several times to provoke more races

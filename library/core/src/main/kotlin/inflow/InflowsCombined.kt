@@ -65,7 +65,7 @@ class InflowsCombinedConfig<P, T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var dispatcher: CoroutineDispatcher = Dispatchers.IO
+    internal var dispatcher: CoroutineDispatcher = Dispatchers.Default
 
     @JvmField
     @JvmSynthetic
@@ -114,10 +114,10 @@ class InflowsCombinedConfig<P, T> internal constructor() {
     /**
      * Coroutine dispatcher that will be used to subscribe to parameters flow.
      *
-     * Uses [Dispatchers.Unconfined] by default, assuming that parameters flow is non-blocking and
-     * because the actual requests dispatching is done inside the [Inflow]s.
+     * Well written suspend functions should be safe to call from any thread ("main-safety"
+     * principle). Thus you should rarely care about the dispatcher used to collect the params.
      *
-     * Any suspending code used in parameters flow will enforce [Dispatchers.Default] usage.
+     * Uses [Dispatchers.Default] by default.
      */
     fun dispatcher(dispatcher: CoroutineDispatcher) {
         this.dispatcher = dispatcher
