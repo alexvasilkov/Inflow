@@ -32,10 +32,7 @@
 
         <activity android:name=".ui.profile.ProfileActivity" />
 
-        <activity
-            android:name=".ui.profile.auth.AuthResultActivity"
-            android:screenOrientation="portrait">
-
+        <activity android:name=".ui.profile.auth.AuthResultActivity">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
