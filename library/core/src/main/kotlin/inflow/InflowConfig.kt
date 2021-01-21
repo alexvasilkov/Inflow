@@ -77,7 +77,7 @@ import kotlinx.coroutines.launch
  * Automatic retries can be disabled by setting [retryTime] to [Long.MAX_VALUE] and [connectivity]
  * to `null`.
  */
-class InflowConfig<T> internal constructor() {
+public class InflowConfig<T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
@@ -146,7 +146,7 @@ class InflowConfig<T> internal constructor() {
      * **Important:** The newly loaded data should not be expired according to [expiration] policy
      * to avoid endless loadings.
      */
-    fun data(cache: Flow<T>, loader: suspend (LoadTracker) -> Unit) {
+    public fun data(cache: Flow<T>, loader: suspend (LoadTracker) -> Unit) {
         require(data == null) { "Data is already set, cannot call `data()` again" }
         data = InflowData(cache, loader)
     }
@@ -157,7 +157,7 @@ class InflowConfig<T> internal constructor() {
      * In this case the [loader] should just return the newly loaded data and the [writer] will be
      * responsible to actually save it into the cache (using [cacheDispatcher]).
      */
-    fun <R> data(
+    public fun <R> data(
         cache: Flow<T>,
         writer: suspend (R) -> Unit,
         loader: suspend (LoadTracker) -> R
@@ -178,7 +178,7 @@ class InflowConfig<T> internal constructor() {
      * responsible to actually save them into the cache (using [cacheDispatcher]).
      */
     @JvmName("dataFlow")
-    fun <R> data(
+    public fun <R> data(
         cache: Flow<T>,
         writer: suspend (R) -> Unit,
         loaderFlow: suspend (LoadTracker) -> Flow<R>
@@ -205,7 +205,7 @@ class InflowConfig<T> internal constructor() {
      *
      * @return Writer that can be used to update the in-memory cache from the outside.
      */
-    fun data(
+    public fun data(
         initial: T,
         loader: suspend (LoadTracker) -> T
     ): MemoryCacheWriter<T> {
@@ -230,7 +230,7 @@ class InflowConfig<T> internal constructor() {
      *
      * @return Writer that can be used to update the in-memory cache from the outside.
      */
-    fun data(
+    public fun data(
         initial: suspend () -> T,
         loader: suspend (LoadTracker) -> T
     ): MemoryCacheWriter<T> {
@@ -262,7 +262,7 @@ class InflowConfig<T> internal constructor() {
     /**
      * Cache expiration policy, see [ExpirationProvider]. Uses [ExpiresIfNull] policy by default.
      */
-    fun expiration(provider: ExpirationProvider<T>) {
+    public fun expiration(provider: ExpirationProvider<T>) {
         expiration = provider
     }
 
@@ -280,7 +280,7 @@ class InflowConfig<T> internal constructor() {
      * **Important:** [emptyValue] should be 'expired' according to [expiration] policy, otherwise
      * invalid data will not be automatically refreshed.
      */
-    fun invalidation(emptyValue: T, provider: ExpirationProvider<T>) {
+    public fun invalidation(emptyValue: T, provider: ExpirationProvider<T>) {
         invalidation = provider
         invalidationEmpty = emptyValue
     }
@@ -303,7 +303,7 @@ class InflowConfig<T> internal constructor() {
      *
      * Must be >= 0. Set to 1 second by default.
      */
-    fun keepCacheSubscribedTimeout(timeoutMillis: Long) {
+    public fun keepCacheSubscribedTimeout(timeoutMillis: Long) {
         require(timeoutMillis >= 0L) { "`keepCacheSubscribedTimeout` cannot be negative" }
         if (memoryCacheUsed) {
             require(timeoutMillis == 0L) { "`keepCacheSubscribedTimeout` should be 0 when using in-memory cache" }
@@ -321,7 +321,7 @@ class InflowConfig<T> internal constructor() {
      *
      * **It is advised to set retry time at least to a few seconds. Cannot be <= 0.**
      */
-    fun retryTime(retryTimeMillis: Long) {
+    public fun retryTime(retryTimeMillis: Long) {
         require(retryTimeMillis > 0L) { "`retryTime` should be positive" }
         retryTime = retryTimeMillis
     }
@@ -335,7 +335,7 @@ class InflowConfig<T> internal constructor() {
      *
      * Android library provides a default implementation for the network connectivity.
      */
-    fun connectivity(provider: InflowConnectivity?) {
+    public fun connectivity(provider: InflowConnectivity?) {
         connectivity = provider
     }
 
@@ -348,7 +348,7 @@ class InflowConfig<T> internal constructor() {
      *
      * Uses [Dispatchers.Default] by default.
      */
-    fun cacheDispatcher(dispatcher: CoroutineDispatcher) {
+    public fun cacheDispatcher(dispatcher: CoroutineDispatcher) {
         cacheDispatcher = dispatcher
     }
 
@@ -360,7 +360,7 @@ class InflowConfig<T> internal constructor() {
      *
      * Uses [Dispatchers.Default] by default.
      */
-    fun loadDispatcher(dispatcher: CoroutineDispatcher) {
+    public fun loadDispatcher(dispatcher: CoroutineDispatcher) {
         loadDispatcher = dispatcher
     }
 
@@ -380,14 +380,14 @@ class InflowConfig<T> internal constructor() {
      * [keepCacheSubscribedTimeout]. If this timeout is big or if no loading and cache writing is
      * desirable anymore then the Inflow's scope can be cancelled explicitly.
      */
-    fun scope(scope: CoroutineScope) {
+    public fun scope(scope: CoroutineScope) {
         _scope = scope
     }
 
     /**
      * Log id to distinguish this `Inflow` from others when in verbose mode ([inflowVerbose]).
      */
-    fun logId(logId: String) {
+    public fun logId(logId: String) {
         this.logId = logId
     }
 
@@ -402,6 +402,6 @@ internal class InflowData<T>(
 /**
  * Allows updating in-memory cache created by some of the [InflowConfig.data] methods variants.
  */
-fun interface MemoryCacheWriter<T> {
-    operator fun invoke(data: T)
+public fun interface MemoryCacheWriter<T> {
+    public operator fun invoke(data: T)
 }

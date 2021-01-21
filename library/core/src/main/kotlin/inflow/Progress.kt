@@ -8,16 +8,16 @@ import kotlin.math.min
 /**
  * Represents loading state, can be [Idle], [Active] or [State] (optionally).
  */
-sealed class Progress {
+public sealed class Progress {
     /**
      * Not loading.
      */
-    object Idle : Progress()
+    public object Idle : Progress()
 
     /**
      * Loading is started.
      */
-    object Active : Progress()
+    public object Active : Progress()
 
     /**
      * Loading progress ([current] / [total]) as tracked by [LoadTracker] instance passed to
@@ -25,22 +25,26 @@ sealed class Progress {
      *
      * Percentage can be calculated with [rate] function.
      */
-    data class State internal constructor(val current: Double, val total: Double) : Progress() {
+    public data class State internal constructor(
+        val current: Double,
+        val total: Double
+    ) : Progress() {
         /**
          * Percentage calculated as `current / total` (but never greater than `1`).
          * If `total <= 0` or `current < 0` then `0` will be returned.
          */
-        fun rate(): Double = if (total > 0.0 && current >= 0.0) min(current / total, 1.0) else 0.0
+        public fun rate(): Double =
+            if (total > 0.0 && current >= 0.0) min(current / total, 1.0) else 0.0
     }
 }
 
 /**
  * Intermediate loading progress tracker.
  */
-interface LoadTracker {
+public interface LoadTracker {
     /**
      * Allows tracking intermediate loading state that can be collected with [Inflow.progress] as
      * [Progress.State].
      */
-    fun state(current: Double, total: Double)
+    public fun state(current: Double, total: Double)
 }

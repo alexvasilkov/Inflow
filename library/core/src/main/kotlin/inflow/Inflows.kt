@@ -33,24 +33,24 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
  * [equals][Any.equals] and [hashCode][Any.hashCode] since they will be used as [Map] keys.
  * Primitive types and data classes are the best candidates.
  */
-interface Inflows<P, T> {
+public interface Inflows<P, T> {
     /**
      * Returns an [Inflow] for the given [param].
      * Cached instance will be used whenever possible, otherwise a new instance will be created.
      */
-    operator fun get(param: P): Inflow<T>
+    public operator fun get(param: P): Inflow<T>
 
     /**
      * Clears all the cached [Inflow] instances.
      */
-    fun clear()
+    public fun clear()
 }
 
 
 /**
  * Creates a new [Inflows] instance using provided [InflowsConfig] configuration.
  */
-fun <P, T> inflows(block: InflowsConfig<P, T>.() -> Unit): Inflows<P, T> =
+public fun <P, T> inflows(block: InflowsConfig<P, T>.() -> Unit): Inflows<P, T> =
     InflowsImpl(InflowsConfig<P, T>().apply(block))
 
 
@@ -62,7 +62,7 @@ fun <P, T> inflows(block: InflowsConfig<P, T>.() -> Unit): Inflows<P, T> =
  *
  * Optional [cache] implementation can be provided to control memory usage.
  */
-class InflowsConfig<P, T> internal constructor() {
+public class InflowsConfig<P, T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
@@ -75,7 +75,7 @@ class InflowsConfig<P, T> internal constructor() {
     /**
      * A factory to build a new [Inflow] for particular parameter on demand.
      */
-    fun factory(factory: (P) -> Inflow<T>) {
+    public fun factory(factory: (P) -> Inflow<T>) {
         this.factory = factory
     }
 
@@ -100,7 +100,7 @@ class InflowsConfig<P, T> internal constructor() {
      */
     @JvmSynthetic // Avoiding coverage report issues
     @ExperimentalCoroutinesApi
-    inline fun builder(crossinline block: InflowConfig<T>.(P) -> Unit) {
+    public inline fun builder(crossinline block: InflowConfig<T>.(P) -> Unit) {
         factory { params -> inflow { block(params) } }
     }
 
@@ -109,7 +109,7 @@ class InflowsConfig<P, T> internal constructor() {
      * faster access.
      * Default implementation keeps up to 10 Inflow instances in memory, see [inflowsCache].
      */
-    fun cache(cache: InflowsCache<P, Inflow<T>>) {
+    public fun cache(cache: InflowsCache<P, Inflow<T>>) {
         this.cache = cache
     }
 

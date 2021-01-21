@@ -11,22 +11,22 @@ import kotlinx.atomicfu.locks.withLock
  * Implementations are required to be thread-safe because [get] and [clear] methods can be
  * potentially called from different threads.
  */
-interface InflowsCache<K, V> {
+public interface InflowsCache<K, V> {
     /**
      * Gets a value for the [key] or creates a new one using [provider] if no cached value is found.
      * It will also trigger a cache clean up to remove old or expired items.
      */
-    fun get(key: K, provider: (K) -> V): V
+    public fun get(key: K, provider: (K) -> V): V
 
     /**
      * Sets optional removal listener to perform final clean up.
      */
-    fun doOnRemove(action: (V) -> Unit)
+    public fun doOnRemove(action: (V) -> Unit)
 
     /**
      * Removes all cached entries.
      */
-    fun clear()
+    public fun clear()
 }
 
 
@@ -35,7 +35,7 @@ interface InflowsCache<K, V> {
  * optionally removes all items that were accessed more than [expireAfterAccess] milliseconds ago
  * (defaults to `0` meaning that no time-based expiration will be used).
  */
-fun <K, V> inflowsCache(
+public fun <K, V> inflowsCache(
     maxSize: Int = 10,
     expireAfterAccess: Long = 0L
 ): InflowsCache<K, V> = InflowsCacheImpl(maxSize, expireAfterAccess)

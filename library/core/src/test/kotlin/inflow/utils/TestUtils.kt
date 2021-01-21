@@ -1,3 +1,7 @@
+@file:Suppress(
+    "NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING", "NO_EXPLICIT_RETURN_TYPE_IN_API_MODE_WARNING"
+)
+
 package inflow.utils
 
 import inflow.Inflow
@@ -22,6 +26,7 @@ import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.test.assertEquals
+
 
 /**
  * Runs a test with specific job that is guaranteed to be cancelled in the end.

@@ -1,3 +1,5 @@
+@file:Suppress("NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING")
+
 package inflow.inflows
 
 import inflow.BaseTest

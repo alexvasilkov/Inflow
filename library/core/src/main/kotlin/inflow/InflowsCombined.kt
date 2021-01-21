@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
  * Primitive types and data classes are the best candidates.
  */
 @ExperimentalCoroutinesApi
-fun <P, T> Flow<P>.asInflow(block: InflowsCombinedConfig<P, T>.() -> Unit): Inflow<T> =
+public fun <P, T> Flow<P>.asInflow(block: InflowsCombinedConfig<P, T>.() -> Unit): Inflow<T> =
     InflowsCombined(this, InflowsCombinedConfig<P, T>().apply(block))
 
 
@@ -54,7 +54,7 @@ fun <P, T> Flow<P>.asInflow(block: InflowsCombinedConfig<P, T>.() -> Unit): Infl
  *
  * Coroutine dispatcher and coroutine scope can be optionally set with [dispatcher] and [scope].
  */
-class InflowsCombinedConfig<P, T> internal constructor() {
+public class InflowsCombinedConfig<P, T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
@@ -75,7 +75,7 @@ class InflowsCombinedConfig<P, T> internal constructor() {
     /**
      * A factory to build a new [Inflow] for particular parameter on demand.
      */
-    fun factory(factory: (P) -> Inflow<T>) {
+    public fun factory(factory: (P) -> Inflow<T>) {
         this.factory = factory
     }
 
@@ -100,7 +100,7 @@ class InflowsCombinedConfig<P, T> internal constructor() {
      */
     @JvmSynthetic // Avoiding coverage report issues
     @ExperimentalCoroutinesApi
-    inline fun builder(crossinline block: InflowConfig<T>.(P) -> Unit) {
+    public inline fun builder(crossinline block: InflowConfig<T>.(P) -> Unit) {
         factory { params -> inflow { block(params) } }
     }
 
@@ -109,7 +109,7 @@ class InflowsCombinedConfig<P, T> internal constructor() {
      * faster access.
      * Default implementation keeps up to 10 Inflow instances in memory, see [inflowsCache].
      */
-    fun cache(cache: InflowsCache<P, Inflow<T>>) {
+    public fun cache(cache: InflowsCache<P, Inflow<T>>) {
         this.cache = cache
     }
 
@@ -121,7 +121,7 @@ class InflowsCombinedConfig<P, T> internal constructor() {
      *
      * Uses [Dispatchers.Default] by default.
      */
-    fun dispatcher(dispatcher: CoroutineDispatcher) {
+    public fun dispatcher(dispatcher: CoroutineDispatcher) {
         this.dispatcher = dispatcher
     }
 
@@ -135,7 +135,7 @@ class InflowsCombinedConfig<P, T> internal constructor() {
      * Also note that this scope is different from [InflowConfig.scope] and cannot be used to
      * cancel actual loading or cache subscription.
      */
-    fun scope(scope: CoroutineScope) {
+    public fun scope(scope: CoroutineScope) {
         this.scope = scope
     }
 

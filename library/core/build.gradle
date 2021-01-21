@@ -5,6 +5,9 @@ plugins {
 
 apply from: "$rootDir/gradle/scripts/jacoco.gradle"
 
+kotlin {
+    explicitApi = 'warning'
+}
 compileKotlin {
     kotlinOptions {
         jvmTarget = '1.8'

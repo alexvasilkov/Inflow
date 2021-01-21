@@ -65,7 +65,7 @@ import kotlinx.coroutines.flow.map
  *
  * **See [InflowConfig] for all the available configuration options.**
  */
-interface Inflow<T> {
+public interface Inflow<T> {
     /**
      * Cached data collected from original cache flow provided with [InflowConfig.data].
      *
@@ -89,7 +89,7 @@ interface Inflow<T> {
      * @param params Optional parameters, see [DataParam].
      * If parameter of the same type is passed several times then only first parameter will be used.
      */
-    fun data(vararg params: DataParam): Flow<T>
+    public fun data(vararg params: DataParam): Flow<T>
 
     /**
      * Current loading progress.
@@ -106,7 +106,7 @@ interface Inflow<T> {
      *
      * See [loading()][loading] extension.
      */
-    fun progress(): Flow<Progress>
+    public fun progress(): Flow<Progress>
 
     /**
      * Recent error caught during refresh requests or `null` if latest request was successful.
@@ -115,7 +115,7 @@ interface Inflow<T> {
      * It will always repeat the most recent error when starting collecting.
      * Use [unhandledError()][unhandledError] extension to avoid showing duplicate errors.
      */
-    fun error(vararg params: ErrorParam): Flow<Throwable?>
+    public fun error(vararg params: ErrorParam): Flow<Throwable?>
 
     /**
      * Manually requests data refresh from a remote source. The request will start immediately
@@ -131,7 +131,7 @@ interface Inflow<T> {
      * methods to **optionally** observe the result of the call in a suspending manner. The result
      * can still be observed with [data], [progress] and [error] flows as usual.
      */
-    fun refresh(vararg params: RefreshParam): InflowDeferred<T>
+    public fun refresh(vararg params: RefreshParam): InflowDeferred<T>
 }
 
 
@@ -143,7 +143,7 @@ interface Inflow<T> {
  * Creates a new [Inflow] using provided [InflowConfig] configuration.
  */
 @ExperimentalCoroutinesApi
-fun <T> inflow(block: InflowConfig<T>.() -> Unit): Inflow<T> =
+public fun <T> inflow(block: InflowConfig<T>.() -> Unit): Inflow<T> =
     InflowImpl(InflowConfig<T>().apply(block))
 
 
@@ -155,14 +155,14 @@ private val emptyInflow: Inflow<Any?> by lazy { emptyInflow(null) }
  */
 @Suppress("UNCHECKED_CAST")
 @ExperimentalCoroutinesApi
-fun <T> emptyInflow(): Inflow<T?> = emptyInflow as Inflow<T?>
+public fun <T> emptyInflow(): Inflow<T?> = emptyInflow as Inflow<T?>
 
 /**
  * Creates an [Inflow] that emits [initial] value (by contract an Inflow should always emit) and
  * does not load any extra data.
  */
 @ExperimentalCoroutinesApi
-fun <T> emptyInflow(initial: T): Inflow<T> = inflow {
+public fun <T> emptyInflow(initial: T): Inflow<T> = inflow {
     data(cache = flowOf(initial), loader = {})
     expiration(ExpiresNever())
     keepCacheSubscribedTimeout(0L)
@@ -181,20 +181,20 @@ fun <T> emptyInflow(initial: T): Inflow<T> = inflow {
 /**
  * Parameters for [Inflow.data] method: [CacheOnly].
  */
-sealed class DataParam {
+public sealed class DataParam {
     /**
      * Returned data flow will not trigger automatic data refresh and will just return the flow of
      * cached data.
      *
      * See [cache()][cache] and [cached()][cached] extensions.
      */
-    object CacheOnly : DataParam()
+    public object CacheOnly : DataParam()
 }
 
 /**
  * Parameters for [Inflow.error] method: [SkipIfCollected].
  */
-sealed class ErrorParam {
+public sealed class ErrorParam {
     /**
      * If an error was already collected once then all other collectors will not receive it anymore
      * (they will get `null` instead).
@@ -206,13 +206,13 @@ sealed class ErrorParam {
      *
      * See [unhandledError()][unhandledError] extension.
      */
-    object SkipIfCollected : ErrorParam()
+    public object SkipIfCollected : ErrorParam()
 }
 
 /**
  * Parameters for [Inflow.refresh] method: [Repeat], [IfExpiresIn].
  */
-sealed class RefreshParam {
+public sealed class RefreshParam {
     /**
      * If set and another refresh is currently in place then extra refresh will be done again right
      * after the current one. No error or progress (except optional [Progress.State]) events will be
@@ -224,7 +224,7 @@ sealed class RefreshParam {
      *
      * See [forceRefresh()][forceRefresh] extension.
      */
-    object Repeat : RefreshParam()
+    public object Repeat : RefreshParam()
 
     /**
      * The refresh will only be requested if the latest cached value is expiring in less than
@@ -238,7 +238,7 @@ sealed class RefreshParam {
      *
      * See [refreshIfExpired()][refreshIfExpired] and [fresh()][fresh] extensions.
      */
-    data class IfExpiresIn(val expiresIn: Long) : RefreshParam() {
+    public data class IfExpiresIn(val expiresIn: Long) : RefreshParam() {
         init {
             require(expiresIn >= 0L) { "Value of 'expiresIn' must be >= 0" }
         }
@@ -253,14 +253,14 @@ sealed class RefreshParam {
 /**
  * Returns cache flow, shortcut for `data(DataParam.CacheOnly)`
  */
-fun <T> Inflow<T>.cache(): Flow<T> = data(CacheOnly)
+public fun <T> Inflow<T>.cache(): Flow<T> = data(CacheOnly)
 
 /**
  * Returns latest cached data without trying to refresh it.
  *
  * Shortcut for `data(DataParam.CacheOnly).first()`.
  */
-suspend fun <T> Inflow<T>.cached() = data(CacheOnly).first()
+public suspend fun <T> Inflow<T>.cached(): T = data(CacheOnly).first()
 
 /**
  * If latest cached data is expiring in more than [expiresIn] milliseconds then it will be returned
@@ -271,7 +271,8 @@ suspend fun <T> Inflow<T>.cached() = data(CacheOnly).first()
  *
  * Shortcut for `refresh(RefreshParam.IfExpiresIn(expiresIn)).await()`.
  */
-suspend fun <T> Inflow<T>.fresh(expiresIn: Long = 0L): T = refresh(IfExpiresIn(expiresIn)).await()
+public suspend fun <T> Inflow<T>.fresh(expiresIn: Long = 0L): T =
+    refresh(IfExpiresIn(expiresIn)).await()
 
 /**
  * If another refresh is currently in place then extra refresh will be done again right after the
@@ -279,7 +280,7 @@ suspend fun <T> Inflow<T>.fresh(expiresIn: Long = 0L): T = refresh(IfExpiresIn(e
  *
  * Shortcut for `refresh(RefreshParam.Repeat)`.
  */
-fun <T> Inflow<T>.forceRefresh(): InflowDeferred<T> = refresh(Repeat)
+public fun <T> Inflow<T>.forceRefresh(): InflowDeferred<T> = refresh(Repeat)
 
 /**
  * If latest cached data is expiring in more than [expiresIn] milliseconds then it will be returned
@@ -287,7 +288,7 @@ fun <T> Inflow<T>.forceRefresh(): InflowDeferred<T> = refresh(Repeat)
  *
  * Shortcut for `refresh(RefreshParam.IfExpiresIn(expiresIn))`.
  */
-fun <T> Inflow<T>.refreshIfExpired(expiresIn: Long = 0L): InflowDeferred<T> =
+public fun <T> Inflow<T>.refreshIfExpired(expiresIn: Long = 0L): InflowDeferred<T> =
     refresh(IfExpiresIn(expiresIn))
 
 /**
@@ -296,12 +297,12 @@ fun <T> Inflow<T>.refreshIfExpired(expiresIn: Long = 0L): InflowDeferred<T> =
  *
  * Shortcut for `error(ErrorParam.SkipIfCollected).filterNotNull()`.
  */
-fun <T> Inflow<T>.unhandledError(): Flow<Throwable> = error(SkipIfCollected).filterNotNull()
+public fun <T> Inflow<T>.unhandledError(): Flow<Throwable> = error(SkipIfCollected).filterNotNull()
 
 /**
  * Similar to [progress][Inflow.progress], but provides a simple flow of `false`
  * (if [Progress.Idle]) and `true` (otherwise) values.
  */
-fun <T> Inflow<T>.loading(): Flow<Boolean> = progress()
+public fun <T> Inflow<T>.loading(): Flow<Boolean> = progress()
     .map { it != Progress.Idle }
     .distinctUntilChanged()

@@ -10,7 +10,7 @@ import inflow.utils.now
  *
  * Default implementations: [ExpiresNever], [ExpiresIfNull], [ExpiresAt], [ExpiresIn].
  */
-fun interface ExpirationProvider<T> {
+public fun interface ExpirationProvider<T> {
     /**
      * Timeout in milliseconds after which given data will expire and should be automatically
      * refreshed (or invalidated).
@@ -20,7 +20,7 @@ fun interface ExpirationProvider<T> {
      *
      * Return `Long.MAX_VALUE` if the data should never be refreshed (or invalidated) automatically.
      */
-    fun expiresIn(data: T): Long
+    public fun expiresIn(data: T): Long
 }
 
 
@@ -32,13 +32,13 @@ private val ifNull = ExpirationProvider<Any?> { data -> if (data == null) 0L els
  * The data will never be automatically refreshed.
  */
 @Suppress("UNCHECKED_CAST") // Pretending to be a class
-fun <T> ExpiresNever(): ExpirationProvider<T> = never as ExpirationProvider<T>
+public fun <T> ExpiresNever(): ExpirationProvider<T> = never as ExpirationProvider<T>
 
 /**
  * Only refresh the data if it's `null`, otherwise it will never be refreshed.
  */
 @Suppress("UNCHECKED_CAST") // Pretending to be a class
-fun <T> ExpiresIfNull(): ExpirationProvider<T> = ifNull as ExpirationProvider<T>
+public fun <T> ExpiresIfNull(): ExpirationProvider<T> = ifNull as ExpirationProvider<T>
 
 /**
  * Refreshes (or invalidates) the data at specific time as defined by [expiresAt].
@@ -48,7 +48,7 @@ fun <T> ExpiresIfNull(): ExpirationProvider<T> = ifNull as ExpirationProvider<T>
  *
  * The time should be in milliseconds since unix epoch.
  */
-fun <T> ExpiresAt(expiresAt: (T) -> Long): ExpirationProvider<T> {
+public fun <T> ExpiresAt(expiresAt: (T) -> Long): ExpirationProvider<T> {
     return ExpirationProvider { data ->
         val expiresAtTime = expiresAt(data)
         when {
@@ -72,7 +72,7 @@ fun <T> ExpiresAt(expiresAt: (T) -> Long): ExpirationProvider<T> {
  * The time returned by [loadedAt] should be in milliseconds since unix epoch.
  * Duration time is also in milliseconds.
  */
-fun <T> ExpiresIn(duration: Long, loadedAt: (T) -> Long): ExpirationProvider<T> {
+public fun <T> ExpiresIn(duration: Long, loadedAt: (T) -> Long): ExpirationProvider<T> {
     require(duration > 0L) { "Expiration duration ($duration) should be > 0" }
 
     return ExpirationProvider { data ->

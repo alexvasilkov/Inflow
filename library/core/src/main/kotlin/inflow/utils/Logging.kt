@@ -1,7 +1,7 @@
 package inflow.utils
 
-var inflowVerbose: Boolean = false
-var inflowLogger: (id: String, msg: String) -> Unit = { id, msg ->
+public var inflowVerbose: Boolean = false
+public var inflowLogger: (id: String, msg: String) -> Unit = { id, msg ->
     println("inflow: ${now() % 1_000_000} | $id | $msg")
 }
 

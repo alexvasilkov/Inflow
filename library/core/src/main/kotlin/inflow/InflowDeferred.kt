@@ -5,7 +5,7 @@ import kotlinx.coroutines.Deferred
 /**
  * Subset of [Deferred] methods to avoid external cancellation.
  */
-interface InflowDeferred<T> {
+public interface InflowDeferred<T> {
 
     /**
      * Awaits for completion of the loading and resumes when the loading is completed, returning the
@@ -17,7 +17,7 @@ interface InflowDeferred<T> {
      *
      * @see Deferred.await
      */
-    suspend fun await(): T
+    public suspend fun await(): T
 
     /**
      * Suspends until the loading is complete.
@@ -25,6 +25,6 @@ interface InflowDeferred<T> {
      *
      * @see Deferred.join
      */
-    suspend fun join()
+    public suspend fun join()
 
 }
