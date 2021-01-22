@@ -118,6 +118,8 @@ internal class Loader(
                 tracker.disable() // Deactivating to avoid tracking outside of the loader
                 log(logId) { "Refresh successful" }
             } catch (th: Throwable) {
+                // Including CancellationException as it can only happen if the scope is cancelled
+                // in which case we don't really care of the future progress or error states
                 caughtError = th
                 log(logId) { "Refresh error: ${th::class.simpleName} - ${th.message}" }
             }

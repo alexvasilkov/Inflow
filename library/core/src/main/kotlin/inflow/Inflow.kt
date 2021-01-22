@@ -271,8 +271,8 @@ public suspend fun <T> Inflow<T>.cached(): T = data(CacheOnly).first()
  *
  * Shortcut for `refresh(RefreshParam.IfExpiresIn(expiresIn)).await()`.
  */
-public suspend fun <T> Inflow<T>.fresh(expiresIn: Long = 0L): T =
-    refresh(IfExpiresIn(expiresIn)).await()
+public suspend fun <T>
+        Inflow<T>.fresh(expiresIn: Long = 0L): T = refresh(IfExpiresIn(expiresIn)).await()
 
 /**
  * If another refresh is currently in place then extra refresh will be done again right after the
