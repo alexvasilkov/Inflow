@@ -1,7 +1,7 @@
 package inflow
 
 import inflow.utils.AtomicBoolean
-import inflow.utils.inflowVerbose
+import inflow.utils.InflowLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -385,7 +385,7 @@ public class InflowConfig<T> internal constructor() {
     }
 
     /**
-     * Log id to distinguish this `Inflow` from others when in verbose mode ([inflowVerbose]).
+     * Log id to distinguish this Inflow from others when in verbose mode ([InflowLogger.verbose]).
      */
     public fun logId(logId: String) {
         this.logId = logId

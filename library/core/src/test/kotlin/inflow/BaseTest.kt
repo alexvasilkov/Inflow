@@ -4,7 +4,7 @@
 
 package inflow
 
-import inflow.utils.inflowVerbose
+import inflow.utils.InflowLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.test.BeforeTest
 
@@ -18,7 +18,7 @@ open class BaseTest {
 
     @BeforeTest
     fun setup() {
-        inflowVerbose = true
+        InflowLogger.verbose = true
 
         if (Connectivity.default == null) {
             Connectivity.default = object : Connectivity {

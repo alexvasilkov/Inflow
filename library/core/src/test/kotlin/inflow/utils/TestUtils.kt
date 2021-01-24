@@ -85,8 +85,8 @@ internal suspend fun runStressTest(
     runs: Int = STRESS_RUNS,
     block: suspend CoroutineScope.(Int) -> Unit
 ) {
-    val wasVerbose = inflowVerbose
-    inflowVerbose = false // Avoiding spamming in logs
+    val wasVerbose = InflowLogger.verbose
+    InflowLogger.verbose = false // Avoiding spamming in logs
 
     val scope = CoroutineScope(Dispatchers.Default)
     val counter = AtomicInt()
@@ -110,7 +110,7 @@ internal suspend fun runStressTest(
 
     assertEquals(expected = runs, actual = counter.get(), "All tasks finished")
 
-    inflowVerbose = wasVerbose
+    InflowLogger.verbose = wasVerbose
 }
 
 @ExperimentalCoroutinesApi
@@ -124,18 +124,18 @@ internal suspend fun TestCoroutineScope.catchScopeException(
 }
 
 
-internal fun getLogMessage(block: () -> Unit): String? {
-    val wasVerbose = inflowVerbose
-    inflowVerbose = true
-    val origLogger = inflowLogger
+internal fun getLogMessage(block: () -> Unit): String? = with(InflowLogger) {
+    val wasVerbose = verbose
+    verbose = true
+    val origLogger = logger
 
     var message: String? = null
-    inflowLogger = { _, msg -> message = msg }
+    logger = { _, msg -> message = msg }
 
     block()
 
-    inflowVerbose = wasVerbose
-    inflowLogger = origLogger
+    verbose = wasVerbose
+    logger = origLogger
 
     return message
 }
