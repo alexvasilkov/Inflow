@@ -25,9 +25,11 @@ public sealed class Progress {
      *
      * Percentage can be calculated with [rate] function.
      */
-    public data class State internal constructor(
-        val current: Double,
-        val total: Double
+    public class State internal constructor(
+        @JvmField
+        public val current: Double,
+        @JvmField
+        public val total: Double
     ) : Progress() {
         /**
          * Percentage calculated as `current / total` (but never greater than `1`).

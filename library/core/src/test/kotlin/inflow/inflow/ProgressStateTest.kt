@@ -25,6 +25,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
 class ProgressStateTest : BaseTest() {
@@ -116,12 +117,19 @@ class ProgressStateTest : BaseTest() {
         suspend fun idle() = inflow.progress().first() as? Idle
 
         assertNotNull(active(), "Loading is started")
+
         delay(100L)
-        assertEquals(State(0.0, 1.0), state(), "First state")
+        val state1 = assertNotNull(state())
+        assertTrue(state1.current == 0.0 && state1.total == 1.0, "First state")
+
         delay(100L)
-        assertEquals(State(0.5, 1.0), state(), "Second state")
+        val state2 = assertNotNull(state())
+        assertTrue(state2.current == 0.5 && state2.total == 1.0, "Second state")
+
         delay(100L)
-        assertEquals(State(1.0, 1.0), state(), "Third state")
+        val state3 = assertNotNull(state())
+        assertTrue(state3.current == 1.0 && state3.total == 1.0, "Third state")
+
         delay(100L)
         assertNotNull(idle(), "Loading is finished")
 

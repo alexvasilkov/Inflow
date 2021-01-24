@@ -238,7 +238,10 @@ public sealed class RefreshParam {
      *
      * See [refreshIfExpired()][refreshIfExpired] and [fresh()][fresh] extensions.
      */
-    public data class IfExpiresIn(val expiresIn: Long) : RefreshParam() {
+    public class IfExpiresIn(
+        @JvmField
+        public val expiresIn: Long
+    ) : RefreshParam() {
         init {
             require(expiresIn >= 0L) { "Value of 'expiresIn' must be >= 0" }
         }
