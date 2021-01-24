@@ -87,11 +87,11 @@ public class InflowConfig<T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var expiration: ExpirationProvider<T> = ExpiresIfNull()
+    internal var expiration: Expires<T> = Expires.ifNull()
 
     @JvmField
     @JvmSynthetic
-    internal var invalidation: ExpirationProvider<T>? = null
+    internal var invalidation: Expires<T>? = null
 
     @JvmField
     @JvmSynthetic
@@ -260,14 +260,14 @@ public class InflowConfig<T> internal constructor() {
     }
 
     /**
-     * Cache expiration policy, see [ExpirationProvider]. Uses [ExpiresIfNull] policy by default.
+     * Cache expiration policy, see [Expires]. Uses [Expires.ifNull] policy by default.
      */
-    public fun expiration(provider: ExpirationProvider<T>) {
+    public fun expiration(provider: Expires<T>) {
         expiration = provider
     }
 
     /**
-     * Cache invalidation policy, see [ExpirationProvider].
+     * Cache invalidation policy, see [Expires].
      * By default the cache is considered to be valid all the time.
      *
      * Provided [emptyValue] will be emitted each time invalid data is emitted by original cache
@@ -280,7 +280,7 @@ public class InflowConfig<T> internal constructor() {
      * **Important:** [emptyValue] should be 'expired' according to [expiration] policy, otherwise
      * invalid data will not be automatically refreshed.
      */
-    public fun invalidation(emptyValue: T, provider: ExpirationProvider<T>) {
+    public fun invalidation(emptyValue: T, provider: Expires<T>) {
         invalidation = provider
         invalidationEmpty = emptyValue
     }

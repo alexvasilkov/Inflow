@@ -2,8 +2,7 @@ package com.alexvasilkov.inflow.data
 
 import com.alexvasilkov.inflow.data.api.StackExchangeApi
 import com.alexvasilkov.inflow.data.ext.now
-import inflow.ExpiresAt
-import inflow.ExpiresNever
+import inflow.Expires
 import inflow.Inflow
 import inflow.cache
 import inflow.cached
@@ -24,8 +23,8 @@ class StackExchangeAuth {
     // Using an Inflow for auth data to automatically emit `null` when token becomes invalid
     private val auth: Inflow<Auth?> = inflow {
         data(cache = authCache, loader = {})
-        expiration(ExpiresNever()) // No way we can refresh it automatically
-        invalidation(emptyValue = null, ExpiresAt { it?.expiresAt ?: Long.MAX_VALUE })
+        expiration(Expires.never()) // No way we can refresh it automatically
+        invalidation(emptyValue = null, Expires.at { it?.expiresAt ?: Long.MAX_VALUE })
     }
 
     val authState: Flow<Boolean> = auth.cache().map { it != null }

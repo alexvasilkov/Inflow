@@ -6,7 +6,7 @@ import com.alexvasilkov.inflow.data.ext.now
 import com.alexvasilkov.inflow.model.Profile
 import com.alexvasilkov.inflow.model.Question
 import com.alexvasilkov.inflow.model.QuestionsQuery
-import inflow.ExpiresIn
+import inflow.Expires
 import inflow.Inflow
 import inflow.MemoryCacheWriter
 import inflow.asInflow
@@ -40,7 +40,7 @@ class StackExchangeRepo(
     val profile: Inflow<Profile?> = inflow {
         profileCacheWriter = data(initial = null) { api.profile().items.first().convert() }
 
-        val expirationIfAuthorized = ExpiresIn<Profile?>(60_000L) { it?.loadedAt ?: 0L }
+        val expirationIfAuthorized = Expires.after<Profile?>(60_000L) { it?.loadedAt ?: 0L }
         expiration {
             if (auth.token == null) Long.MAX_VALUE // Cannot refresh profile if not authorized
             else expirationIfAuthorized.expiresIn(it)
@@ -62,9 +62,9 @@ class StackExchangeRepo(
                     QuestionsList(items, now())
                 }
                 // Automatic refresh in 1 minute
-                expiration(ExpiresIn(60_000L) { it?.loadedAt ?: 0L })
+                expiration(Expires.after(60_000L) { it?.loadedAt ?: 0L })
                 // Consider cached data older than 3 minutes as invalid and never show it
-                invalidation(emptyValue = null, ExpiresIn(3 * 60_000L) { it?.loadedAt ?: 0L })
+                invalidation(emptyValue = null, Expires.after(3 * 60_000L) { it?.loadedAt ?: 0L })
             }
             cache(searchByTagCache)
         }

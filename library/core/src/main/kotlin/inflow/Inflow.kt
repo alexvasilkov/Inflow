@@ -164,7 +164,7 @@ public fun <T> emptyInflow(): Inflow<T?> = emptyInflow as Inflow<T?>
 @ExperimentalCoroutinesApi
 public fun <T> emptyInflow(initial: T): Inflow<T> = inflow {
     data(cache = flowOf(initial), loader = {})
-    expiration(ExpiresNever())
+    expiration(Expires.never())
     keepCacheSubscribedTimeout(0L)
     retryTime(Long.MAX_VALUE)
     connectivity(null)

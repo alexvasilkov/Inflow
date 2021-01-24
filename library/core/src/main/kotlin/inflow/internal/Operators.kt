@@ -1,6 +1,6 @@
 package inflow.internal
 
-import inflow.ExpirationProvider
+import inflow.Expires
 import inflow.InflowConnectivity
 import inflow.utils.log
 import kotlinx.atomicfu.locks.reentrantLock
@@ -149,7 +149,7 @@ internal fun <T> Flow<T>.doWhileSubscribed(action: () -> Job): Flow<T> {
 @ExperimentalCoroutinesApi
 internal fun <T> Flow<T>.emptyIfInvalid(
     logId: String,
-    invalidation: ExpirationProvider<T>,
+    invalidation: Expires<T>,
     emptyValue: T
 ): Flow<T> = flatMapLatest { data ->
     flow {
@@ -186,7 +186,7 @@ internal fun <T> Flow<T>.emptyIfInvalid(
 internal suspend fun <T> scheduleUpdates(
     logId: String,
     cache: Flow<T>,
-    expiration: ExpirationProvider<T>,
+    expiration: Expires<T>,
     retryTime: Long,
     loader: suspend () -> Unit
 ) {

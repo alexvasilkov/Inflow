@@ -5,7 +5,7 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.ExpiresIn
+import inflow.Expires
 import inflow.RefreshParam
 import inflow.RefreshParam.Repeat
 import inflow.STRESS_TAG
@@ -114,7 +114,7 @@ class RefreshTest : BaseTest() {
     fun `IF refresh with IfExpiresIn THEN loading is triggered only if expired`() = runTest {
         val inflow = testInflow {
             data(initial = -1) { 0 }
-            expiration(ExpiresIn(50L) { now() })
+            expiration(Expires.after(50L) { now() })
             keepCacheSubscribedTimeout(0L)
         }
 

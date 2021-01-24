@@ -5,11 +5,7 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.ExpirationProvider
-import inflow.ExpiresAt
-import inflow.ExpiresIfNull
-import inflow.ExpiresIn
-import inflow.ExpiresNever
+import inflow.Expires
 import inflow.cached
 import inflow.inflow
 import inflow.utils.now
@@ -28,13 +24,13 @@ import kotlin.test.assertFailsWith
 class ExpirationTest : BaseTest() {
 
     @Test
-    fun `IF ExpiresNever THEN no updates`() =
+    fun `IF Expires_never THEN no updates`() =
         runTest { job ->
             var counter = 0
             val inflow = testInflow {
                 data(initial = null) { counter++; throw RuntimeException() }
                 retryTime(100L)
-                expiration(ExpiresNever())
+                expiration(Expires.never())
             }
 
             launch(job) { inflow.data().collect() }
@@ -44,13 +40,13 @@ class ExpirationTest : BaseTest() {
         }
 
     @Test
-    fun `IF ExpiresIfNull AND cache is null AND cannot load THEN update and few retries`() =
+    fun `IF Expires_ifNull AND cache is null AND cannot load THEN update and few retries`() =
         runTest { job ->
             var counter = 0
             val inflow = testInflow {
                 data(initial = null) { counter++; throw RuntimeException() }
                 retryTime(100L)
-                expiration(ExpiresIfNull())
+                expiration(Expires.ifNull())
             }
 
             launch(job) { inflow.data().collect() }
@@ -60,11 +56,12 @@ class ExpirationTest : BaseTest() {
         }
 
     @Test
-    fun `IF ExpiresIfNull AND cache is null AND can load THEN update and no retries`() =
+    fun `IF Expires_ifNull AND cache is null AND can load THEN update and no retries`() =
         runTest { job ->
             val inflow = testInflow {
                 var count = 0
                 data(initial = null) { delay(100L); count++ }
+                expiration(Expires.ifNull())
             }
 
             launch(job) { inflow.data().collect() }
@@ -74,12 +71,12 @@ class ExpirationTest : BaseTest() {
         }
 
     @Test
-    fun `IF ExpiresIfNull AND cache is not null THEN no update and no retries`() =
+    fun `IF Expires_ifNull AND cache is not null THEN no update and no retries`() =
         runTest { job ->
             var counter = 0
             val inflow = testInflow {
                 data(initial = 0) { counter++; throw RuntimeException() }
-                expiration(ExpiresIfNull())
+                expiration(Expires.ifNull())
             }
 
             launch(job) { inflow.data().collect() }
@@ -90,16 +87,16 @@ class ExpirationTest : BaseTest() {
 
 
     @Test
-    fun `IF ExpiresAt AND cache is expiring THEN updates are called`() {
-        testExpiration(ExpiresAt { it + 30L })
+    fun `IF Expires_at AND cache is expiring THEN updates are called`() {
+        testExpiration(Expires.at { it + 30L })
     }
 
     @Test
-    fun `IF ExpiresIn AND cache is expiring THEN updates are called`() {
-        testExpiration(ExpiresIn(30L) { it })
+    fun `IF Expires_after AND cache is expiring THEN updates are called`() {
+        testExpiration(Expires.after(30L) { it })
     }
 
-    private fun testExpiration(expiration: ExpirationProvider<Long>) = runReal {
+    private fun testExpiration(expiration: Expires<Long>) = runReal {
         var counter = 0
         val inflow = inflow<Long> {
             // In both test cases initial expiresIn will be 0L
@@ -119,22 +116,22 @@ class ExpirationTest : BaseTest() {
     }
 
     @Test
-    fun `IF ExpiresIn AND duration is 0 THEN error`() = runTest {
+    fun `IF Expires_after AND duration is 0 THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
-            ExpiresIn<Int>(duration = 0L) { 1L }
+            Expires.after<Int>(duration = 0L) { 1L }
         }
     }
 
     @Test
-    fun `IF ExpiresAt AND expiresAt is MAX_VALUE THEN never expires`() = runTest {
-        val expiration = ExpiresAt<Int> { Long.MAX_VALUE }
+    fun `IF Expires_at AND expiresAt is MAX_VALUE THEN never expires`() = runTest {
+        val expiration = Expires.at<Int> { Long.MAX_VALUE }
         val expiresIn = expiration.expiresIn(0)
         assertEquals(expected = Long.MAX_VALUE, actual = expiresIn, "Never expires")
     }
 
     @Test
     fun `IF ExpiresIn AND duration is MAX_VALUE THEN never expires`() = runTest {
-        val expiration = ExpiresIn<Int>(Long.MAX_VALUE) { 1L }
+        val expiration = Expires.after<Int>(Long.MAX_VALUE) { 1L }
         val expiresIn = expiration.expiresIn(0)
         assertEquals(expected = Long.MAX_VALUE, actual = expiresIn, "Never expires")
     }

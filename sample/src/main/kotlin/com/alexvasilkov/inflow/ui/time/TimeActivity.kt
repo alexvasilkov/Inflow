@@ -6,7 +6,7 @@ import com.alexvasilkov.inflow.data.ext.now
 import com.alexvasilkov.inflow.databinding.TimeScreenBinding
 import com.alexvasilkov.inflow.ui.BaseActivity
 import com.alexvasilkov.inflow.ui.ext.whileStarted
-import inflow.ExpiresIn
+import inflow.Expires
 import inflow.inflow
 import inflow.loading
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +30,7 @@ class TimeActivity : BaseActivity() {
         // (Updating time only once per second is not really accurate, but it's fine for the demo).
         val time = inflow<Long> {
             data(initial = now()) { delay(250L); now() }
-            expiration(ExpiresIn(1_000L - 250L) { it })
+            expiration(Expires.after(1_000L - 250L) { it })
             loadDispatcher(Dispatchers.Main.immediate)
         }
 

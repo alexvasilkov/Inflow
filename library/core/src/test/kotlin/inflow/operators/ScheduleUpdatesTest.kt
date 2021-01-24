@@ -5,8 +5,7 @@
 package inflow.operators
 
 import inflow.BaseTest
-import inflow.ExpirationProvider
-import inflow.ExpiresAt
+import inflow.Expires
 import inflow.internal.scheduleUpdates
 import inflow.utils.TestTracker
 import inflow.utils.now
@@ -147,7 +146,7 @@ class ScheduleUpdatesTest : BaseTest() {
     // Helper function to avoid defining same things in every test
     private suspend fun scheduleWithDefaults(
         cache: Flow<Long> = MutableStateFlow(0L),
-        expiration: ExpirationProvider<Long> = ExpiresAt { it },
+        expiration: Expires<Long> = Expires.at { it },
         retryTime: Long = 100L,
         loader: suspend () -> Unit = {}
     ) = scheduleUpdates(logId, cache, expiration, retryTime, loader)
