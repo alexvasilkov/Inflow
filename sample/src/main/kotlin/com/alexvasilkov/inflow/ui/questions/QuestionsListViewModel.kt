@@ -5,6 +5,7 @@ import com.alexvasilkov.inflow.data.StackExchangeRepo
 import com.alexvasilkov.inflow.model.Question
 import com.alexvasilkov.inflow.model.QuestionsQuery
 import com.alexvasilkov.inflow.ui.ext.stateField
+import inflow.Inflow
 import inflow.cache
 import inflow.loading
 import inflow.unhandledError
@@ -13,8 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.dropWhile
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 
 class QuestionsListViewModel(
@@ -38,29 +37,29 @@ class QuestionsListViewModel(
     // While collecting this flow the loading and refresh API calls will be made automatically
     val list: Flow<List<Question>?> = questions.data()
 
-    private val state: Flow<State> = combine(questions.cache(), questions.loading(), ::State)
-        // Avoiding initial state, not an error yet
-        .dropWhile { !it.loaded && !it.loading }
-        // The new cache can arrive earlier than `loading = false` event, we want the UI to skip
-        // showing unnecessary "refreshState" right after "loadingState" in this case
-        .distinctUntilChanged { old, new -> old.loading && new.loading && old.empty && !new.empty }
-
-    val emptyState: Flow<Boolean> = state.map { it.loaded && it.empty && !it.loading }
-
-    val loadingState: Flow<Boolean> = state.map { it.empty && it.loading }
-
-    val refreshState: Flow<Boolean> = state.map { !it.empty && it.loading }
-
-    val errorState: Flow<Boolean> = state.map { !it.loaded && !it.loading }
+    val state: Flow<State> = questions.state()
 
     val errorMessage: Flow<Throwable> = questions.unhandledError()
 
     fun refresh() = questions.refresh()
 
 
-    private class State(list: List<Question>?, val loading: Boolean) {
-        val loaded: Boolean = list != null
-        val empty: Boolean = list.isNullOrEmpty()
+    private fun <T> Inflow<List<T>?>.state() = combine(cache(), loading(), error(), ::newState)
+        // The new data can arrive earlier than `loading = false` event, we want the UI to skip
+        // showing unnecessary "refreshState" right after "loadingState" in this case
+        .distinctUntilChanged { old, new -> old.loading && new.refresh }
+
+    private fun newState(list: List<*>?, loading: Boolean, error: Throwable?): State = when {
+        list == null -> State(loading = error == null, error = error != null)
+        list.isEmpty() -> State(loading = loading, empty = !loading)
+        else -> State(refresh = loading)
     }
+
+    class State(
+        val empty: Boolean = false,
+        val loading: Boolean = false,
+        val refresh: Boolean = false,
+        val error: Boolean = false
+    )
 
 }

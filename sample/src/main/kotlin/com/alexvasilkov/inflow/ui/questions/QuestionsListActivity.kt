@@ -42,10 +42,12 @@ class QuestionsListActivity : BaseActivity() {
         views.initSearch()
 
         viewModel.list.whileStarted(this) { adapter.setList(it) }
-        viewModel.emptyState.whileStarted(this) { views.emptyText.isVisible = it }
-        viewModel.loadingState.whileStarted(this) { views.progress.isVisible = it }
-        viewModel.refreshState.whileStarted(this) { views.refreshLayout.isRefreshing = it }
-        viewModel.errorState.whileStarted(this) { views.errorLayout.isVisible = it }
+        viewModel.state.whileStarted(this) { state ->
+            views.emptyText.isVisible = state.empty
+            views.progress.isVisible = state.loading
+            views.refreshLayout.isRefreshing = state.refresh
+            views.errorLayout.isVisible = state.error
+        }
         viewModel.errorMessage.whileStarted(this) { toast(R.string.se_search_error) }
     }
 
