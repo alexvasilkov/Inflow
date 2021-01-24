@@ -64,7 +64,7 @@ class ErrorStateTest : BaseTest() {
     fun `IF unhandled error requested THEN error is only collected once`() = runReal {
         var lastError: RuntimeException? = null
         val inflow = inflow<Unit?> {
-            data(initial = null) { lastError = RuntimeException(); throw lastError!! }
+            data(initial = null) { throw RuntimeException().also { lastError = it } }
         }
 
         val jobs = mutableListOf<Job>()

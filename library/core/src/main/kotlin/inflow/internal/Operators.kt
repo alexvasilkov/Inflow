@@ -1,7 +1,7 @@
 package inflow.internal
 
-import inflow.Expires
 import inflow.Connectivity
+import inflow.Expires
 import inflow.utils.log
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock

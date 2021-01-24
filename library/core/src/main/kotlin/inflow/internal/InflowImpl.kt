@@ -10,13 +10,13 @@ import inflow.RefreshParam
 import inflow.RefreshParam.IfExpiresIn
 import inflow.utils.doOnCancel
 import inflow.utils.log
+import inflow.utils.noConsequentNulls
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -38,7 +38,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
     private val loadDispatcher = config.loadDispatcher
     private val cacheExpiration = config.expiration
 
-    private val handledError = atomic<Throwable?>(null)
+    private val handledErrorId = atomic(-1)
 
     init {
         val dataFromConfig = requireNotNull(config.data) { "`data` (cache and loader) is required" }
@@ -96,20 +96,20 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
 
     override fun error(vararg params: ErrorParam): Flow<Throwable?> {
         val skipIfCollected = params.contains(ErrorParam.SkipIfCollected)
-        return if (skipIfCollected) {
-            loader.error
-                .map(::handleError)
-                .distinctUntilChanged { old, new -> old == null && new == null }
-        } else {
-            loader.error
-        }
+        return loader.error
+            .map(if (skipIfCollected) ::handleError else ::unwrapError)
+            .noConsequentNulls()
     }
 
-    private fun handleError(error: Throwable?): Throwable? {
-        val handled = handledError.value
-        return if (error !== handled && error === loader.error.value) {
-            val set = handledError.compareAndSet(expect = handled, update = error)
-            if (set) error else null
+    @Suppress("RedundantSuspendModifier")
+    private suspend fun unwrapError(error: ErrorWrapper): Throwable? = error.throwable
+
+    @Suppress("RedundantSuspendModifier")
+    private suspend fun handleError(error: ErrorWrapper): Throwable? {
+        val handledId = handledErrorId.value
+        return if (error.id > handledId) {
+            val set = handledErrorId.compareAndSet(expect = handledId, update = error.id)
+            if (set) error.throwable else null
         } else {
             null
         }

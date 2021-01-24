@@ -53,9 +53,9 @@ class LoaderTest : BaseTest() {
         val loader = createLoader { delay(100L); throw exception }
         loader.load(repeatIfRunning = false)
 
-        assertNull(loader.error.value, "No error in the beginning")
+        assertNull(loader.error.value.throwable, "No error in the beginning")
         delay(100L)
-        assertSame(expected = exception, actual = loader.error.value, "Error is sent")
+        assertSame(expected = exception, actual = loader.error.value.throwable, "Error is sent")
     }
 
     @Test
@@ -64,10 +64,10 @@ class LoaderTest : BaseTest() {
 
         loader.load(repeatIfRunning = false)
         delay(100L)
-        assertNotNull(loader.error.value, "Error is detected")
+        assertNotNull(loader.error.value.throwable, "Error is detected")
 
         loader.load(repeatIfRunning = false)
-        assertNull(loader.error.value, "Error is cleared on start")
+        assertNull(loader.error.value.throwable, "Error is cleared on start")
     }
 
 
@@ -95,7 +95,7 @@ class LoaderTest : BaseTest() {
         launch(job) { loader.progress.track(progressTracker) }
 
         var errorsCount = 0
-        launch(job) { loader.error.collect { if (it != null) errorsCount++ } }
+        launch(job) { loader.error.collect { if (it.throwable != null) errorsCount++ } }
 
         // Launching regular refresh
         loader.load(repeatIfRunning = false)

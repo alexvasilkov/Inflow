@@ -24,11 +24,12 @@ internal class Loader(
     private val _progress = MutableStateFlow<Progress>(Progress.Idle)
     val progress = _progress.asStateFlow()
 
-    private val _error = MutableStateFlow<Throwable?>(null)
+    private val _error = MutableStateFlow(ErrorWrapper(null, 0))
     val error = _error.asStateFlow()
 
     private val prevJobRef = atomic<DeferredWithState?>(null)
     private val jobRef = atomic<DeferredWithState?>(null)
+    private val errorLastId = atomic(0)
 
     fun load(repeatIfRunning: Boolean): CompletableDeferred<Unit> {
         // Fast path to return already running job without extra objects allocation
@@ -103,7 +104,7 @@ internal class Loader(
         var caughtError: Throwable?
 
         _progress.value = Progress.Active
-        _error.value = null // Clearing any errors before load
+        _error.value = ErrorWrapper(null, errorLastId.incrementAndGet()) // Clearing before load
 
         while (true) {
             job.skipRepeat()
@@ -128,7 +129,7 @@ internal class Loader(
             if (job.setFinishingIfNoRepeat()) break
         }
 
-        _error.value = caughtError
+        _error.value = ErrorWrapper(caughtError, errorLastId.incrementAndGet())
         _progress.value = Progress.Idle
 
         return caughtError
@@ -193,3 +194,5 @@ internal class DeferredWithState {
     }
 
 }
+
+internal class ErrorWrapper(val throwable: Throwable?, val id: Int)

@@ -2,6 +2,7 @@ package inflow
 
 import inflow.internal.share
 import inflow.utils.doOnCancel
+import inflow.utils.noConsequentNulls
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -160,7 +161,7 @@ private class InflowsCombined<P, T>(
     }
 
     private val shared = params
-        .map(inflows::get) // Creating a new Inflow for each parameter or using cached one
+        .map { inflows[it] } // Creating a new Inflow for each parameter or using cached one
         .distinctUntilChanged { old, new -> old === new } // Filtering duplicate Inflow instances
         .share(scope, dispatcher, 0L) // Sharing the flow to reuse params subscription
 
@@ -168,12 +169,12 @@ private class InflowsCombined<P, T>(
         .flatMapLatest { it.data(*params) }
 
     override fun progress() = shared
-        .flatMapLatest(Inflow<T>::progress)
+        .flatMapLatest { it.progress() }
         .distinctUntilChanged() // Avoiding [Idle, Idle] sequences
 
     override fun error(vararg params: ErrorParam) = shared
         .flatMapLatest { it.error(*params) }
-        .distinctUntilChanged { old, new -> old == null && new == null } // No subsequent nulls
+        .noConsequentNulls()
 
     override fun refresh(vararg params: RefreshParam): InflowDeferred<T> {
         val deferred = DeferredDelegate<T>()
