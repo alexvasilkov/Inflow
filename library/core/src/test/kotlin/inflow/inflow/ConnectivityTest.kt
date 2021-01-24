@@ -5,7 +5,7 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.InflowConnectivity
+import inflow.Connectivity
 import inflow.cached
 import inflow.utils.runTest
 import inflow.utils.testInflow
@@ -28,7 +28,7 @@ class ConnectivityTest : BaseTest() {
         var counter = 0
         val inflow = testInflow {
             data(initial = null) { counter++; throw RuntimeException() }
-            connectivity(object : InflowConnectivity {
+            connectivity(object : Connectivity {
                 override val connected = connectivityState
             })
         }
@@ -49,7 +49,7 @@ class ConnectivityTest : BaseTest() {
 
         val inflow = testInflow {
             data(initial = null) { 0 }
-            connectivity(object : InflowConnectivity {
+            connectivity(object : Connectivity {
                 override val connected = connectivityState
             })
         }
@@ -69,7 +69,7 @@ class ConnectivityTest : BaseTest() {
     fun `IF not connected THEN still call initial update`() = runTest { job ->
         val inflow = testInflow {
             data(initial = null) { 0 }
-            connectivity(object : InflowConnectivity {
+            connectivity(object : Connectivity {
                 override val connected = MutableStateFlow(false)
             })
         }

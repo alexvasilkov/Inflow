@@ -5,11 +5,26 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import inflow.InflowConnectivity
+import inflow.Connectivity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-internal class NetworkConnectivity(context: Context) : InflowConnectivity {
+
+@Volatile
+private var network: Connectivity? = null
+
+/**
+ * Connectivity provider that listens for an active network interface that can reach
+ * the internet.
+ */
+fun Connectivity.Companion.network(appContext: Context): Connectivity {
+    // Only creating the instance once, to not subscribe to network updates several times
+    return network ?: synchronized(this) {
+        network ?: NetworkConnectivity(appContext).also { network = it }
+    }
+}
+
+internal class NetworkConnectivity(context: Context) : Connectivity {
 
     private val manager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -41,19 +56,4 @@ internal class NetworkConnectivity(context: Context) : InflowConnectivity {
     @Suppress("DEPRECATION")
     private fun ConnectivityManager.isConnected() = activeNetworkInfo?.isConnected ?: false
 
-}
-
-@Volatile
-private var Network: InflowConnectivity? = null
-
-/**
- * Connectivity provider that listens for an active network interface that can reach
- * the internet.
- */
-@Suppress("FunctionName") // Mimicking sealed class but allowing extensions
-fun InflowConnectivity.Companion.Network(appContext: Context): InflowConnectivity {
-    // Only creating the instance once, to not subscribe to network updates several times
-    return Network ?: synchronized(this) {
-        Network ?: NetworkConnectivity(appContext).also { Network = it }
-    }
 }

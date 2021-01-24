@@ -20,8 +20,8 @@ open class BaseTest {
     fun setup() {
         inflowVerbose = true
 
-        if (InflowConnectivity.Default == null) {
-            InflowConnectivity.Default = object : InflowConnectivity {
+        if (Connectivity.default == null) {
+            Connectivity.default = object : Connectivity {
                 override val connected = MutableStateFlow(true)
             }
         }

@@ -2,7 +2,7 @@ package inflow
 
 import kotlinx.coroutines.flow.StateFlow
 
-public interface InflowConnectivity {
+public interface Connectivity {
 
     /**
      * A flow which should emit `true` each time when connectivity becomes available
@@ -14,12 +14,12 @@ public interface InflowConnectivity {
         /**
          * Default connectivity to be used by all newly created [Inflow].
          *
-         * This can be set globally to avoid passing [InflowConnectivity] on every [Inflow]
+         * This can be set globally to avoid passing [Connectivity] on every [Inflow]
          * creation.
          *
          * Default value is `null`, unless it's set by `inflow-android` module.
          */
-        public var Default: InflowConnectivity? = null
+        public var default: Connectivity? = null
     }
 
 }

@@ -5,7 +5,7 @@
 package inflow.operators
 
 import inflow.BaseTest
-import inflow.InflowConnectivity
+import inflow.Connectivity
 import inflow.internal.asSignalingFlow
 import inflow.utils.runTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,7 +22,7 @@ class AsSignalFlowTest : BaseTest() {
     @Test
     fun `IF offline THEN start as online and repeat when re-connected`() = runTest { job ->
         val connected = MutableStateFlow(false)
-        val connectivity = object : InflowConnectivity {
+        val connectivity = object : Connectivity {
             override val connected = connected
         }
 
@@ -45,7 +45,7 @@ class AsSignalFlowTest : BaseTest() {
     @Test
     fun `IF online THEN start as online and repeat when re-connected`() = runTest { job ->
         val connected = MutableStateFlow(true)
-        val connectivity = object : InflowConnectivity {
+        val connectivity = object : Connectivity {
             override val connected = connected
         }
 

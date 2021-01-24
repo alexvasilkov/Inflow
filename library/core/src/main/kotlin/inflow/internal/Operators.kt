@@ -1,7 +1,7 @@
 package inflow.internal
 
 import inflow.Expires
-import inflow.InflowConnectivity
+import inflow.Connectivity
 import inflow.utils.log
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
@@ -235,7 +235,7 @@ internal suspend fun <T> scheduleUpdates(
  * Emitting on each "network connected" callback to immediately retry failed requests.
  * We'll force first load even if no connection to ensure an error is propagated.
  */
-internal fun InflowConnectivity?.asSignalingFlow(): Flow<Unit> =
+internal fun Connectivity?.asSignalingFlow(): Flow<Unit> =
     if (this == null) MutableStateFlow(Unit) else
         connected
             .onStart { emit(true) } // Always signaling in the beginning

@@ -107,7 +107,7 @@ public class InflowConfig<T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var connectivity: InflowConnectivity? = InflowConnectivity.Default
+    internal var connectivity: Connectivity? = Connectivity.default
 
     @JvmField
     @JvmSynthetic
@@ -330,12 +330,12 @@ public class InflowConfig<T> internal constructor() {
      * Connectivity state provider that will be used to automatically retry failed requests when
      * internet connection is established.
      *
-     * Set to global [InflowConnectivity.Default] provider by default, which in turn is set to
+     * Set to global [Connectivity.default] provider by default, which in turn is set to
      * `null` unless initialized with a real provider.
      *
      * Android library provides a default implementation for the network connectivity.
      */
-    public fun connectivity(provider: InflowConnectivity?) {
+    public fun connectivity(provider: Connectivity?) {
         connectivity = provider
     }
 
