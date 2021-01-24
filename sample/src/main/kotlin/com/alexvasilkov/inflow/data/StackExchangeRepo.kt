@@ -40,11 +40,12 @@ class StackExchangeRepo(
     val profile: Inflow<Profile?> = inflow {
         profileCacheWriter = data(initial = null) { api.profile().items.first().convert() }
 
-        val expirationIfAuthorized = Expires.after<Profile?>(60_000L) { it?.loadedAt ?: 0L }
-        expiration {
-            if (auth.token == null) Long.MAX_VALUE // Cannot refresh profile if not authorized
-            else expirationIfAuthorized.expiresIn(it)
-        }
+        expiration(
+            Expires.after(60_000L) {
+                if (auth.token == null) Long.MAX_VALUE // Cannot refresh profile if not authorized
+                else it?.loadedAt ?: 0L
+            }
+        )
     }
 
 

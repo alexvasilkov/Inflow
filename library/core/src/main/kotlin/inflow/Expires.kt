@@ -40,8 +40,9 @@ public fun interface Expires<T> {
         /**
          * Refreshes (or invalidates) the data at specific time as defined by [expiresAt].
          *
-         * If the data was never loaded then [expiresAt] provider is expected to return `0L`. If the data
-         * should never expire (or be invalidated) then return `Long.MAX_VALUE` from [expiresAt] provider.
+         * If the data was never loaded then [expiresAt] provider is expected to return `0L`.
+         * If the data should never expire (or be invalidated) then return `Long.MAX_VALUE` from
+         * [expiresAt] provider.
          *
          * The time should be in milliseconds since unix epoch.
          */
@@ -56,14 +57,12 @@ public fun interface Expires<T> {
 
 
         /**
-         * Refreshes (or invalidates) the data after given [duration], provided that we know data's last
-         * loaded time.
+         * Refreshes (or invalidates) the data after given [duration], provided that we know data's
+         * last loaded time.
          *
-         * If the data was never loaded then [loadedAt] provider is expected to return `0L`.
-         *
-         * Use `Long.MAX_VALUE` as duration if you don't want the data to be automatically refreshed
-         * (or invalidated). Unless [loadedAt] returns 0 (or negative) value which will still trigger the
-         * loading.
+         * If [loadedAt] provider returns 0 or negative value then refresh will be triggered
+         * immediately. Otherwise `Long.MAX_VALUE` can be used as duration or as the result of
+         * [loadedAt] provider to never trigger data refresh.
          *
          * The time returned by [loadedAt] should be in milliseconds since unix epoch.
          * Duration time is also in milliseconds.
@@ -75,6 +74,7 @@ public fun interface Expires<T> {
                 val lastLoaded = loadedAt(data)
                 when {
                     lastLoaded <= 0L -> 0L // Never loaded
+                    lastLoaded == Long.MAX_VALUE -> Long.MAX_VALUE // Never expires
                     duration == Long.MAX_VALUE -> Long.MAX_VALUE // Never expires
                     else -> lastLoaded + duration - now() // Calculating expiration time
                 }

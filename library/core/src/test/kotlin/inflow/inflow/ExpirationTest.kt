@@ -85,6 +85,12 @@ class ExpirationTest : BaseTest() {
             assertEquals(expected = 0, counter, "No update and no retries")
         }
 
+    @Test
+    fun `IF Expires_at AND expiresAt is MAX_VALUE THEN never expires`() = runTest {
+        val expiration = Expires.at<Int> { Long.MAX_VALUE }
+        val expiresIn = expiration.expiresIn(0)
+        assertEquals(expected = Long.MAX_VALUE, actual = expiresIn, "Never expires")
+    }
 
     @Test
     fun `IF Expires_at AND cache is expiring THEN updates are called`() {
@@ -123,15 +129,15 @@ class ExpirationTest : BaseTest() {
     }
 
     @Test
-    fun `IF Expires_at AND expiresAt is MAX_VALUE THEN never expires`() = runTest {
-        val expiration = Expires.at<Int> { Long.MAX_VALUE }
+    fun `IF Expires_after AND duration is MAX_VALUE THEN never expires`() = runTest {
+        val expiration = Expires.after<Int>(Long.MAX_VALUE) { 1L }
         val expiresIn = expiration.expiresIn(0)
         assertEquals(expected = Long.MAX_VALUE, actual = expiresIn, "Never expires")
     }
 
     @Test
-    fun `IF ExpiresIn AND duration is MAX_VALUE THEN never expires`() = runTest {
-        val expiration = Expires.after<Int>(Long.MAX_VALUE) { 1L }
+    fun `IF Expires_after AND loadedAt is MAX_VALUE THEN never expires`() = runTest {
+        val expiration = Expires.after<Int>(1L) { Long.MAX_VALUE }
         val expiresIn = expiration.expiresIn(0)
         assertEquals(expected = Long.MAX_VALUE, actual = expiresIn, "Never expires")
     }
