@@ -1,0 +1,9 @@
+public final class inflow/android/InflowAndroid {
+	public static final field INSTANCE Linflow/android/InflowAndroid;
+	public final fun init (Landroid/content/Context;)V
+}
+
+public final class inflow/android/NetworkConnectivityKt {
+	public static final fun network (Linflow/Connectivity$Companion;Landroid/content/Context;)Linflow/Connectivity;
+}
+

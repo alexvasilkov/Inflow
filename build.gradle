@@ -11,9 +11,12 @@ buildscript {
         classpath 'com.android.tools.build:gradle:4.1.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath 'org.jetbrains.kotlinx:atomicfu-gradle-plugin:0.15.0'
-        classpath 'org.jlleitschuh.gradle:ktlint-gradle:9.1.1'
+        classpath 'org.jlleitschuh.gradle:ktlint-gradle:9.4.1'
+        classpath 'org.jetbrains.kotlinx:binary-compatibility-validator:0.3.0'
     }
 }
+
+apply plugin: 'binary-compatibility-validator'
 
 allprojects {
     repositories {
@@ -23,7 +26,11 @@ allprojects {
 
     apply plugin: 'org.jlleitschuh.gradle.ktlint'
     ktlint {
-        version = '0.39.0'
+        version = '0.40.0'
         disabledRules = ['no-consecutive-blank-lines', 'no-blank-line-before-rbrace']
     }
+}
+
+apiValidation {
+    ignoredProjects += 'sample'
 }

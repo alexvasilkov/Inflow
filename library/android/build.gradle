@@ -30,6 +30,10 @@ android {
     }
 }
 
+afterEvaluate {
+    generateReleaseBuildConfig.enabled = false
+}
+
 dependencies {
     api project(':core')
 

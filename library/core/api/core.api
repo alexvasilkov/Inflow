@@ -1,0 +1,167 @@
+public abstract interface class inflow/Connectivity {
+	public static final field Companion Linflow/Connectivity$Companion;
+	public abstract fun getConnected ()Lkotlinx/coroutines/flow/StateFlow;
+}
+
+public final class inflow/Connectivity$Companion {
+	public final fun getDefault ()Linflow/Connectivity;
+	public final fun setDefault (Linflow/Connectivity;)V
+}
+
+public abstract class inflow/DataParam {
+}
+
+public final class inflow/DataParam$CacheOnly : inflow/DataParam {
+	public static final field INSTANCE Linflow/DataParam$CacheOnly;
+}
+
+public abstract class inflow/ErrorParam {
+}
+
+public final class inflow/ErrorParam$SkipIfCollected : inflow/ErrorParam {
+	public static final field INSTANCE Linflow/ErrorParam$SkipIfCollected;
+}
+
+public abstract interface class inflow/Expires {
+	public static final field Companion Linflow/Expires$Companion;
+	public abstract fun expiresIn (Ljava/lang/Object;)J
+}
+
+public final class inflow/Expires$Companion {
+	public final fun after (JLkotlin/jvm/functions/Function1;)Linflow/Expires;
+	public final fun at (Lkotlin/jvm/functions/Function1;)Linflow/Expires;
+	public final fun ifNull ()Linflow/Expires;
+	public final fun never ()Linflow/Expires;
+}
+
+public abstract interface class inflow/Inflow {
+	public abstract fun data ([Linflow/DataParam;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun error ([Linflow/ErrorParam;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun progress ()Lkotlinx/coroutines/flow/Flow;
+	public abstract fun refresh ([Linflow/RefreshParam;)Linflow/InflowDeferred;
+}
+
+public final class inflow/InflowConfig {
+	public final fun cacheDispatcher (Lkotlinx/coroutines/CoroutineDispatcher;)V
+	public final fun connectivity (Linflow/Connectivity;)V
+	public final fun data (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Linflow/MemoryCacheWriter;
+	public final fun data (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)Linflow/MemoryCacheWriter;
+	public final fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)V
+	public final fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
+	public final fun dataFlow (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
+	public final fun expiration (Linflow/Expires;)V
+	public final fun invalidation (Ljava/lang/Object;Linflow/Expires;)V
+	public final fun keepCacheSubscribedTimeout (J)V
+	public final fun loadDispatcher (Lkotlinx/coroutines/CoroutineDispatcher;)V
+	public final fun logId (Ljava/lang/String;)V
+	public final fun retryTime (J)V
+	public final fun scope (Lkotlinx/coroutines/CoroutineScope;)V
+}
+
+public abstract interface class inflow/InflowDeferred {
+	public abstract fun await (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun join (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class inflow/InflowKt {
+	public static final fun cache (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
+	public static final fun cached (Linflow/Inflow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun emptyInflow ()Linflow/Inflow;
+	public static final fun emptyInflow (Ljava/lang/Object;)Linflow/Inflow;
+	public static final fun forceRefresh (Linflow/Inflow;)Linflow/InflowDeferred;
+	public static final fun fresh (Linflow/Inflow;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun fresh$default (Linflow/Inflow;JLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun inflow (Lkotlin/jvm/functions/Function1;)Linflow/Inflow;
+	public static final fun loading (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
+	public static final fun refreshIfExpired (Linflow/Inflow;J)Linflow/InflowDeferred;
+	public static synthetic fun refreshIfExpired$default (Linflow/Inflow;JILjava/lang/Object;)Linflow/InflowDeferred;
+	public static final fun unhandledError (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public abstract interface class inflow/Inflows {
+	public abstract fun clear ()V
+	public abstract fun get (Ljava/lang/Object;)Linflow/Inflow;
+}
+
+public abstract interface class inflow/InflowsCache {
+	public abstract fun clear ()V
+	public abstract fun doOnRemove (Lkotlin/jvm/functions/Function1;)V
+	public abstract fun get (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+}
+
+public final class inflow/InflowsCacheKt {
+	public static final fun inflowsCache (IJ)Linflow/InflowsCache;
+	public static synthetic fun inflowsCache$default (IJILjava/lang/Object;)Linflow/InflowsCache;
+}
+
+public final class inflow/InflowsCombinedConfig {
+	public final synthetic fun builder (Lkotlin/jvm/functions/Function2;)V
+	public final fun cache (Linflow/InflowsCache;)V
+	public final fun dispatcher (Lkotlinx/coroutines/CoroutineDispatcher;)V
+	public final fun factory (Lkotlin/jvm/functions/Function1;)V
+	public final fun scope (Lkotlinx/coroutines/CoroutineScope;)V
+}
+
+public final class inflow/InflowsCombinedKt {
+	public static final fun asInflow (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function1;)Linflow/Inflow;
+}
+
+public final class inflow/InflowsConfig {
+	public final synthetic fun builder (Lkotlin/jvm/functions/Function2;)V
+	public final fun cache (Linflow/InflowsCache;)V
+	public final fun factory (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class inflow/InflowsKt {
+	public static final fun inflows (Lkotlin/jvm/functions/Function1;)Linflow/Inflows;
+}
+
+public abstract interface class inflow/LoadTracker {
+	public abstract fun state (DD)V
+}
+
+public abstract interface class inflow/MemoryCacheWriter {
+	public abstract fun invoke (Ljava/lang/Object;)V
+}
+
+public abstract class inflow/Progress {
+}
+
+public final class inflow/Progress$Active : inflow/Progress {
+	public static final field INSTANCE Linflow/Progress$Active;
+}
+
+public final class inflow/Progress$Idle : inflow/Progress {
+	public static final field INSTANCE Linflow/Progress$Idle;
+}
+
+public final class inflow/Progress$State : inflow/Progress {
+	public final field current D
+	public final field total D
+	public final fun rate ()D
+}
+
+public abstract class inflow/RefreshParam {
+}
+
+public final class inflow/RefreshParam$IfExpiresIn : inflow/RefreshParam {
+	public final field expiresIn J
+	public fun <init> (J)V
+}
+
+public final class inflow/RefreshParam$Repeat : inflow/RefreshParam {
+	public static final field INSTANCE Linflow/RefreshParam$Repeat;
+}
+
+public final class inflow/TransformersKt {
+	public static final fun map (Linflow/Inflow;Lkotlin/jvm/functions/Function2;)Linflow/Inflow;
+}
+
+public final class inflow/utils/InflowLogger {
+	public static final field INSTANCE Linflow/utils/InflowLogger;
+	public final fun getLogger ()Lkotlin/jvm/functions/Function2;
+	public final fun getVerbose ()Z
+	public final fun setLogger (Lkotlin/jvm/functions/Function2;)V
+	public final fun setVerbose (Z)V
+}
+
