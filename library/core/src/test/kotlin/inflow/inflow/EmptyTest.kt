@@ -5,12 +5,17 @@
 package inflow.inflow
 
 import inflow.BaseTest
+import inflow.Progress
 import inflow.cached
 import inflow.emptyInflow
 import inflow.utils.runTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 @ExperimentalCoroutinesApi
@@ -28,6 +33,34 @@ class EmptyTest : BaseTest() {
         val inflow = emptyInflow<Unit?>()
         assertNull(actual = inflow.cached(), "Value is null")
         assertNull(actual = inflow.refresh().await(), "Refreshed value is still null")
+    }
+
+    @Test
+    fun `IF empty inflow THEN no progress`() = runTest { job ->
+        val inflow = emptyInflow<Unit?>()
+        var wasActive = false
+        launch(job) { inflow.progress().collect { if (it != Progress.Idle) wasActive = true } }
+        launch(job) { inflow.data().collect() }
+
+        delay(Long.MAX_VALUE - 1L)
+        assertFalse(wasActive, "Never active after auto refresh")
+
+        inflow.refresh().join()
+        assertFalse(wasActive, "Never active after manual refresh")
+    }
+
+    @Test
+    fun `IF empty inflow THEN no error`() = runTest { job ->
+        val inflow = emptyInflow<Unit?>()
+        var hasError = false
+        launch(job) { inflow.error().collect { if (it != null) hasError = true } }
+        launch(job) { inflow.data().collect() }
+
+        delay(Long.MAX_VALUE - 1L)
+        assertFalse(hasError, "No errors after auto refresh")
+
+        inflow.refresh().join()
+        assertFalse(hasError, "No errors after manual refresh")
     }
 
 }

@@ -5,9 +5,7 @@ import inflow.ErrorParam.SkipIfCollected
 import inflow.RefreshParam.IfExpiresIn
 import inflow.RefreshParam.Repeat
 import inflow.internal.InflowImpl
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -147,30 +145,26 @@ public fun <T> inflow(block: InflowConfig<T>.() -> Unit): Inflow<T> =
     InflowImpl(InflowConfig<T>().apply(block))
 
 
-@ExperimentalCoroutinesApi
 private val emptyInflow: Inflow<Any?> by lazy { emptyInflow(null) }
 
 /**
  * Creates an [Inflow] that emits `null` and does not load any extra data.
  */
 @Suppress("UNCHECKED_CAST")
-@ExperimentalCoroutinesApi
 public fun <T> emptyInflow(): Inflow<T?> = emptyInflow as Inflow<T?>
 
 /**
  * Creates an [Inflow] that emits [initial] value (by contract an Inflow should always emit) and
  * does not load any extra data.
  */
-@ExperimentalCoroutinesApi
-public fun <T> emptyInflow(initial: T): Inflow<T> = inflow {
-    data(cache = flowOf(initial), loader = {})
-    expiration(Expires.never())
-    keepCacheSubscribedTimeout(0L)
-    retryTime(Long.MAX_VALUE)
-    connectivity(null)
-    cacheDispatcher(Dispatchers.Unconfined)
-    loadDispatcher(Dispatchers.Unconfined)
-    scope(GlobalScope)
+public fun <T> emptyInflow(initial: T): Inflow<T> = object : Inflow<T> {
+    override fun data(vararg params: DataParam) = flowOf(initial)
+    override fun progress() = flowOf(Progress.Idle)
+    override fun error(vararg params: ErrorParam) = flowOf(null)
+    override fun refresh(vararg params: RefreshParam) = object : InflowDeferred<T> {
+        override suspend fun await() = initial
+        override suspend fun join() = Unit
+    }
 }
 
 
