@@ -5,9 +5,12 @@
 package inflow.inflow
 
 import inflow.BaseTest
-import inflow.Progress
+import inflow.State.Idle
 import inflow.cached
+import inflow.data
 import inflow.emptyInflow
+import inflow.refresh
+import inflow.refreshState
 import inflow.utils.runTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -36,31 +39,17 @@ class EmptyTest : BaseTest() {
     }
 
     @Test
-    fun `IF empty inflow THEN no progress`() = runTest { job ->
+    fun `IF empty inflow THEN only initial state is emitted`() = runTest { job ->
         val inflow = emptyInflow<Unit?>()
-        var wasActive = false
-        launch(job) { inflow.progress().collect { if (it != Progress.Idle) wasActive = true } }
+        var nonInitial = false
+        launch(job) { inflow.refreshState().collect { if (it != Idle.Initial) nonInitial = true } }
         launch(job) { inflow.data().collect() }
 
         delay(Long.MAX_VALUE - 1L)
-        assertFalse(wasActive, "Never active after auto refresh")
+        assertFalse(nonInitial, "Never active after auto refresh")
 
         inflow.refresh().join()
-        assertFalse(wasActive, "Never active after manual refresh")
-    }
-
-    @Test
-    fun `IF empty inflow THEN no error`() = runTest { job ->
-        val inflow = emptyInflow<Unit?>()
-        var hasError = false
-        launch(job) { inflow.error().collect { if (it != null) hasError = true } }
-        launch(job) { inflow.data().collect() }
-
-        delay(Long.MAX_VALUE - 1L)
-        assertFalse(hasError, "No errors after auto refresh")
-
-        inflow.refresh().join()
-        assertFalse(hasError, "No errors after manual refresh")
+        assertFalse(nonInitial, "Never active after manual refresh")
     }
 
 }

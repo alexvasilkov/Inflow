@@ -1,17 +1,18 @@
 package inflow
 
+import inflow.DataParam.AutoRefresh
 import inflow.DataParam.CacheOnly
-import inflow.ErrorParam.SkipIfCollected
-import inflow.RefreshParam.IfExpiresIn
-import inflow.RefreshParam.Repeat
+import inflow.LoadParam.Refresh
+import inflow.LoadParam.RefreshForced
+import inflow.LoadParam.RefreshIfExpired
 import inflow.internal.InflowImpl
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 
 /**
  * An `Inflow` is a way to use cached data more effectively, automatically keep it up to date by
@@ -20,22 +21,20 @@ import kotlinx.coroutines.flow.map
  * **Cache**
  *
  * Cached data can be observed with [data] flow. If [data] flow has at least one subscriber the
- * `Inflow` will make sure to keep the cache up to date and automatically refresh when it expires.
+ * `Inflow` will make sure to automatically refresh the cache when it expires.
  * See [data] method for more details.
  *
- * Refresh can also be started manually by calling [refresh] method, as an option it can be done in
- * a suspending manner using [join][InflowDeferred.join] or [await][InflowDeferred.await] on the
- * result of the [refresh] call.
+ * Refresh can also be started manually by calling [load] method, as an option it can be done in
+ * a suspending manner using [join()][InflowDeferred.join] or [await()][InflowDeferred.await] on the
+ * result of the [load] call.
  *
  * **State**
  *
- * Refresh state can be observed using [progress] and [error] flows.
+ * Refresh state can be observed using [state] flow.
  *
- * The [progress] flow will emit each time the loading is started or finished and can optionally
- * emit an intermediate progress state. Also see [loading] extension.
- *
- * The [error] flow will emit the most recent error happened during last refresh or `null` if last
- * request was successful or still in progress.
+ * The [state] flow will emit each time the loading is started or finished and can optionally
+ * emit an intermediate progress state. It will also emit the most recent error happened during the
+ * last loading request (see [State.Idle.Error]).
  *
  * **Usage**
  *
@@ -56,8 +55,8 @@ import kotlinx.coroutines.flow.map
  *     .onEach(::showCompanies)
  *     .launchIn(lifecycleScope)
  *
- * companies.loading()
- *     .onEach(::showLoading)
+ * companies.refreshing()
+ *     .onEach(::showLoadingState)
  *     .launchIn(lifecycleScope)
  * ```
  *
@@ -65,11 +64,12 @@ import kotlinx.coroutines.flow.map
  */
 public interface Inflow<T> {
     /**
-     * Cached data collected from original cache flow provided with [InflowConfig.data].
+     * Cached data collected from original cache flow configured with [InflowConfig.data].
      *
      * Original (cold or hot) flow will be subscribed automatically and shared among all active
      * subscribers. Thus no extra cache readings will be done for all subsequent subscribers and
-     * they will immediately receive the most recent cache data.
+     * they will immediately receive the most recent data.
+     *
      * Original cache will be unsubscribed after predefined timeout since last active subscriber is
      * unsubscribed (see [InflowConfig.keepCacheSubscribedTimeout]).
      *
@@ -78,58 +78,140 @@ public interface Inflow<T> {
      * can be useful to avoid extra readings from original (cold) cache flow while switching app
      * screens, etc.
      *
-     * The cache will be automatically kept fresh using the loader provided with [InflowConfig.data]
-     * while it has at least one subscriber and according to expiration policy set with
-     * [InflowConfig.expiration]. This behavior can be disabled by using [CacheOnly] param.
+     * The cache will be automatically updated while it has at least one subscriber using the
+     * loader configured with [InflowConfig.data] and according to the expiration policy set
+     * with [InflowConfig.expiration].
+     * This behavior is controlled by [DataParam.AutoRefresh] and [DataParam.CacheOnly] params.
      *
-     * See [cache()][cache] and [cached()][cached] extensions.
+     * See [data][inflow.data], [cache], [cached] extensions.
      *
-     * @param params Optional parameters, see [DataParam].
-     * If parameter of the same type is passed several times then only first parameter will be used.
+     * @param param Controls the behavior of returned flow, see [DataParam].
      */
-    public fun data(vararg params: DataParam): Flow<T>
+    public fun data(param: DataParam): Flow<T>
 
     /**
-     * Current loading progress.
-     * It will emit [Progress.Active] once the loading is started and [Progress.Idle] in the end.
-     * Optionally it is also possible to track loading state ([Progress.State]) using
-     * [LoadTracker] object passed to the loader set in [InflowConfig.data].
-     * Only one request can run at a time.
+     * State of the loading process. It will emit [State.Loading] once the loading is started and
+     * [State.Idle] in the end. Both loading and idle states have "sub-states".
      *
-     * It will always repeat the most recent state when starting collecting.
+     * The very first state is guaranteed to be [State.Idle.Initial].
      *
-     * Note: if a new refresh is explicitly requested with [refresh] and [Repeat] param
-     * while running another refresh, the new request will run immediately after first request is
-     * finished without emitting consequent [Progress.Active] and [Progress.Idle] values.
+     * An error is represented by [State.Idle.Error].
      *
-     * See [loading()][loading] extension.
+     * Optionally it is possible to track the loading progress ([State.Loading.Progress]) using
+     * [LoadTracker] object passed to the loader.
+     *
+     * Returned flow will always emit the most recent state when starting collecting.
+     *
+     * See [refreshState], [refreshing], [refreshError] extensions.
+     *
+     * @param param Controls the origin of the state events, see [StateParam].
      */
-    public fun progress(): Flow<Progress>
+    public fun state(param: StateParam): Flow<State>
 
     /**
-     * Recent error caught during refresh requests or `null` if latest request was successful.
-     * Will be set back to `null` immediately after new refresh is started.
+     * Manually requests data load from a remote source. The request will start immediately
+     * (unless [RefreshIfExpired] param is used) and can be observed using returned deferred object.
      *
-     * It will always repeat the most recent error when starting collecting.
-     * Use [unhandledError()][unhandledError] extension to avoid showing duplicate errors.
-     */
-    public fun error(vararg params: ErrorParam): Flow<Throwable?>
-
-    /**
-     * Manually requests data refresh from a remote source. The request will start immediately
-     * (unless [IfExpiresIn] param is used) and can be observed using returned deferred object.
+     * Only one request can run at a time, including the one that runs automatically when collecting
+     * [data()][data] flow. If another request is already running it will be returned instead.
      *
-     * See [refreshIfExpired()][refreshIfExpired], [fresh()][fresh], [forceRefresh()][forceRefresh]
-     * extensions.
+     * See [refresh], [refreshIfExpired], [fresh], [refreshForced] extensions.
      *
-     * @param params Optional parameters for refresh request, see [RefreshParam].
-     * If parameter of the same type is passed several times then only first parameter will be used.
+     * @param param Controls the loading process, see [LoadParam].
      *
      * @return Deferred object with [join][InflowDeferred.join] and [await][InflowDeferred.await]
      * methods to **optionally** observe the result of the call in a suspending manner. The result
-     * can still be observed with [data], [progress] and [error] flows as usual.
+     * can still be observed with [data], [state] flows as usual.
      */
-    public fun refresh(vararg params: RefreshParam): InflowDeferred<T>
+    public fun load(param: LoadParam): InflowDeferred<T>
+}
+
+
+/* ---------------------------------------------------------------------------------------------- */
+/* Parameters                                                                                     */
+/* ---------------------------------------------------------------------------------------------- */
+
+/**
+ * Parameters for [inflow.data()][Inflow.data] method.
+ */
+public sealed class DataParam {
+    /**
+     * Returned data flow will be automatically updated while it has at least one subscriber
+     * using the loader configured with [InflowConfig.data] and according to the expiration
+     * policy set with [InflowConfig.expiration].
+     *
+     * See [data][inflow.data] extension.
+     */
+    public object AutoRefresh : DataParam()
+
+    /**
+     * Returned data flow will not trigger automatic update and will just return the flow of
+     * cached data.
+     *
+     * See [cache] and [cached] extensions.
+     */
+    public object CacheOnly : DataParam()
+}
+
+/**
+ * Parameters for [inflow.state()][Inflow.state§] method.
+ */
+public sealed class StateParam {
+    /**
+     * Returns the state of refresh calls, triggered with
+     * [inflow.load(LoadParam.Refresh)][Inflow.load].
+     *
+     * See [refreshState], [refreshing], [refreshError] extensions.
+     */
+    public object Refresh : StateParam()
+}
+
+/**
+ * Parameters for [inflow.load()][Inflow.load] method.
+ */
+public sealed class LoadParam {
+    /**
+     * The refresh will be done immediately.
+     * If another refresh is currently in progress then no new refresh will be called.
+     *
+     * See [refresh] extension.
+     */
+    public object Refresh : LoadParam()
+
+    /**
+     * The refresh will only be requested if the latest cached value is expiring in less than
+     * [expiresIn] milliseconds according to [InflowConfig.expiration] policy.
+     * In other words if [expiresIn] is > 0 then a not-yet-expired data will be updated if it
+     * expires sooner than we want.
+     * If [expiresIn] is set to 0 then only already expired data will be refreshed.
+     *
+     * For example, if cached data expires in 5 minutes and [expiresIn] is set to 2 minutes then
+     * no refresh will be done and the cached data will be returned as-is. But if [expiresIn] is
+     * set to 10 minutes then a new refresh request will be triggered.
+     *
+     * See [refreshIfExpired] and [fresh] extensions.
+     */
+    public class RefreshIfExpired(
+        @JvmField
+        public val expiresIn: Long
+    ) : LoadParam() {
+        init {
+            require(expiresIn >= 0L) { "Value of 'expiresIn' must be >= 0" }
+        }
+    }
+
+    /**
+     * If set and another refresh is currently in place then extra refresh will be done again right
+     * after the current one. No extra states will be emitted by [inflow.state()][Inflow.state]
+     * until this extra request completes.
+     *
+     * It can be useful in situations when remote data was changed (e.g. because of POST or PUT
+     * request) and we need to ensure that newly loaded data reflects that changes. Otherwise
+     * previous refresh may return stale data.
+     *
+     * See [refreshForced] extension.
+     */
+    public object RefreshForced : LoadParam()
 }
 
 
@@ -158,87 +240,11 @@ public fun <T> emptyInflow(): Inflow<T?> = emptyInflow as Inflow<T?>
  * does not load any extra data.
  */
 public fun <T> emptyInflow(initial: T): Inflow<T> = object : Inflow<T> {
-    override fun data(vararg params: DataParam) = flowOf(initial)
-    override fun progress() = flowOf(Progress.Idle)
-    override fun error(vararg params: ErrorParam) = flowOf(null)
-    override fun refresh(vararg params: RefreshParam) = object : InflowDeferred<T> {
+    override fun data(param: DataParam) = flowOf(initial)
+    override fun state(param: StateParam) = flowOf(State.Idle.Initial)
+    override fun load(param: LoadParam) = object : InflowDeferred<T> {
         override suspend fun await() = initial
         override suspend fun join() = Unit
-    }
-}
-
-
-/* ---------------------------------------------------------------------------------------------- */
-/* Parameters                                                                                     */
-/* ---------------------------------------------------------------------------------------------- */
-
-/**
- * Parameters for [Inflow.data] method: [CacheOnly].
- */
-public sealed class DataParam {
-    /**
-     * Returned data flow will not trigger automatic data refresh and will just return the flow of
-     * cached data.
-     *
-     * See [cache()][cache] and [cached()][cached] extensions.
-     */
-    public object CacheOnly : DataParam()
-}
-
-/**
- * Parameters for [Inflow.error] method: [SkipIfCollected].
- */
-public sealed class ErrorParam {
-    /**
-     * If an error was already collected once then all other collectors will not receive it anymore
-     * (they will get `null` instead).
-     *
-     * Can be used to ensure that each error is shown to the user only once.
-     *
-     * Note that errors collected without this parameter (i.e. just collecting `error()` flow) will
-     * not be considered as handled.
-     *
-     * See [unhandledError()][unhandledError] extension.
-     */
-    public object SkipIfCollected : ErrorParam()
-}
-
-/**
- * Parameters for [Inflow.refresh] method: [Repeat], [IfExpiresIn].
- */
-public sealed class RefreshParam {
-    /**
-     * If set and another refresh is currently in place then extra refresh will be done again right
-     * after the current one. No error or progress (except optional [Progress.State]) events will be
-     * emitted until this extra request completes.
-     *
-     * It can be useful in situations when remote data was changed (e.g. because of POST or PUT
-     * request) and we need to ensure that newly loaded data reflects that changes. Otherwise
-     * previous refresh may return stale data.
-     *
-     * See [forceRefresh()][forceRefresh] extension.
-     */
-    public object Repeat : RefreshParam()
-
-    /**
-     * The refresh will only be requested if the latest cached value is expiring in less than
-     * [expiresIn] milliseconds according to [InflowConfig.expiration] policy. In other words
-     * if [expiresIn] is > 0 then it will allow to refresh a not-yet-expired value which will expire
-     * sooner than we want. If [expiresIn] is set to 0 then only expired values will be refreshed.
-     *
-     * For example if cached value expires in 5 minutes and [expiresIn] is set to 2 minutes then
-     * no refresh will be done and the cached value will be returned as-is. But if [expiresIn] is
-     * set to 10 minutes then a new refresh request will be triggered.
-     *
-     * See [refreshIfExpired()][refreshIfExpired] and [fresh()][fresh] extensions.
-     */
-    public class IfExpiresIn(
-        @JvmField
-        public val expiresIn: Long
-    ) : RefreshParam() {
-        init {
-            require(expiresIn >= 0L) { "Value of 'expiresIn' must be >= 0" }
-        }
     }
 }
 
@@ -248,7 +254,20 @@ public sealed class RefreshParam {
 /* ---------------------------------------------------------------------------------------------- */
 
 /**
- * Returns cache flow, shortcut for `data(DataParam.CacheOnly)`
+ * Returns cache flow that will be automatically updated while subscribed.
+ *
+ * Shortcut for `data(DataParam.AutoRefresh)`.
+ *
+ * See [DataParam.AutoRefresh].
+ */
+public fun <T> Inflow<T>.data(): Flow<T> = data(AutoRefresh)
+
+/**
+ * Returns cache flow that won't be automatically updated.
+ *
+ * Shortcut for `data(DataParam.CacheOnly)`.
+ *
+ * See [DataParam.CacheOnly].
  */
 public fun <T> Inflow<T>.cache(): Flow<T> = data(CacheOnly)
 
@@ -259,47 +278,75 @@ public fun <T> Inflow<T>.cache(): Flow<T> = data(CacheOnly)
  */
 public suspend fun <T> Inflow<T>.cached(): T = data(CacheOnly).first()
 
+
 /**
- * If latest cached data is expiring in more than [expiresIn] milliseconds then it will be returned
- * as-is. Otherwise a new request will be triggered and its result will be returned.
- * See [IfExpiresIn].
+ * Manually requests data refresh.
  *
- * **Important: this method will throw an exception if the request is failed.**
+ * Shortcut for `load(LoadParam.Refresh)`.
  *
- * Shortcut for `refresh(RefreshParam.IfExpiresIn(expiresIn)).await()`.
+ * See [LoadParam.Refresh].
+ */
+public fun <T> Inflow<T>.refresh(): InflowDeferred<T> = load(Refresh)
+
+/**
+ * If that latest cached data is expiring in more than [expiresIn] milliseconds then it won't be
+ * refreshed. Otherwise a new request will be triggered.
+ *
+ * Shortcut for `load(LoadParam.RefreshIfExpired(expiresIn))`.
+ *
+ * See [LoadParam.RefreshIfExpired].
+ */
+public fun <T> Inflow<T>.refreshIfExpired(expiresIn: Long = 0L): InflowDeferred<T> =
+    load(RefreshIfExpired(expiresIn))
+
+/**
+ * If the latest cached data is expiring in more than [expiresIn] milliseconds then it will be
+ * returned as-is. Otherwise a new request will be triggered and its result will be returned.
+ *
+ * **Important: this method will throw an exception if the request fails.**
+ *
+ * Shortcut for `load(LoadParam.RefreshIfExpired(expiresIn)).await()`.
+ *
+ * See [LoadParam.RefreshIfExpired].
  */
 public suspend fun <T> Inflow<T>.fresh(expiresIn: Long = 0L): T =
-    refresh(IfExpiresIn(expiresIn)).await()
+    load(RefreshIfExpired(expiresIn)).await()
 
 /**
  * If another refresh is currently in place then extra refresh will be done again right after the
- * current one. See [Repeat].
+ * current one.
  *
- * Shortcut for `refresh(RefreshParam.Repeat)`.
+ * Shortcut for `load(LoadParam.RefreshForced)`.
+ *
+ * See [LoadParam.RefreshForced].
  */
-public fun <T> Inflow<T>.forceRefresh(): InflowDeferred<T> = refresh(Repeat)
+public fun <T> Inflow<T>.refreshForced(): InflowDeferred<T> = load(RefreshForced)
+
 
 /**
- * If latest cached data is expiring in more than [expiresIn] milliseconds then it will be returned
- * as-is. Otherwise a new request will be triggered. See [IfExpiresIn].
+ * Returns the state of refresh process.
  *
- * Shortcut for `refresh(RefreshParam.IfExpiresIn(expiresIn))`.
+ * Shortcut for `state(StateParam.Refresh)`.
+ *
+ * See [StateParam.Refresh].
  */
-public fun <T> Inflow<T>.refreshIfExpired(expiresIn: Long = 0L): InflowDeferred<T> =
-    refresh(IfExpiresIn(expiresIn))
+public fun <T> Inflow<T>.refreshState(): Flow<State> = state(StateParam.Refresh)
 
 /**
- * If an error was already collected once then all other collectors will not receive it anymore.
- * See [SkipIfCollected].
- *
- * Shortcut for `error(ErrorParam.SkipIfCollected).filterNotNull()`.
+ * Provides a simple flow of `false` (if [State.Idle]) and `true` (if [State.Loading]) values for
+ * refreshing process.
  */
-public fun <T> Inflow<T>.unhandledError(): Flow<Throwable> = error(SkipIfCollected).filterNotNull()
-
-/**
- * Similar to [progress][Inflow.progress], but provides a simple flow of `false`
- * (if [Progress.Idle]) and `true` (otherwise) values.
- */
-public fun <T> Inflow<T>.loading(): Flow<Boolean> = progress()
-    .map { it != Progress.Idle }
+public fun <T> Inflow<T>.refreshing(): Flow<Boolean> = state(StateParam.Refresh)
+    .map { it !is State.Idle }
     .distinctUntilChanged()
+
+/**
+ * Returns a flow of unhandled exceptions. Exception is considered handled if it was collected at
+ * least once. If an exception is handled then all other collectors won't receive it anymore.
+ *
+ * Can be used to ensure that each error is shown to the user only once.
+ */
+public fun <T> Inflow<T>.refreshError(): Flow<Throwable> = state(StateParam.Refresh).mapNotNull {
+    val error = it as? State.Idle.Error
+    if (error != null && error.markHandled(error)) error.throwable else null
+}

@@ -7,6 +7,7 @@ package inflow.inflow
 import inflow.BaseTest
 import inflow.Connectivity
 import inflow.cached
+import inflow.data
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi

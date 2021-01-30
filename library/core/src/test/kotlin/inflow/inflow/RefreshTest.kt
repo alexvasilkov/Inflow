@@ -6,17 +6,18 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.Expires
-import inflow.RefreshParam
-import inflow.RefreshParam.Repeat
+import inflow.LoadParam
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
+import inflow.State.Loading
 import inflow.cached
-import inflow.forceRefresh
 import inflow.fresh
 import inflow.inflow
+import inflow.refresh
+import inflow.refreshForced
 import inflow.refreshIfExpired
+import inflow.refreshState
 import inflow.utils.AtomicInt
-import inflow.utils.isIdle
 import inflow.utils.log
 import inflow.utils.now
 import inflow.utils.runReal
@@ -26,15 +27,16 @@ import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
 class RefreshTest : BaseTest() {
@@ -52,6 +54,23 @@ class RefreshTest : BaseTest() {
 
         delay(100L)
         assertNotNull(inflow.cached(), "Item is loaded")
+    }
+
+    @Test
+    fun `IF refresh is called with blocking loader THEN data is loaded`() = runReal {
+        val inflow = inflow<Int> {
+            data(initial = 0) {
+                @Suppress("BlockingMethodInNonBlockingContext")
+                Thread.sleep(50L)
+                1
+            }
+            keepCacheSubscribedTimeout(0L)
+        }
+
+        inflow.refresh().join()
+
+        delay(10L) // We have to delay to ensure cache data is propagated
+        assertEquals(expected = 1, actual = inflow.cached(), "New item is loaded")
     }
 
     @Test
@@ -77,13 +96,49 @@ class RefreshTest : BaseTest() {
         inflow.refresh()
 
         assertEquals(expected = 0, inflow.cached(), "First value loaded")
-        assertFalse(inflow.isIdle(), "Still in progress")
+        assertTrue(inflow.refreshState().first() is Loading, "Still in progress")
         delay(100L)
         assertEquals(expected = 1, inflow.cached(), "Second value loaded")
     }
 
+
     @Test
-    fun `IF refresh with Repeat THEN loading is repeated`() = runTest {
+    fun `IF refresh with RefreshIfExpired THEN loading is triggered only if expired`() = runTest {
+        val inflow = testInflow {
+            data(initial = -1) { 0 }
+            expiration(Expires.after(50L) { now() })
+            keepCacheSubscribedTimeout(0L)
+        }
+
+        val item1 = inflow.refreshIfExpired().await()
+        assertEquals(expected = -1, actual = item1, "Cached item is returned as-is")
+
+        val item2 = inflow.refreshIfExpired(expiresIn = 100L).await()
+        assertEquals(expected = 0, actual = item2, "New item is loaded")
+    }
+
+    @Test
+    fun `IF RefreshIfExpired with negative value THEN error`() = runTest {
+        assertFailsWith<IllegalArgumentException> {
+            LoadParam.RefreshIfExpired(-1L)
+        }
+    }
+
+    @Test
+    fun `IF refresh with RefreshIfExpired has error THEN error is thrown by await()`() = runTest {
+        val inflow = testInflow {
+            data(initial = null) { throw RuntimeException() }
+            keepCacheSubscribedTimeout(0L)
+        }
+
+        assertFailsWith<RuntimeException> {
+            inflow.fresh()
+        }
+    }
+
+
+    @Test
+    fun `IF refresh with RefreshForced THEN loading is repeated`() = runTest {
         val inflow = testInflow {
             var count = 0
             data(initial = null) { delay(100L); count++ }
@@ -93,7 +148,7 @@ class RefreshTest : BaseTest() {
 
         // Forcing second refresh
         delay(50L)
-        inflow.refresh(Repeat)
+        inflow.refreshForced()
 
         assertNull(inflow.cached(), "Starts with null")
 
@@ -111,62 +166,9 @@ class RefreshTest : BaseTest() {
     }
 
     @Test
-    fun `IF refresh with IfExpiresIn THEN loading is triggered only if expired`() = runTest {
-        val inflow = testInflow {
-            data(initial = -1) { 0 }
-            expiration(Expires.after(50L) { now() })
-            keepCacheSubscribedTimeout(0L)
-        }
-
-        val item1 = inflow.refreshIfExpired().await()
-        assertEquals(expected = -1, actual = item1, "Cached item is returned as-is")
-
-        val item2 = inflow.refreshIfExpired(expiresIn = 100L).await()
-        assertEquals(expected = 0, actual = item2, "New item is loaded")
-    }
-
-    @Test
-    fun `IF IfExpiresIn with negative value THEN error`() = runTest {
-        assertFailsWith<IllegalArgumentException> {
-            RefreshParam.IfExpiresIn(-1L)
-        }
-    }
-
-    @Test
-    fun `IF refresh with IfExpiresIn has error THEN error is thrown by await()`() = runTest {
-        val inflow = testInflow {
-            data(initial = null) { throw RuntimeException() }
-            keepCacheSubscribedTimeout(0L)
-        }
-
-        assertFailsWith<RuntimeException> {
-            inflow.fresh()
-        }
-    }
-
-
-    @Test
-    fun `IF refresh is called with blocking loader THEN data is loaded`() = runReal {
-        val inflow = inflow<Int> {
-            data(initial = 0) {
-                @Suppress("BlockingMethodInNonBlockingContext")
-                Thread.sleep(50L)
-                1
-            }
-            keepCacheSubscribedTimeout(0L)
-        }
-
-        inflow.refresh().join()
-
-        delay(10L) // We have to delay to ensure cache data is propagated
-        assertEquals(expected = 1, actual = inflow.cached(), "New item is loaded")
-    }
-
-
-    @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF refresh with Repeat and await() THEN all waiters get same result`() = runReal {
+    fun `IF refresh with RefreshForced and await() THEN all waiters get same result`() = runReal {
         val loads = AtomicInt()
         val inflow = inflow<Int> {
             data(initial = -1) { delay(100L); loads.getAndIncrement() }
@@ -175,7 +177,7 @@ class RefreshTest : BaseTest() {
 
         var commonResult: Int? = null
         runStressTest {
-            val result = inflow.forceRefresh().await()
+            val result = inflow.refreshForced().await()
             synchronized(inflow) { if (commonResult == null) commonResult = result }
             // All waiters should receive the latest loaded item
             assertEquals(commonResult, result, "All waiters get same result")

@@ -9,6 +9,8 @@ import inflow.Inflow
 import inflow.MemoryCacheWriter
 import inflow.cache
 import inflow.cached
+import inflow.data
+import inflow.refresh
 import inflow.utils.catchScopeException
 import inflow.utils.runTest
 import inflow.utils.testDispatcher

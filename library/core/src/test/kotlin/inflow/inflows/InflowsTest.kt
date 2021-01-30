@@ -9,6 +9,7 @@ import inflow.InflowsConfig
 import inflow.cached
 import inflow.inflows
 import inflow.inflowsCache
+import inflow.refresh
 import inflow.utils.runTest
 import inflow.utils.testDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi

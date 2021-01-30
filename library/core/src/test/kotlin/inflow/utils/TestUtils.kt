@@ -6,10 +6,9 @@ package inflow.utils
 
 import inflow.Inflow
 import inflow.InflowConfig
-import inflow.Progress
 import inflow.STRESS_RUNS
+import inflow.State
 import inflow.inflow
-import inflow.loading
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -19,7 +18,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScope
@@ -61,10 +59,10 @@ val TestCoroutineScope.testDispatcher: CoroutineDispatcher
     get() = coroutineContext[ContinuationInterceptor] as CoroutineDispatcher
 
 
-internal suspend fun Flow<Progress>.track(tracker: TestTracker) {
+internal suspend fun Flow<State>.track(tracker: TestTracker) {
     collect {
-        if (it === Progress.Active) tracker.active++
-        if (it === Progress.Idle) tracker.idle++
+        if (it is State.Loading) tracker.active++
+        if (it is State.Idle) tracker.idle++
     }
 }
 
@@ -72,10 +70,6 @@ internal data class TestTracker(
     var active: Int = 0,
     var idle: Int = 0
 )
-
-internal suspend fun Inflow<*>.isIdle(): Boolean = !loading().first()
-
-internal suspend fun Flow<Progress>.waitIdle() = first { it === Progress.Idle }
 
 
 /**

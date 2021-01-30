@@ -6,17 +6,21 @@ package inflow.inflows
 
 import inflow.BaseTest
 import inflow.Inflow
-import inflow.Progress
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
+import inflow.State
+import inflow.State.Idle
+import inflow.State.Loading
 import inflow.asInflow
 import inflow.cached
+import inflow.data
 import inflow.inflowsCache
+import inflow.refresh
+import inflow.refreshState
 import inflow.utils.runReal
 import inflow.utils.runStressTest
 import inflow.utils.runTest
 import inflow.utils.testDispatcher
-import inflow.utils.waitIdle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -61,49 +65,24 @@ class InflowsCombinedTest : BaseTest() {
     @Test
     fun `IF combined inflow THEN progress states are combined`() = runTest { job ->
         val inflow = combinedInflow()
-        val result = mutableListOf<Progress>()
+        val result = mutableListOf<State>()
         launch(job) {
-            inflow.progress().collect { result += it }
+            inflow.refreshState().collect { result += it }
         }
 
-        // Waiting for 0, 1, 2 params (which should be collected as a single Idle event)
+        // Waiting for 0, 100, 200 params
         delay(201L)
 
-        // Calling refresh to have Active + Idle events
+        // Calling refresh to have a loading event
         inflow.refresh()
 
-        val expected = listOf(Progress.Idle, Progress.Active, Progress.Idle)
+        val expected = listOf(Idle.Initial, Loading.Started, Idle.Success)
         assertEquals(expected, result, "Progress states are combined")
-    }
-
-    @Test
-    fun `IF combined inflow THEN errors are combined`() = runTest { job ->
-        val exception = RuntimeException()
-        val inflow = combinedInflow(loader = { throw exception })
-        val result = mutableListOf<Throwable?>()
-        launch(job) {
-            inflow.error().collect { result += it }
-        }
-
-        // Waiting for 0, 1, 2 params (which should have no errors)
-        delay(201L)
-
-        // Calling refresh to have an error
-        inflow.refresh()
-
-        // Waiting for 3 param (which should have no errors)
-        delay(100L)
-
-        // Expecting that first 3 subsequent `nulls` are collapsed into one
-        val expected = listOf<Throwable?>(null, exception, null)
-        assertEquals(expected, result, "Errors are combined")
     }
 
     @Test
     fun `IF combined inflow THEN can join the refresh`() = runTest {
         val inflow = combinedInflow()
-        delay(201L)
-
         inflow.refresh().join()
         assertEquals(expected = 1, inflow.cached(), "Data for param 0 is refreshed")
     }
@@ -111,7 +90,6 @@ class InflowsCombinedTest : BaseTest() {
     @Test
     fun `IF combined inflow THEN can await the refresh`() = runTest {
         val inflow = combinedInflow()
-
         val item = inflow.refresh().await()
         assertEquals(expected = 1, item, "Data for param 0 is refreshed")
     }
@@ -170,9 +148,8 @@ class InflowsCombinedTest : BaseTest() {
 
         runStressTest { i ->
             if (i % 100 == 0) params.value++
-            inflow.data().first()
-            inflow.error().first()
-            inflow.progress().waitIdle()
+            inflow.data().first { it != null }
+            inflow.refreshState().first { it is Idle }
         }
 
         inflow.data().first { it != null }
@@ -181,6 +158,10 @@ class InflowsCombinedTest : BaseTest() {
     }
 
 
+    /**
+     * Returns an inflow built on top of (0, 100, 200, ...) params sequence that emits every 100ms.
+     * Calling "refresh" on resulting inflow will increase the param by one, e.g. (201, 202, ...).
+     */
     private fun TestCoroutineScope.combinedInflow(
         loader: (Int) -> Int = { it }
     ): Inflow<Int> {

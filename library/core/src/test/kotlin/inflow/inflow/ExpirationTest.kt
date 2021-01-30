@@ -7,6 +7,7 @@ package inflow.inflow
 import inflow.BaseTest
 import inflow.Expires
 import inflow.cached
+import inflow.data
 import inflow.inflow
 import inflow.utils.now
 import inflow.utils.runReal

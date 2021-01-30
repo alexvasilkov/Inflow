@@ -5,9 +5,9 @@
 package inflow.operators
 
 import inflow.BaseTest
-import inflow.Progress
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
+import inflow.State
 import inflow.internal.Loader
 import inflow.utils.AtomicInt
 import inflow.utils.log
@@ -47,7 +47,7 @@ class LoaderStressTest : BaseTest() {
     fun `IF repeatIfRunning=true and await() THEN finishes with no deadlocks`() = runReal {
         val loader = Loader(logId, this, Dispatchers.Default) {}
         runStressTest { loader.load(repeatIfRunning = true).await() }
-        assertSame(Progress.Idle, loader.progress.value, "Finished")
+        assertSame(State.Idle.Success, loader.state.value, "Finished")
     }
 
 }

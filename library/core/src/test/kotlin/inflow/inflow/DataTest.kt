@@ -6,6 +6,7 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.MemoryCacheWriter
+import inflow.data
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi

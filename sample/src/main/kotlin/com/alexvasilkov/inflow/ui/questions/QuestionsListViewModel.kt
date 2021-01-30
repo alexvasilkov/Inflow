@@ -6,9 +6,14 @@ import com.alexvasilkov.inflow.model.Question
 import com.alexvasilkov.inflow.model.QuestionsQuery
 import com.alexvasilkov.inflow.ui.ext.stateField
 import inflow.Inflow
+import inflow.State
+import inflow.State.Idle
+import inflow.State.Loading
 import inflow.cache
-import inflow.loading
-import inflow.unhandledError
+import inflow.data
+import inflow.refresh
+import inflow.refreshError
+import inflow.refreshState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -37,25 +42,25 @@ class QuestionsListViewModel(
     // While collecting this flow the loading and refresh API calls will be made automatically
     val list: Flow<List<Question>?> = questions.data()
 
-    val state: Flow<State> = questions.state()
+    val state: Flow<UiState> = questions.uiState()
 
-    val errorMessage: Flow<Throwable> = questions.unhandledError()
+    val errorMessage: Flow<Throwable> = questions.refreshError()
 
     fun refresh() = questions.refresh()
 
 
-    private fun <T> Inflow<List<T>?>.state() = combine(cache(), loading(), error(), ::newState)
+    private fun <T> Inflow<List<T>?>.uiState() = combine(cache(), refreshState(), ::newState)
         // The new data can arrive earlier than `loading = false` event, we want the UI to skip
         // showing unnecessary "refreshState" right after "loadingState" in this case
         .distinctUntilChanged { old, new -> old.loading && new.refresh }
 
-    private fun newState(list: List<*>?, loading: Boolean, error: Throwable?): State = when {
-        list == null -> State(loading = error == null, error = error != null)
-        list.isEmpty() -> State(loading = loading, empty = !loading)
-        else -> State(refresh = loading)
+    private fun newState(list: List<*>?, state: State): UiState = when {
+        list == null -> UiState(loading = state is Loading, error = state is Idle.Error)
+        list.isEmpty() -> UiState(loading = state is Loading, empty = state !is Loading)
+        else -> UiState(refresh = state is Loading)
     }
 
-    class State(
+    class UiState(
         val empty: Boolean = false,
         val loading: Boolean = false,
         val refresh: Boolean = false,

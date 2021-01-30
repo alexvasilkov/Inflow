@@ -1,7 +1,7 @@
 package inflow.internal
 
 import inflow.LoadTracker
-import inflow.Progress
+import inflow.State
 import inflow.utils.doOnCancel
 import inflow.utils.log
 import kotlinx.atomicfu.atomic
@@ -21,15 +21,14 @@ internal class Loader(
     private val dispatcher: CoroutineDispatcher,
     private val action: suspend (LoadTracker) -> Unit
 ) {
-    private val _progress = MutableStateFlow<Progress>(Progress.Idle)
-    val progress = _progress.asStateFlow()
-
-    private val _error = MutableStateFlow(ErrorWrapper(null, 0))
-    val error = _error.asStateFlow()
+    private val _state = MutableStateFlow<State>(State.Idle.Initial)
+    val state = _state.asStateFlow()
 
     private val prevJobRef = atomic<DeferredWithState?>(null)
     private val jobRef = atomic<DeferredWithState?>(null)
-    private val errorLastId = atomic(0)
+
+    private val errorId = atomic(0)
+    private val errorIdHandled = atomic(-1)
 
     fun load(repeatIfRunning: Boolean): CompletableDeferred<Unit> {
         // Fast path to return already running job without extra objects allocation
@@ -103,8 +102,7 @@ internal class Loader(
         // We can do the actual work here without worrying about race conditions
         var caughtError: Throwable?
 
-        _progress.value = Progress.Active
-        _error.value = ErrorWrapper(null, errorLastId.incrementAndGet()) // Clearing before load
+        _state.value = State.Loading.Started
 
         while (true) {
             job.skipRepeat()
@@ -129,10 +127,25 @@ internal class Loader(
             if (job.setFinishingIfNoRepeat()) break
         }
 
-        _error.value = ErrorWrapper(caughtError, errorLastId.incrementAndGet())
-        _progress.value = Progress.Idle
+        _state.value = when (caughtError) {
+            null -> State.Idle.Success
+            else -> State.Idle.Error(caughtError, errorId.incrementAndGet(), ::markHandled)
+        }
 
         return caughtError
+    }
+
+    private fun markHandled(error: State.Idle.Error): Boolean {
+        while (true) {
+            val handledId = errorIdHandled.value
+            if (error.id > handledId) {
+                val set = errorIdHandled.compareAndSet(expect = handledId, update = error.id)
+                if (!set) continue // Race condition, trying again
+                return true
+            }
+            break
+        }
+        return false
     }
 
 
@@ -143,8 +156,8 @@ internal class Loader(
             isActive = false
         }
 
-        override fun state(current: Double, total: Double) {
-            if (isActive) _progress.tryEmit(Progress.State(current, total))
+        override fun progress(current: Double, total: Double) {
+            if (isActive) _state.tryEmit(State.Loading.Progress(current, total))
         }
     }
 
@@ -194,5 +207,3 @@ internal class DeferredWithState {
     }
 
 }
-
-internal class ErrorWrapper(val throwable: Throwable?, val id: Int)

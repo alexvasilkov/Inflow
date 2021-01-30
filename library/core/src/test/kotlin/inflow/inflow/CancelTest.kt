@@ -6,9 +6,11 @@ package inflow.inflow
 
 import inflow.BaseTest
 import inflow.Inflow
-import inflow.RefreshParam
+import inflow.LoadParam
 import inflow.cache
-import inflow.forceRefresh
+import inflow.data
+import inflow.refresh
+import inflow.refreshForced
 import inflow.utils.runTest
 import inflow.utils.testInflow
 import kotlinx.coroutines.CancellationException
@@ -120,8 +122,8 @@ class CancelTest : BaseTest() {
         inflow.refresh()
         assertFalse(loaderCalled, "Loader is not called after refresh")
 
-        inflow.forceRefresh()
-        assertFalse(loaderCalled, "Loader is not called after forceRefresh")
+        inflow.refreshForced()
+        assertFalse(loaderCalled, "Loader is not called after refreshForced")
     }
 
     @Test
@@ -143,11 +145,11 @@ class CancelTest : BaseTest() {
 
     @Test
     fun `IF scope is cancelled THEN refresh await() is cancelled`() {
-        testAwaitIsCancelled()
-        testAwaitIsCancelled(RefreshParam.IfExpiresIn(0L))
+        testAwaitIsCancelled(LoadParam.Refresh)
+        testAwaitIsCancelled(LoadParam.RefreshIfExpired(0L))
     }
 
-    private fun testAwaitIsCancelled(vararg params: RefreshParam) = runTest { job ->
+    private fun testAwaitIsCancelled(param: LoadParam) = runTest { job ->
         val scope = CoroutineScope(EmptyCoroutineContext)
         val inflow = testInflow {
             data(initial = null) { delay(100L); 0 }
@@ -158,7 +160,7 @@ class CancelTest : BaseTest() {
         var awaitCancelled = false
         launch(job) {
             try {
-                inflow.refresh(*params).await()
+                inflow.load(param).await()
             } catch (ce: CancellationException) {
                 awaitCancelled = true
             }

@@ -8,7 +8,10 @@ import inflow.BaseTest
 import inflow.Inflow
 import inflow.cache
 import inflow.cached
+import inflow.data
 import inflow.map
+import inflow.refresh
+import inflow.refreshState
 import inflow.utils.TestTracker
 import inflow.utils.runTest
 import inflow.utils.testInflow
@@ -19,13 +22,12 @@ import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertSame
 
 @ExperimentalCoroutinesApi
 class TransformTest : BaseTest() {
 
     @Test
-    fun `IF mapped THEN same progress state`() = runTest { job ->
+    fun `IF mapped THEN same loading state`() = runTest { job ->
         val inflow: Inflow<Int?> = testInflow {
             data(initial = null) { 0 }
         }
@@ -34,26 +36,15 @@ class TransformTest : BaseTest() {
         val trackerOrig = TestTracker()
         val trackerMapped = TestTracker()
 
-        launch(job) { inflow.progress().track(trackerOrig) }
-        launch(job) { mapped.progress().track(trackerMapped) }
+        launch(job) { inflow.refreshState().track(trackerOrig) }
+        launch(job) { mapped.refreshState().track(trackerMapped) }
 
         mapped.refresh()
         assertEquals(trackerOrig, trackerMapped, "Mapped inflow has same loading state")
     }
 
     @Test
-    fun `IF mapped THEN same error state`() = runTest {
-        val inflow: Inflow<Int?> = testInflow {
-            data(initial = null) { throw RuntimeException() }
-        }
-        val mapped: Inflow<String?> = inflow.map { it?.toString() }
-
-        mapped.refresh()
-        assertSame(inflow.error().first(), mapped.error().first(), "Mapped inflow has same error")
-    }
-
-    @Test
-    fun `IF mapped THEN mapped data`() = runTest {
+    fun `IF inflow is mapped THEN data is mapped`() = runTest {
         val inflow: Inflow<Int?> = testInflow {
             data(initial = null) { 0 }
         }

@@ -2,7 +2,6 @@ package inflow
 
 import inflow.internal.share
 import inflow.utils.doOnCancel
-import inflow.utils.noConsequentNulls
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -30,9 +29,9 @@ import kotlinx.coroutines.launch
  * be skipped and the new one will be tracked instead.*
  *
  * **Important**: parameters flow is expected to emit initial value immediately upon subscription,
- * otherwise resulting Inflow will not return any [data][Inflow.data], [progress][Inflow.progress]
- * or [error][Inflow.error] until first parameter is emitted. Use empty parameter as initial value
- * along with [emptyInflow] if there is no parameter expected in the beginning.
+ * otherwise resulting Inflow will not return any [data][Inflow.data] or [state][Inflow.state]
+ * until first parameter is emitted. Use empty parameter as initial value along with [emptyInflow]
+ * if there is no parameter expected in the beginning.
  *
  * [StateFlow] and [Inflow.data] are good candidates for parameters providers.
  *
@@ -165,21 +164,17 @@ private class InflowsCombined<P, T>(
         .distinctUntilChanged { old, new -> old === new } // Filtering duplicate Inflow instances
         .share(scope, dispatcher, 0L) // Sharing the flow to reuse params subscription
 
-    override fun data(vararg params: DataParam) = shared
-        .flatMapLatest { it.data(*params) }
+    override fun data(param: DataParam) = shared
+        .flatMapLatest { it.data(param) }
 
-    override fun progress() = shared
-        .flatMapLatest { it.progress() }
-        .distinctUntilChanged() // Avoiding [Idle, Idle] sequences
+    override fun state(param: StateParam) = shared
+        .flatMapLatest { it.state(param) }
+        .distinctUntilChanged()
 
-    override fun error(vararg params: ErrorParam) = shared
-        .flatMapLatest { it.error(*params) }
-        .noConsequentNulls()
-
-    override fun refresh(vararg params: RefreshParam): InflowDeferred<T> {
+    override fun load(param: LoadParam): InflowDeferred<T> {
         val deferred = DeferredDelegate<T>()
         val job = scope.launch(dispatcher) {
-            deferred.delegateTo(shared.first().refresh(*params))
+            deferred.delegateTo(shared.first().load(param))
         }
         // If scope is cancelled then we need to notify our deferred object
         job.doOnCancel(deferred::onCancelled)
@@ -204,7 +199,7 @@ private class DeferredDelegate<T> : InflowDeferred<T> {
 
     fun onCancelled(cause: CancellationException) {
         cancellationException.value = cause
-        notifier.cancel(cause)
+        notifier.complete()
     }
 
     override suspend fun await(): T {
@@ -215,7 +210,7 @@ private class DeferredDelegate<T> : InflowDeferred<T> {
 
     override suspend fun join() {
         notifier.join()
-        delegate.value!!.join()
+        delegate.value?.join()
     }
 
 }

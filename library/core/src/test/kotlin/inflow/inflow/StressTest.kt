@@ -7,14 +7,16 @@ package inflow.inflow
 import inflow.BaseTest
 import inflow.STRESS_TAG
 import inflow.STRESS_TIMEOUT
+import inflow.State.Idle
 import inflow.cache
-import inflow.forceRefresh
+import inflow.data
 import inflow.inflow
+import inflow.refresh
+import inflow.refreshForced
+import inflow.refreshState
 import inflow.utils.AtomicInt
-import inflow.utils.isIdle
 import inflow.utils.runReal
 import inflow.utils.runStressTest
-import inflow.utils.waitIdle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,7 +29,6 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
@@ -48,14 +49,9 @@ class StressTest : BaseTest() {
                 // Subscribing to start auto refresh
                 val job = launch { inflow.data().collect() }
 
-                // Waiting till the end
-                inflow.error().first { it != null }
-                inflow.progress().waitIdle()
-
+                // Waiting for error
+                inflow.refreshState().first { it is Idle.Error } as Idle.Error
                 job.cancel()
-
-                assertTrue(inflow.isIdle(), "Finished loading: $i/$j")
-                assertNotNull(inflow.error().first(), "Error is tracked: $i/$j")
             }
         }
     }
@@ -80,14 +76,14 @@ class StressTest : BaseTest() {
                 // Scheduling a new refresh, it will force extra refresh every second time
                 val job = launch {
                     delay(10L)
-                    (if (j % 2 == 1) inflow.forceRefresh() else inflow.refresh()).join()
+                    (if (j % 2 == 1) inflow.refreshForced() else inflow.refresh()).join()
                 }
 
                 inflow.refresh().await()
                 job.join()
                 inflow.cache().first { it != null }
 
-                assertTrue(inflow.isIdle(), "Loading is finished $i/$j")
+                assertTrue(inflow.refreshState().first() is Idle, "Loading is finished $i/$j")
             }
         }
     }
@@ -110,10 +106,7 @@ class StressTest : BaseTest() {
 
         runStressTest {
             inflow.data().first { it != null }
-            inflow.error().first { it == null }
-            inflow.progress().waitIdle()
-
-            assertTrue(inflow.isIdle(), "Loading finished")
+            inflow.refreshState().first { it is Idle }
         }
 
         assertEquals(expected = 0, actual = cacheState.get(), "Cache job is finished")

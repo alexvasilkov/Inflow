@@ -7,8 +7,9 @@ import com.alexvasilkov.inflow.databinding.TimeScreenBinding
 import com.alexvasilkov.inflow.ui.BaseActivity
 import com.alexvasilkov.inflow.ui.ext.whileStarted
 import inflow.Expires
+import inflow.data
 import inflow.inflow
-import inflow.loading
+import inflow.refreshing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -36,7 +37,7 @@ class TimeActivity : BaseActivity() {
 
         val formatter = SimpleDateFormat("HH:mm:ss", Locale.ENGLISH)
         time.data().whileStarted(this) { views.time.text = formatter.format(it) }
-        time.loading().whileStarted(this) { views.time.animate().alpha(if (it) 0f else 1f) }
+        time.refreshing().whileStarted(this) { views.time.animate().alpha(if (it) 0f else 1f) }
     }
 
 }

@@ -6,7 +6,7 @@ package inflow.operators
 
 import inflow.BaseTest
 import inflow.LoadTracker
-import inflow.Progress
+import inflow.State
 import inflow.internal.Loader
 import inflow.utils.TestTracker
 import inflow.utils.runTest
@@ -21,53 +21,32 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
-import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 @ExperimentalCoroutinesApi
 class LoaderTest : BaseTest() {
 
     @Test
-    fun `IF loaded THEN progress state is tracked`() = runTest {
+    fun `IF success THEN success state`() = runTest {
         val loader = createLoader { delay(100L) }
         loader.load(repeatIfRunning = false)
 
-        assertSame(Progress.Active, loader.progress.value, "In loading state")
+        assertSame(State.Loading.Started, loader.state.value, "In loading state")
         delay(100L)
-        assertSame(Progress.Idle, loader.progress.value, "Loading finished")
+        assertSame(State.Idle.Success, loader.state.value, "Loading finished")
     }
 
     @Test
-    fun `IF exception THEN progress state is tracked`() = runTest {
-        val loader = createLoader { delay(100L); throw RuntimeException() }
-        loader.load(repeatIfRunning = false)
-
-        assertSame(Progress.Active, loader.progress.value, "In loading state")
-        delay(100L)
-        assertSame(Progress.Idle, loader.progress.value, "Loading finished")
-    }
-
-    @Test
-    fun `IF exception THEN error is tracked`() = runTest {
+    fun `IF exception THEN error state`() = runTest {
         val exception = RuntimeException()
         val loader = createLoader { delay(100L); throw exception }
         loader.load(repeatIfRunning = false)
 
-        assertNull(loader.error.value.throwable, "No error in the beginning")
+        assertSame(State.Loading.Started, loader.state.value, "In loading state")
         delay(100L)
-        assertSame(expected = exception, actual = loader.error.value.throwable, "Error is sent")
-    }
-
-    @Test
-    fun `IF started THEN error is cleared`() = runTest {
-        val loader = createLoader { delay(100L); throw RuntimeException() }
-
-        loader.load(repeatIfRunning = false)
-        delay(100L)
-        assertNotNull(loader.error.value.throwable, "Error is detected")
-
-        loader.load(repeatIfRunning = false)
-        assertNull(loader.error.value.throwable, "Error is cleared on start")
+        val errorState = loader.state.value as? State.Idle.Error
+        assertNotNull(errorState, "In error state")
+        assertSame(expected = exception, actual = errorState.throwable, "Exception is tracked")
     }
 
 
@@ -92,10 +71,10 @@ class LoaderTest : BaseTest() {
         val loader = createLoader { delay(100L); throw RuntimeException() }
 
         val progressTracker = TestTracker()
-        launch(job) { loader.progress.track(progressTracker) }
+        launch(job) { loader.state.track(progressTracker) }
 
         var errorsCount = 0
-        launch(job) { loader.error.collect { if (it.throwable != null) errorsCount++ } }
+        launch(job) { loader.state.collect { if (it is State.Idle.Error) errorsCount++ } }
 
         // Launching regular refresh
         loader.load(repeatIfRunning = false)

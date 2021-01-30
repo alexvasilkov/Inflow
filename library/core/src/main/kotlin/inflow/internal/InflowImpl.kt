@@ -1,16 +1,18 @@
 package inflow.internal
 
 import inflow.DataParam
+import inflow.DataParam.AutoRefresh
 import inflow.DataParam.CacheOnly
-import inflow.ErrorParam
 import inflow.Inflow
 import inflow.InflowConfig
 import inflow.InflowDeferred
-import inflow.RefreshParam
-import inflow.RefreshParam.IfExpiresIn
+import inflow.LoadParam
+import inflow.LoadParam.Refresh
+import inflow.LoadParam.RefreshForced
+import inflow.LoadParam.RefreshIfExpired
+import inflow.StateParam
 import inflow.utils.doOnCancel
 import inflow.utils.log
-import inflow.utils.noConsequentNulls
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -19,7 +21,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -37,8 +38,6 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
     private val cacheDispatcher = config.cacheDispatcher
     private val loadDispatcher = config.loadDispatcher
     private val cacheExpiration = config.expiration
-
-    private val handledErrorId = atomic(-1)
 
     init {
         val dataFromConfig = requireNotNull(config.data) { "`data` (cache and loader) is required" }
@@ -90,63 +89,48 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         }
     }
 
-    override fun data(vararg params: DataParam) = if (params.contains(CacheOnly)) cache else auto
-
-    override fun progress() = loader.progress
-
-    override fun error(vararg params: ErrorParam): Flow<Throwable?> {
-        val skipIfCollected = params.contains(ErrorParam.SkipIfCollected)
-        return loader.error
-            .map(if (skipIfCollected) ::handleError else ::unwrapError)
-            .noConsequentNulls()
+    override fun data(param: DataParam) = when (param) {
+        AutoRefresh -> auto
+        CacheOnly -> cache
     }
 
-    @Suppress("RedundantSuspendModifier")
-    private suspend fun unwrapError(error: ErrorWrapper): Throwable? = error.throwable
+    override fun state(param: StateParam) = loader.state
 
-    @Suppress("RedundantSuspendModifier")
-    private suspend fun handleError(error: ErrorWrapper): Throwable? {
-        val handledId = handledErrorId.value
-        return if (error.id > handledId) {
-            val set = handledErrorId.compareAndSet(expect = handledId, update = error.id)
-            if (set) error.throwable else null
-        } else {
-            null
-        }
-    }
-
-    override fun refresh(vararg params: RefreshParam): InflowDeferred<T> {
-        val ifExpiresIn = params.find { it is IfExpiresIn } as IfExpiresIn?
-        val repeatIfRunning = params.contains(RefreshParam.Repeat)
-
+    override fun load(param: LoadParam): InflowDeferred<T> {
         val deferred = DeferredDelegate()
-        if (ifExpiresIn != null) {
-            // We need to request latest cached value first to check its expiration
-            val job = scope.launch(cacheDispatcher) {
-                // Getting cached value, it won't trigger extra cache read if already subscribed.
-                // If scope is cancelled while we're waiting for the cache then shared cache
-                // should throw cancellation exception.
-                val cached = cache.first()
 
-                if (cacheExpiration.expiresIn(cached) > ifExpiresIn.expiresIn) {
-                    // Not expired, returning cached value as is
-                    deferred.onValue(cached)
-                } else {
-                    // Expired, requesting refresh
-                    deferred.delegateToLoader(loader.load(repeatIfRunning))
+        when (param) {
+            Refresh -> deferred.delegateToLoader(loader.load(repeatIfRunning = false))
+
+            RefreshForced -> deferred.delegateToLoader(loader.load(repeatIfRunning = true))
+
+            is RefreshIfExpired -> {
+                // We need to request latest cached value first to check its expiration
+                val job = scope.launch(cacheDispatcher) {
+                    // Getting cached value, it won't trigger extra cache read if already subscribed.
+                    // If scope is cancelled while we're waiting for the cache then shared cache
+                    // should throw cancellation exception.
+                    val cached = cache.first()
+
+                    if (cacheExpiration.expiresIn(cached) > param.expiresIn) {
+                        // Not expired, returning cached value as is
+                        deferred.onValue(cached)
+                    } else {
+                        // Expired, requesting refresh
+                        deferred.delegateToLoader(loader.load(repeatIfRunning = false))
+                    }
                 }
+                // If scope is cancelled then we need to notify our deferred object
+                job.doOnCancel(deferred::onCancelled)
             }
-            // If scope is cancelled then we need to notify our deferred object
-            job.doOnCancel(deferred::onCancelled)
-        } else {
-            deferred.delegateToLoader(loader.load(repeatIfRunning))
         }
+
         return deferred
     }
 
 
     // A deferred implementation that can delegate either to actual value / error or to
-    // loader's deferred result (in which case the result will be requested from cache explicitly)
+// loader's deferred result (in which case the result will be requested from cache explicitly)
     private inner class DeferredDelegate : InflowDeferred<T> {
         private val delegateLoader = atomic<CompletableDeferred<Unit>?>(null)
         private val delegateData = atomic<CompletableDeferred<T>?>(null)

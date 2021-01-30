@@ -5,8 +5,9 @@ import com.alexvasilkov.inflow.data.StackExchangeAuth
 import com.alexvasilkov.inflow.data.StackExchangeRepo
 import com.alexvasilkov.inflow.model.Profile
 import inflow.Inflow
-import inflow.loading
-import inflow.unhandledError
+import inflow.data
+import inflow.refreshError
+import inflow.refreshing
 import kotlinx.coroutines.flow.Flow
 
 class ProfileViewModel(
@@ -23,9 +24,9 @@ class ProfileViewModel(
     // While collecting this flow the loading and refresh API calls will be made automatically
     val profile: Flow<Profile?> = profileInflow.data()
 
-    val loading: Flow<Boolean> = profileInflow.loading()
+    val loading: Flow<Boolean> = profileInflow.refreshing()
 
-    val error: Flow<Throwable> = profileInflow.unhandledError()
+    val error: Flow<Throwable> = profileInflow.refreshError()
 
     fun logout(): Unit = auth.logout()
 
