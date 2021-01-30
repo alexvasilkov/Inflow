@@ -4,12 +4,12 @@
 
 package inflow.operators
 
-import inflow.BaseTest
 import inflow.Expires
+import inflow.base.BaseTest
+import inflow.base.runReal
+import inflow.base.runTest
 import inflow.internal.emptyIfInvalid
 import inflow.utils.now
-import inflow.utils.runReal
-import inflow.utils.runTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first

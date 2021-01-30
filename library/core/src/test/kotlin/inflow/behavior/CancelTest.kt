@@ -2,17 +2,17 @@
     "NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING", "NO_EXPLICIT_RETURN_TYPE_IN_API_MODE_WARNING"
 )
 
-package inflow.inflow
+package inflow.behavior
 
-import inflow.BaseTest
 import inflow.Inflow
 import inflow.LoadParam
+import inflow.base.BaseTest
+import inflow.base.runTest
+import inflow.base.testInflow
 import inflow.cache
 import inflow.data
 import inflow.refresh
 import inflow.refreshForced
-import inflow.utils.runTest
-import inflow.utils.testInflow
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi

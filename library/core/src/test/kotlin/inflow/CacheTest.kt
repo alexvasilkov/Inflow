@@ -1,34 +1,34 @@
 @file:Suppress("NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING")
 
-package inflow.inflows
+package inflow
 
-import inflow.BaseTest
-import inflow.inflowsCache
+import inflow.base.BaseTest
+import inflow.internal.CacheImpl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
-class InflowsCacheTest : BaseTest() {
+class CacheTest : BaseTest() {
 
     @Test
     fun `IF max size is less than 1 THEN exception`() {
         assertFailsWith<IllegalArgumentException> {
-            inflowsCache<Unit, Unit>(maxSize = 0)
+            newCache<Unit, Unit>(maxSize = 0)
         }
     }
 
     @Test
     fun `IF max size is negative THEN exception`() {
         assertFailsWith<IllegalArgumentException> {
-            inflowsCache<Unit, Unit>(expireAfterAccess = -1L)
+            newCache<Unit, Unit>(expireAfterAccess = -1L)
         }
     }
 
     @Test
     fun `IF item is cached THEN no new item is created for same key`() {
-        val cache = inflowsCache<Int, Int>()
+        val cache = newCache<Int, Int>()
 
         cache.get(0) { it }
 
@@ -40,7 +40,7 @@ class InflowsCacheTest : BaseTest() {
 
     @Test
     fun `IF max size is 1 THEN old item is removed when new one is added`() {
-        val cache = inflowsCache<Int, Int>(maxSize = 1)
+        val cache = newCache<Int, Int>(maxSize = 1)
 
         var removed: Int? = null
         cache.doOnRemove { removed = it }
@@ -54,7 +54,7 @@ class InflowsCacheTest : BaseTest() {
 
     @Test
     fun `IF expireAfterAccess is used THEN expired items are removed`() {
-        val cache = inflowsCache<Int, Int>(expireAfterAccess = 10L)
+        val cache = newCache<Int, Int>(expireAfterAccess = 10L)
 
         var removed: Int? = null
         cache.doOnRemove { removed = it }
@@ -72,7 +72,7 @@ class InflowsCacheTest : BaseTest() {
 
     @Test
     fun `IF clear is called THEN cached items are removed`() {
-        val cache = inflowsCache<Int, Int>()
+        val cache = newCache<Int, Int>()
 
         cache.get(0) { it }
         cache.get(1) { it }
@@ -84,5 +84,9 @@ class InflowsCacheTest : BaseTest() {
 
         assertEquals(expected = listOf(0, 1), actual = removed, "All items are removed")
     }
+
+
+    private fun <K, V> newCache(maxSize: Int = 10, expireAfterAccess: Long = 0L) =
+        CacheImpl<K, V>(maxSize, expireAfterAccess)
 
 }

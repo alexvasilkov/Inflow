@@ -2,12 +2,14 @@
     "NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING", "NO_EXPLICIT_RETURN_TYPE_IN_API_MODE_WARNING"
 )
 
-package inflow.inflow
+package inflow.behavior
 
-import inflow.BaseTest
-import inflow.STRESS_TAG
-import inflow.STRESS_TIMEOUT
 import inflow.State.Idle
+import inflow.base.BaseTest
+import inflow.base.STRESS_TAG
+import inflow.base.STRESS_TIMEOUT
+import inflow.base.runReal
+import inflow.base.runStressTest
 import inflow.cache
 import inflow.data
 import inflow.inflow
@@ -15,8 +17,6 @@ import inflow.refresh
 import inflow.refreshForced
 import inflow.refreshState
 import inflow.utils.AtomicInt
-import inflow.utils.runReal
-import inflow.utils.runStressTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow

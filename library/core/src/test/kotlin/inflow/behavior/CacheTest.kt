@@ -2,19 +2,19 @@
     "NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING", "NO_EXPLICIT_RETURN_TYPE_IN_API_MODE_WARNING"
 )
 
-package inflow.inflow
+package inflow.behavior
 
-import inflow.BaseTest
 import inflow.Inflow
 import inflow.MemoryCacheWriter
+import inflow.base.BaseTest
+import inflow.base.catchScopeException
+import inflow.base.runTest
+import inflow.base.testDispatcher
+import inflow.base.testInflow
 import inflow.cache
 import inflow.cached
 import inflow.data
 import inflow.refresh
-import inflow.utils.catchScopeException
-import inflow.utils.runTest
-import inflow.utils.testDispatcher
-import inflow.utils.testInflow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job

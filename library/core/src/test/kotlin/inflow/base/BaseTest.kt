@@ -2,8 +2,9 @@
     "NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING", "NO_EXPLICIT_RETURN_TYPE_IN_API_MODE_WARNING"
 )
 
-package inflow
+package inflow.base
 
+import inflow.Connectivity
 import inflow.utils.InflowLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.test.BeforeTest

@@ -2,25 +2,17 @@
     "NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING", "NO_EXPLICIT_RETURN_TYPE_IN_API_MODE_WARNING"
 )
 
-package inflow.inflows
+package inflow
 
-import inflow.BaseTest
-import inflow.Inflow
-import inflow.STRESS_TAG
-import inflow.STRESS_TIMEOUT
-import inflow.State
 import inflow.State.Idle
 import inflow.State.Loading
-import inflow.asInflow
-import inflow.cached
-import inflow.data
-import inflow.inflowsCache
-import inflow.refresh
-import inflow.refreshState
-import inflow.utils.runReal
-import inflow.utils.runStressTest
-import inflow.utils.runTest
-import inflow.utils.testDispatcher
+import inflow.base.BaseTest
+import inflow.base.STRESS_TAG
+import inflow.base.STRESS_TIMEOUT
+import inflow.base.runReal
+import inflow.base.runStressTest
+import inflow.base.runTest
+import inflow.base.testDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,18 +34,18 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
-class InflowsCombinedTest : BaseTest() {
+class InflowParamTest : BaseTest() {
 
     @Test
-    fun `IF combined inflow with no factory THEN error`() = runTest {
+    fun `IF parametrized inflow with no factory THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
             flowOf(0).asInflow<Int, Int> {}
         }
     }
 
     @Test
-    fun `IF combined inflow THEN data outputs are combined`() = runTest { job ->
-        val inflow = combinedInflow()
+    fun `IF parametrized inflow THEN data outputs are combined`() = runTest { job ->
+        val inflow = parametrizedInflow()
         val result = mutableListOf<Int>()
         launch(job) {
             inflow.data().collect { result += it }
@@ -63,8 +55,8 @@ class InflowsCombinedTest : BaseTest() {
     }
 
     @Test
-    fun `IF combined inflow THEN progress states are combined`() = runTest { job ->
-        val inflow = combinedInflow()
+    fun `IF parametrized inflow THEN progress states are combined`() = runTest { job ->
+        val inflow = parametrizedInflow()
         val result = mutableListOf<State>()
         launch(job) {
             inflow.refreshState().collect { result += it }
@@ -81,28 +73,28 @@ class InflowsCombinedTest : BaseTest() {
     }
 
     @Test
-    fun `IF combined inflow THEN can join the refresh`() = runTest {
-        val inflow = combinedInflow()
+    fun `IF parametrized inflow THEN can join the refresh`() = runTest {
+        val inflow = parametrizedInflow()
         inflow.refresh().join()
         assertEquals(expected = 1, inflow.cached(), "Data for param 0 is refreshed")
     }
 
     @Test
-    fun `IF combined inflow THEN can await the refresh`() = runTest {
-        val inflow = combinedInflow()
+    fun `IF parametrized inflow THEN can await the refresh`() = runTest {
+        val inflow = parametrizedInflow()
         val item = inflow.refresh().await()
         assertEquals(expected = 1, item, "Data for param 0 is refreshed")
     }
 
     @Test
-    fun `IF combined inflow AND small cache THEN new inflow created again`() = runTest { job ->
+    fun `IF parametrized inflow AND small cache THEN new inflow created again`() = runTest { job ->
         var count = 0
         val inflow = flowOf(0, 1, 0).asInflow<Int, Int> {
             builder {
                 count++
                 data(cache = flowOf(0), loader = {})
             }
-            cache(inflowsCache(maxSize = 1))
+            cache(Cache.build(maxSize = 1))
             dispatcher(testDispatcher)
         }
 
@@ -112,7 +104,7 @@ class InflowsCombinedTest : BaseTest() {
     }
 
     @Test
-    fun `IF combined inflow AND custom scope THEN can cancel the scope`() = runTest { job ->
+    fun `IF parametrized inflow AND custom scope THEN can cancel the scope`() = runTest { job ->
         val scope = CoroutineScope(EmptyCoroutineContext)
         val inflow = flowOf(0, 1, 0).asInflow<Int, Int> {
             builder {
@@ -138,7 +130,7 @@ class InflowsCombinedTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF combined inflow observed from several threads THEN no deadlocks`() = runReal {
+    fun `IF parametrized inflow observed from several threads THEN no deadlocks`() = runReal {
         val params = MutableStateFlow(0)
         val inflow = params.asInflow<Int, Int?> {
             builder { param ->
@@ -162,7 +154,7 @@ class InflowsCombinedTest : BaseTest() {
      * Returns an inflow built on top of (0, 100, 200, ...) params sequence that emits every 100ms.
      * Calling "refresh" on resulting inflow will increase the param by one, e.g. (201, 202, ...).
      */
-    private fun TestCoroutineScope.combinedInflow(
+    private fun TestCoroutineScope.parametrizedInflow(
         loader: (Int) -> Int = { it }
     ): Inflow<Int> {
         val params = flow {

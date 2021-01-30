@@ -9,6 +9,7 @@ import kotlin.math.min
  * own sub-states, e.g. error is represented by [Idle.Error].
  */
 public sealed class State {
+
     public sealed class Idle : State() {
         /**
          * Initial state, data loading never started yet.
@@ -59,4 +60,5 @@ public sealed class State {
                 if (total > 0.0 && current >= 0.0) min(current / total, 1.0) else 0.0
         }
     }
+
 }

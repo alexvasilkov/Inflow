@@ -1,5 +1,6 @@
 package inflow
 
+import inflow.internal.InflowsImpl
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /**
@@ -70,7 +71,7 @@ public class InflowsConfig<P, T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var cache: InflowsCache<P, Inflow<T>>? = null
+    internal var cache: Cache<P, Inflow<T>>? = null
 
     /**
      * A factory to build a new [Inflow] for particular parameter on demand.
@@ -107,26 +108,10 @@ public class InflowsConfig<P, T> internal constructor() {
     /**
      * Cache implementation to control how many [Inflow] instances can be stored in memory for
      * faster access.
-     * Default implementation keeps up to 10 Inflow instances in memory, see [inflowsCache].
+     * Default implementation keeps up to 10 Inflow instances in memory, see [Cache.build].
      */
-    public fun cache(cache: InflowsCache<P, Inflow<T>>) {
+    public fun cache(cache: Cache<P, Inflow<T>>) {
         this.cache = cache
     }
-
-}
-
-
-/**
- * Simple [Inflows] implementation that creates new [Inflow]s using provided
- * [InflowsConfig.factory] and caches them using [InflowsConfig.cache].
- */
-private class InflowsImpl<P, T>(config: InflowsConfig<P, T>) : Inflows<P, T> {
-
-    private val factory = requireNotNull(config.factory) { "Inflows factory is required" }
-    private val cache = config.cache ?: inflowsCache()
-
-    override fun get(param: P): Inflow<T> = cache.get(param, factory)
-
-    override fun clear() = cache.clear()
 
 }

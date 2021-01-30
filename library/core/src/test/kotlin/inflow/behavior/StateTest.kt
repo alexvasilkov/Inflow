@@ -2,15 +2,21 @@
     "NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING", "NO_EXPLICIT_RETURN_TYPE_IN_API_MODE_WARNING"
 )
 
-package inflow.inflow
+package inflow.behavior
 
-import inflow.BaseTest
 import inflow.DataParam.CacheOnly
 import inflow.LoadTracker
-import inflow.STRESS_TAG
-import inflow.STRESS_TIMEOUT
 import inflow.State.Idle
 import inflow.State.Loading
+import inflow.base.BaseTest
+import inflow.base.STRESS_TAG
+import inflow.base.STRESS_TIMEOUT
+import inflow.base.TestTracker
+import inflow.base.runReal
+import inflow.base.runStressTest
+import inflow.base.runTest
+import inflow.base.testInflow
+import inflow.base.track
 import inflow.data
 import inflow.inflow
 import inflow.refresh
@@ -18,12 +24,6 @@ import inflow.refreshError
 import inflow.refreshForced
 import inflow.refreshState
 import inflow.refreshing
-import inflow.utils.TestTracker
-import inflow.utils.runReal
-import inflow.utils.runStressTest
-import inflow.utils.runTest
-import inflow.utils.testInflow
-import inflow.utils.track
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

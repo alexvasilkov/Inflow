@@ -4,10 +4,10 @@
 
 package inflow.operators
 
-import inflow.BaseTest
 import inflow.Connectivity
+import inflow.base.BaseTest
+import inflow.base.runTest
 import inflow.internal.asSignalingFlow
-import inflow.utils.runTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -1,3 +1,15 @@
+public abstract interface class inflow/Cache {
+	public static final field Companion Linflow/Cache$Companion;
+	public abstract fun clear ()V
+	public abstract fun doOnRemove (Lkotlin/jvm/functions/Function1;)V
+	public abstract fun get (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+}
+
+public final class inflow/Cache$Companion {
+	public final fun build (IJ)Linflow/Cache;
+	public static synthetic fun build$default (Linflow/Cache$Companion;IJILjava/lang/Object;)Linflow/Cache;
+}
+
 public abstract interface class inflow/Connectivity {
 	public static final field Companion Linflow/Connectivity$Companion;
 	public abstract fun getConnected ()Lkotlinx/coroutines/flow/StateFlow;
@@ -77,37 +89,26 @@ public final class inflow/InflowKt {
 	public static final fun refreshing (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
 }
 
-public abstract interface class inflow/Inflows {
-	public abstract fun clear ()V
-	public abstract fun get (Ljava/lang/Object;)Linflow/Inflow;
-}
-
-public abstract interface class inflow/InflowsCache {
-	public abstract fun clear ()V
-	public abstract fun doOnRemove (Lkotlin/jvm/functions/Function1;)V
-	public abstract fun get (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
-}
-
-public final class inflow/InflowsCacheKt {
-	public static final fun inflowsCache (IJ)Linflow/InflowsCache;
-	public static synthetic fun inflowsCache$default (IJILjava/lang/Object;)Linflow/InflowsCache;
-}
-
-public final class inflow/InflowsCombinedConfig {
+public final class inflow/InflowParamsConfig {
 	public final synthetic fun builder (Lkotlin/jvm/functions/Function2;)V
-	public final fun cache (Linflow/InflowsCache;)V
+	public final fun cache (Linflow/Cache;)V
 	public final fun dispatcher (Lkotlinx/coroutines/CoroutineDispatcher;)V
 	public final fun factory (Lkotlin/jvm/functions/Function1;)V
 	public final fun scope (Lkotlinx/coroutines/CoroutineScope;)V
 }
 
-public final class inflow/InflowsCombinedKt {
+public final class inflow/InflowParamsKt {
 	public static final fun asInflow (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function1;)Linflow/Inflow;
+}
+
+public abstract interface class inflow/Inflows {
+	public abstract fun clear ()V
+	public abstract fun get (Ljava/lang/Object;)Linflow/Inflow;
 }
 
 public final class inflow/InflowsConfig {
 	public final synthetic fun builder (Lkotlin/jvm/functions/Function2;)V
-	public final fun cache (Linflow/InflowsCache;)V
+	public final fun cache (Linflow/Cache;)V
 	public final fun factory (Lkotlin/jvm/functions/Function1;)V
 }
 

@@ -1,25 +1,17 @@
 package inflow
 
-import inflow.internal.share
-import inflow.utils.doOnCancel
-import kotlinx.atomicfu.atomic
-import kotlinx.coroutines.CancellationException
+import inflow.internal.InflowParamsImpl
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 /**
  * Treats [this] flow as a flow of parameters and builds [Inflow]s for each parameter using
- * [InflowsCombinedConfig.factory]. Resulting flow of [Inflow]s is then combined into a single
+ * [InflowParamsConfig.factory]. Resulting flow of [Inflow]s is then combined into a single
  * [Inflow] which dynamically switches to the data loaded for each new emitted parameter.
  * This is somewhat similar to [flatMapLatest] operator.
  *
@@ -40,12 +32,12 @@ import kotlinx.coroutines.launch
  * Primitive types and data classes are the best candidates.
  */
 @ExperimentalCoroutinesApi
-public fun <P, T> Flow<P>.asInflow(block: InflowsCombinedConfig<P, T>.() -> Unit): Inflow<T> =
-    InflowsCombined(this, InflowsCombinedConfig<P, T>().apply(block))
+public fun <P, T> Flow<P>.asInflow(block: InflowParamsConfig<P, T>.() -> Unit): Inflow<T> =
+    InflowParamsImpl(this, InflowParamsConfig<P, T>().apply(block))
 
 
 /**
- * Configuration params to create a new combined [Inflow] instance (see [asInflow]).
+ * Configuration params to create a new parametrized [Inflow] instance (see [asInflow]).
  *
  * It is required to provide a factory to build new [Inflow] instances either using [factory] or
  * [builder] function.
@@ -54,7 +46,7 @@ public fun <P, T> Flow<P>.asInflow(block: InflowsCombinedConfig<P, T>.() -> Unit
  *
  * Coroutine dispatcher and coroutine scope can be optionally set with [dispatcher] and [scope].
  */
-public class InflowsCombinedConfig<P, T> internal constructor() {
+public class InflowParamsConfig<P, T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
@@ -62,7 +54,7 @@ public class InflowsCombinedConfig<P, T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var cache: InflowsCache<P, Inflow<T>>? = null
+    internal var cache: Cache<P, Inflow<T>>? = null
 
     @JvmField
     @JvmSynthetic
@@ -107,9 +99,9 @@ public class InflowsCombinedConfig<P, T> internal constructor() {
     /**
      * Cache implementation to control how many [Inflow] instances can be stored in memory for
      * faster access.
-     * Default implementation keeps up to 10 Inflow instances in memory, see [inflowsCache].
+     * Default implementation keeps up to 10 Inflow instances in memory, see [Cache.build].
      */
-    public fun cache(cache: InflowsCache<P, Inflow<T>>) {
+    public fun cache(cache: Cache<P, Inflow<T>>) {
         this.cache = cache
     }
 
@@ -137,80 +129,6 @@ public class InflowsCombinedConfig<P, T> internal constructor() {
      */
     public fun scope(scope: CoroutineScope) {
         this.scope = scope
-    }
-
-}
-
-
-/**
- * [Inflow] implementation that delegates to other Inflows created dynamically for each param from
- * params flow.
- */
-@ExperimentalCoroutinesApi
-private class InflowsCombined<P, T>(
-    params: Flow<P>,
-    config: InflowsCombinedConfig<P, T>
-) : Inflow<T> {
-
-    private val scope = config.scope ?: CoroutineScope(Job())
-    private val dispatcher = config.dispatcher
-    private val inflows = inflows<P, T> {
-        config.factory?.let(::factory)
-        config.cache?.let(::cache)
-    }
-
-    private val shared = params
-        .map { inflows[it] } // Creating a new Inflow for each parameter or using cached one
-        .distinctUntilChanged { old, new -> old === new } // Filtering duplicate Inflow instances
-        .share(scope, dispatcher, 0L) // Sharing the flow to reuse params subscription
-
-    override fun data(param: DataParam) = shared
-        .flatMapLatest { it.data(param) }
-
-    override fun state(param: StateParam) = shared
-        .flatMapLatest { it.state(param) }
-        .distinctUntilChanged()
-
-    override fun load(param: LoadParam): InflowDeferred<T> {
-        val deferred = DeferredDelegate<T>()
-        val job = scope.launch(dispatcher) {
-            deferred.delegateTo(shared.first().load(param))
-        }
-        // If scope is cancelled then we need to notify our deferred object
-        job.doOnCancel(deferred::onCancelled)
-        return deferred
-    }
-
-}
-
-/**
- * Waits for the delegate and then delegates the actual [await] and [join] to it.
- */
-private class DeferredDelegate<T> : InflowDeferred<T> {
-
-    private val delegate = atomic<InflowDeferred<T>?>(null)
-    private val cancellationException = atomic<CancellationException?>(null)
-    private val notifier = Job()
-
-    fun delegateTo(other: InflowDeferred<T>) {
-        delegate.value = other
-        notifier.complete()
-    }
-
-    fun onCancelled(cause: CancellationException) {
-        cancellationException.value = cause
-        notifier.complete()
-    }
-
-    override suspend fun await(): T {
-        notifier.join()
-        cancellationException.value?.let { throw it }
-        return delegate.value!!.await()
-    }
-
-    override suspend fun join() {
-        notifier.join()
-        delegate.value?.join()
     }
 
 }

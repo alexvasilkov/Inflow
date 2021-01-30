@@ -6,12 +6,12 @@ import com.alexvasilkov.inflow.data.ext.now
 import com.alexvasilkov.inflow.model.Profile
 import com.alexvasilkov.inflow.model.Question
 import com.alexvasilkov.inflow.model.QuestionsQuery
+import inflow.Cache
 import inflow.Expires
 import inflow.Inflow
 import inflow.MemoryCacheWriter
 import inflow.asInflow
 import inflow.inflow
-import inflow.inflowsCache
 import inflow.map
 import inflow.refreshIfExpired
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -52,7 +52,7 @@ class StackExchangeRepo(
     private val pageSize = 20
 
     // Keeping search requests cache globally
-    private val searchByTagCache = inflowsCache<QuestionsQuery, Inflow<QuestionsList?>>()
+    private val searchByTagCache = Cache.build<QuestionsQuery, QuestionsList?>()
 
     fun searchQuestions(params: Flow<QuestionsQuery>): Inflow<List<Question>?> = params
         .asInflow<QuestionsQuery, QuestionsList?> {

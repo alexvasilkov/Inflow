@@ -2,16 +2,11 @@
     "NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING", "NO_EXPLICIT_RETURN_TYPE_IN_API_MODE_WARNING"
 )
 
-package inflow.inflows
+package inflow
 
-import inflow.BaseTest
-import inflow.InflowsConfig
-import inflow.cached
-import inflow.inflows
-import inflow.inflowsCache
-import inflow.refresh
-import inflow.utils.runTest
-import inflow.utils.testDispatcher
+import inflow.base.BaseTest
+import inflow.base.runTest
+import inflow.base.testDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlin.test.Test
@@ -43,7 +38,7 @@ class InflowsTest : BaseTest() {
     fun `IF cached inflow is removed THEN it is not cancelled`() = runTest {
         val inflows = inflows<Int, Int> {
             initTest(this@runTest)
-            cache(inflowsCache(maxSize = 1))
+            cache(Cache.build(maxSize = 1))
         }
 
         val inflow0 = inflows[0]

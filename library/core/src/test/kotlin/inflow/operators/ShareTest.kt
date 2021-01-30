@@ -4,14 +4,14 @@
 
 package inflow.operators
 
-import inflow.BaseTest
-import inflow.STRESS_TAG
-import inflow.STRESS_TIMEOUT
+import inflow.base.BaseTest
+import inflow.base.STRESS_TAG
+import inflow.base.STRESS_TIMEOUT
+import inflow.base.runReal
+import inflow.base.runStressTest
 import inflow.internal.share
 import inflow.utils.AtomicInt
 import inflow.utils.log
-import inflow.utils.runReal
-import inflow.utils.runStressTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

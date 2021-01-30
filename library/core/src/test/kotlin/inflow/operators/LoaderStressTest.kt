@@ -4,15 +4,15 @@
 
 package inflow.operators
 
-import inflow.BaseTest
-import inflow.STRESS_TAG
-import inflow.STRESS_TIMEOUT
 import inflow.State
+import inflow.base.BaseTest
+import inflow.base.STRESS_TAG
+import inflow.base.STRESS_TIMEOUT
+import inflow.base.runReal
+import inflow.base.runStressTest
 import inflow.internal.Loader
 import inflow.utils.AtomicInt
 import inflow.utils.log
-import inflow.utils.runReal
-import inflow.utils.runStressTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Tag

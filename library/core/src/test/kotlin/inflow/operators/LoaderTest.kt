@@ -4,14 +4,14 @@
 
 package inflow.operators
 
-import inflow.BaseTest
 import inflow.LoadTracker
 import inflow.State
+import inflow.base.BaseTest
+import inflow.base.TestTracker
+import inflow.base.runTest
+import inflow.base.testDispatcher
+import inflow.base.track
 import inflow.internal.Loader
-import inflow.utils.TestTracker
-import inflow.utils.runTest
-import inflow.utils.testDispatcher
-import inflow.utils.track
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect

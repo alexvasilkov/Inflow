@@ -2,14 +2,14 @@
     "NO_EXPLICIT_VISIBILITY_IN_API_MODE_WARNING", "NO_EXPLICIT_RETURN_TYPE_IN_API_MODE_WARNING"
 )
 
-package inflow.inflow
+package inflow.behavior
 
-import inflow.BaseTest
 import inflow.Connectivity
+import inflow.base.BaseTest
+import inflow.base.runTest
+import inflow.base.testInflow
 import inflow.cached
 import inflow.data
-import inflow.utils.runTest
-import inflow.utils.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
