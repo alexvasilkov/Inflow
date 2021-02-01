@@ -13,7 +13,7 @@ task jacocoCoverage(type: JacocoReport, dependsOn: 'test') {
     def classesFilter = [
             // Inlined functions, excluding false-negative reports
             '**/InflowsConfig$builder$*',
-            '**/InflowParamsConfig$builder$*'
+            '**/ParamsInflowConfig$builder$*'
     ]
     def classes = fileTree(dir: "$buildDir/classes/kotlin/main", excludes: classesFilter)
     def sources = files(new File(projectDir, 'src/main/kotlin'))
