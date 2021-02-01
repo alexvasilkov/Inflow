@@ -19,6 +19,7 @@ public interface MemoryCache<T> {
      */
     public suspend fun write(data: T)
 
+
     public companion object {
         /**
          * Memory cache which will start by emitting [initial] value.

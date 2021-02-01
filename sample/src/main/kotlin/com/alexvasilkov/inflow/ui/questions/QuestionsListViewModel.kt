@@ -11,6 +11,7 @@ import inflow.State.Idle
 import inflow.State.Loading
 import inflow.cache
 import inflow.data
+import inflow.map
 import inflow.refresh
 import inflow.refreshError
 import inflow.refreshState
@@ -33,11 +34,11 @@ class QuestionsListViewModel(
     var searchTag: String by stateField(tagChanges)
 
     @Suppress("EXPERIMENTAL_API_USAGE") // Debounce is still experimental
-    private val questionsQuery = searchChanges
+    private val query = searchChanges
         .debounce(400L).onStart { emit(searchQuery) } // De-bouncing but starting with initial query
         .combine(tagChanges, ::QuestionsQuery)
 
-    private val questions = repo.searchQuestions(questionsQuery)
+    private val questions = repo.searchQuestions(query).map { it?.items }
 
     // While collecting this flow the loading and refresh API calls will be made automatically
     val list: Flow<List<Question>?> = questions.data()

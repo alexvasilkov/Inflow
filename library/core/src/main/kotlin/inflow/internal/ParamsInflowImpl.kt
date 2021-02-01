@@ -3,8 +3,8 @@ package inflow.internal
 import inflow.DataParam
 import inflow.Inflow
 import inflow.InflowDeferred
-import inflow.InflowParamsConfig
 import inflow.LoadParam
+import inflow.ParamsInflowConfig
 import inflow.StateParam
 import inflow.inflows
 import inflow.utils.doOnCancel
@@ -25,9 +25,9 @@ import kotlinx.coroutines.launch
  * params flow.
  */
 @ExperimentalCoroutinesApi
-internal class InflowParamsImpl<P, T>(
+internal class ParamsInflowImpl<P, T>(
     params: Flow<P>,
-    config: InflowParamsConfig<P, T>
+    config: ParamsInflowConfig<P, T>
 ) : Inflow<T> {
 
     private val scope = config.scope ?: CoroutineScope(Job())

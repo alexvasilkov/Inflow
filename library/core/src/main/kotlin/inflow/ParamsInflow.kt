@@ -1,6 +1,6 @@
 package inflow
 
-import inflow.internal.InflowParamsImpl
+import inflow.internal.ParamsInflowImpl
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 
 /**
  * Treats [this] flow as a flow of parameters and builds [Inflow]s for each parameter using
- * [InflowParamsConfig.factory]. Resulting flow of [Inflow]s is then combined into a single
+ * [ParamsInflowConfig.factory]. Resulting flow of [Inflow]s is then combined into a single
  * [Inflow] which dynamically switches to the data loaded for each new emitted parameter.
  * This is somewhat similar to [flatMapLatest] operator.
  *
@@ -32,12 +32,12 @@ import kotlinx.coroutines.flow.flatMapLatest
  * Primitive types and data classes are the best candidates.
  */
 @ExperimentalCoroutinesApi
-public fun <P, T> Flow<P>.asInflow(block: InflowParamsConfig<P, T>.() -> Unit): Inflow<T> =
-    InflowParamsImpl(this, InflowParamsConfig<P, T>().apply(block))
+public fun <P, T> Flow<P>.toInflow(block: ParamsInflowConfig<P, T>.() -> Unit): Inflow<T> =
+    ParamsInflowImpl(this, ParamsInflowConfig<P, T>().apply(block))
 
 
 /**
- * Configuration params to create a new parametrized [Inflow] instance (see [asInflow]).
+ * Configuration params to create a new parametrized [Inflow] instance (see [toInflow]).
  *
  * It is required to provide a factory to build new [Inflow] instances either using [factory] or
  * [builder] function.
@@ -46,7 +46,7 @@ public fun <P, T> Flow<P>.asInflow(block: InflowParamsConfig<P, T>.() -> Unit): 
  *
  * Coroutine dispatcher and coroutine scope can be optionally set with [dispatcher] and [scope].
  */
-public class InflowParamsConfig<P, T> internal constructor() {
+public class ParamsInflowConfig<P, T> internal constructor() {
 
     @JvmField
     @JvmSynthetic

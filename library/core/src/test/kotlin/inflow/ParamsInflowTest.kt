@@ -34,12 +34,12 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
-class InflowParamTest : BaseTest() {
+class ParamsInflowTest : BaseTest() {
 
     @Test
     fun `IF parametrized inflow with no factory THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
-            flowOf(0).asInflow<Int, Int> {}
+            flowOf(0).toInflow<Int, Int> {}
         }
     }
 
@@ -89,7 +89,7 @@ class InflowParamTest : BaseTest() {
     @Test
     fun `IF parametrized inflow AND small cache THEN new inflow created again`() = runTest { job ->
         var count = 0
-        val inflow = flowOf(0, 1, 0).asInflow<Int, Int> {
+        val inflow = flowOf(0, 1, 0).toInflow<Int, Int> {
             builder {
                 count++
                 data(cache = flowOf(0), loader = {})
@@ -106,7 +106,7 @@ class InflowParamTest : BaseTest() {
     @Test
     fun `IF parametrized inflow AND custom scope THEN can cancel the scope`() = runTest { job ->
         val scope = CoroutineScope(EmptyCoroutineContext)
-        val inflow = flowOf(0, 1, 0).asInflow<Int, Int> {
+        val inflow = flowOf(0, 1, 0).toInflow<Int, Int> {
             builder {
                 data(cache = flowOf(0), loader = {})
             }
@@ -132,7 +132,7 @@ class InflowParamTest : BaseTest() {
     @Timeout(STRESS_TIMEOUT)
     fun `IF parametrized inflow observed from several threads THEN no deadlocks`() = runReal {
         val params = MutableStateFlow(0)
-        val inflow = params.asInflow<Int, Int?> {
+        val inflow = params.toInflow<Int, Int?> {
             builder { param ->
                 data(initial = null) { param }
             }
@@ -165,7 +165,7 @@ class InflowParamTest : BaseTest() {
                 delay(100L)
             }
         }
-        return params.asInflow {
+        return params.toInflow {
             builder { param ->
                 var count = param
                 data(initial = param, loader = { loader(++count) })

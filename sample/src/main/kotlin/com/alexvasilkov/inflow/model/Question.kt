@@ -9,3 +9,13 @@ data class Question(
     val answers: Int,
     val isAnswered: Boolean
 )
+
+class QuestionsList(
+    val items: List<Question>,
+    val loadedAt: Long
+)
+
+data class QuestionsQuery(
+    val search: String,
+    val tag: String
+)
