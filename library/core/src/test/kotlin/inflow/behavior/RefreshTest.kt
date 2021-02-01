@@ -7,6 +7,7 @@ package inflow.behavior
 import inflow.Expires
 import inflow.LoadParam
 import inflow.State.Loading
+import inflow.base.AtomicInt
 import inflow.base.BaseTest
 import inflow.base.STRESS_TAG
 import inflow.base.STRESS_TIMEOUT
@@ -21,7 +22,6 @@ import inflow.refresh
 import inflow.refreshForced
 import inflow.refreshIfExpired
 import inflow.refreshState
-import inflow.utils.AtomicInt
 import inflow.utils.log
 import inflow.utils.now
 import kotlinx.coroutines.ExperimentalCoroutinesApi

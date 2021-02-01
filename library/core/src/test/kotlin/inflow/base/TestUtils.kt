@@ -8,7 +8,6 @@ import inflow.Inflow
 import inflow.InflowConfig
 import inflow.State
 import inflow.inflow
-import inflow.utils.AtomicInt
 import inflow.utils.InflowLogger
 import inflow.utils.log
 import inflow.utils.now

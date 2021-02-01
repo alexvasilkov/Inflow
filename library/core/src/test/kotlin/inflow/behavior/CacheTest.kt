@@ -5,7 +5,7 @@
 package inflow.behavior
 
 import inflow.Inflow
-import inflow.MemoryCacheWriter
+import inflow.MemoryCache
 import inflow.base.BaseTest
 import inflow.base.catchScopeException
 import inflow.base.runTest
@@ -174,7 +174,8 @@ class CacheTest : BaseTest() {
     @Test
     fun `IF in-memory deferred cache is used THEN data is cached`() = runTest { job ->
         val inflow = testInflow {
-            data(initial = { null }) { delay(100L); 0 }
+            val cache = MemoryCache.create<Int?>(reader = { null }, writer = {})
+            data(cache) { delay(100L); 0 }
         }
         testCachedInMemory(inflow, this, job)
     }
@@ -197,7 +198,8 @@ class CacheTest : BaseTest() {
     fun `IF in-memory cache is used THEN it is initialized only once`() = runTest {
         var count = 0
         val inflow = testInflow {
-            data(initial = { delay(100L); count++ }) { throw RuntimeException() }
+            val cache = MemoryCache.create<Int?>(reader = { delay(100L); count++ }, writer = {})
+            data(cache) { throw RuntimeException() }
             // delay() call above will switch to Default dispatcher, but it is not an expected case
             cacheDispatcher(testDispatcher)
         }
@@ -218,13 +220,13 @@ class CacheTest : BaseTest() {
 
     @Test
     fun `IF in-memory cache is manually initialized THEN initializer is not called`() = runTest {
-        lateinit var writer: MemoryCacheWriter<Int?>
         var count = 0
+        val cache = MemoryCache.create<Int?>(reader = { count++ }, writer = {})
         val inflow = testInflow {
-            writer = data(initial = { count++ }) { throw RuntimeException() }
+            data(cache) { throw RuntimeException() }
         }
 
-        writer(-1)
+        cache.write(-1)
 
         var item1: Int? = null
         launch { item1 = inflow.cached() }

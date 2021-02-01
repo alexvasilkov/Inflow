@@ -43,16 +43,6 @@ class ConfigTest : BaseTest() {
     }
 
     @Test
-    fun `IF memory cache AND cache timeout is positive THEN error`() = runTest {
-        assertFailsWith<IllegalArgumentException> {
-            testInflow {
-                data(initial = 0) { 1 }
-                keepCacheSubscribedTimeout(1L)
-            }
-        }
-    }
-
-    @Test
     fun `IF retry time is 0 THEN error`() = runTest {
         assertFailsWith<IllegalArgumentException> {
             testInflow {

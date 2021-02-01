@@ -1,17 +1,13 @@
 package inflow
 
-import inflow.utils.AtomicBoolean
 import inflow.utils.InflowLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.launch
 
 /**
@@ -81,9 +77,7 @@ public class InflowConfig<T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var data: InflowData<T>? = null
-
-    private var memoryCacheUsed = false
+    internal var data: DataProvider<T>? = null
 
     @JvmField
     @JvmSynthetic
@@ -148,7 +142,7 @@ public class InflowConfig<T> internal constructor() {
      */
     public fun data(cache: Flow<T>, loader: suspend (LoadTracker) -> Unit) {
         require(data == null) { "Data is already set, cannot call `data()` again" }
-        data = InflowData(cache, loader)
+        data = DataProvider(cache, loader)
     }
 
     /**
@@ -193,71 +187,33 @@ public class InflowConfig<T> internal constructor() {
     }
 
     /**
-     * Variant of [data] function that will create and use in-memory cache for all loaded values.
-     * By contract the cache should always emit an empty value in the beginning thus an extra
-     * [initial] value is required as well.
+     * Variant of [data] function that will use provided in-memory cache for all loaded values.
      *
-     * In this case the [loader] should just return the newly loaded data and it will be
-     * automatically saved into memory cache.
-     *
-     * Note that [keepCacheSubscribedTimeout] will be automatically set to 0L and attempt to set
-     * it to anything greater than 0L will throw [IllegalArgumentException].
-     *
-     * @return Writer that can be used to update the in-memory cache from the outside.
+     * The [loader] should just return the newly loaded data and it will be automatically saved into
+     * the memory cache.
      */
     public fun data(
-        initial: T,
+        cache: MemoryCache<T>,
         loader: suspend (LoadTracker) -> T
-    ): MemoryCacheWriter<T> {
-        val memory = MutableSharedFlow<T>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-        memory.tryEmit(initial)
-        data(memory) { memory.tryEmit(loader(it)) }
-        setMemoryCacheUsed()
-        return MemoryCacheWriter(memory::tryEmit)
+    ) {
+        data(cache.read()) { cache.write(loader(it)) }
+        keepCacheSubscribedTimeout = 0L // No need to keep subscription to the fast in-memory cache
+        cacheDispatcher = Dispatchers.Unconfined // In-memory cache doesn't need real dispatcher
     }
 
     /**
      * Variant of [data] function that will create and use in-memory cache for all loaded values.
      * By contract the cache should always emit an empty value in the beginning thus an extra
-     * [initial] value is required as well. The deferred [initial] value will be only called once
-     * on first cache access.
+     * [initial] value is required as well.
      *
-     * In this case the [loader] should just return the newly loaded data and it will be
-     * automatically saved into memory cache.
-     *
-     * Note that [keepCacheSubscribedTimeout] will be automatically set to 0L and attempt to set
-     * it to anything greater than 0L will throw [IllegalArgumentException].
-     *
-     * @return Writer that can be used to update the in-memory cache from the outside.
+     * The [loader] should just return the newly loaded data and it will be automatically saved into
+     * the memory cache.
      */
     public fun data(
-        initial: suspend () -> T,
+        initial: T,
         loader: suspend (LoadTracker) -> T
-    ): MemoryCacheWriter<T> {
-        val memory = MutableSharedFlow<T>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    ): Unit = data(MemoryCache.create(initial), loader)
 
-        // By contract the cache should always emit, we need to initialize it on first start
-        val initialized = AtomicBoolean()
-        val cache = memory.onSubscription {
-            if (initialized.compareAndSet(expect = false, update = true)) {
-                memory.tryEmit(initial())
-            }
-        }
-
-        data(cache) { memory.tryEmit(loader(it)) }
-        setMemoryCacheUsed()
-
-        return MemoryCacheWriter {
-            initialized.set(true) // No need to initialize the cache anymore
-            memory.tryEmit(it)
-        }
-    }
-
-    private fun setMemoryCacheUsed() {
-        memoryCacheUsed = true
-        keepCacheSubscribedTimeout = 0L // No need to keep subscription to fast in-memory cache
-        cacheDispatcher = Dispatchers.Unconfined // In-memory cache don't need real dispatcher
-    }
 
     /**
      * Cache expiration policy, see [Expires]. Uses [Expires.ifNull] policy by default.
@@ -305,9 +261,6 @@ public class InflowConfig<T> internal constructor() {
      */
     public fun keepCacheSubscribedTimeout(timeoutMillis: Long) {
         require(timeoutMillis >= 0L) { "`keepCacheSubscribedTimeout` cannot be negative" }
-        if (memoryCacheUsed) {
-            require(timeoutMillis == 0L) { "`keepCacheSubscribedTimeout` should be 0 when using in-memory cache" }
-        }
         keepCacheSubscribedTimeout = timeoutMillis
     }
 
@@ -391,17 +344,9 @@ public class InflowConfig<T> internal constructor() {
         this.logId = logId
     }
 
-}
 
-
-internal class InflowData<T>(
-    val cache: Flow<T>,
-    val loader: suspend (LoadTracker) -> Unit
-)
-
-/**
- * Allows updating in-memory cache created by some of the [InflowConfig.data] methods variants.
- */
-public fun interface MemoryCacheWriter<T> {
-    public operator fun invoke(data: T)
+    internal class DataProvider<T>(
+        val cache: Flow<T>,
+        val loader: suspend (LoadTracker) -> Unit
+    )
 }

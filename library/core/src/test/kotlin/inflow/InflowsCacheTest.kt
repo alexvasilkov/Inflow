@@ -3,14 +3,14 @@
 package inflow
 
 import inflow.base.BaseTest
-import inflow.internal.CacheImpl
+import inflow.internal.InflowsCacheImpl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
-class CacheTest : BaseTest() {
+class InflowsCacheTest : BaseTest() {
 
     @Test
     fun `IF max size is less than 1 THEN exception`() {
@@ -87,6 +87,6 @@ class CacheTest : BaseTest() {
 
 
     private fun <K, V> newCache(maxSize: Int = 10, expireAfterAccess: Long = 0L) =
-        CacheImpl<K, V>(maxSize, expireAfterAccess)
+        InflowsCacheImpl<K, V>(maxSize, expireAfterAccess)
 
 }

@@ -4,7 +4,7 @@
 
 package inflow.behavior
 
-import inflow.MemoryCacheWriter
+import inflow.MemoryCache
 import inflow.base.BaseTest
 import inflow.base.runTest
 import inflow.base.testInflow
@@ -37,10 +37,10 @@ class DataTest : BaseTest() {
 
     @Test
     fun `IF expired cache is emitted during loading THEN no extra refresh`() = runTest { job ->
-        lateinit var writer: MemoryCacheWriter<Int?>
+        val cache = MemoryCache.create<Int?>(-1)
         val inflow = testInflow {
             var count = 0
-            writer = data(initial = -1) { delay(100L); count++ }
+            data(cache) { delay(100L); count++ }
             expiration { if (it == null || it < 0) 0L else Long.MAX_VALUE }
         }
 
@@ -51,7 +51,7 @@ class DataTest : BaseTest() {
 
         // Sending expired item again while loading is in place
         delay(50L)
-        writer(-2)
+        cache.write(-2)
         assertEquals(expected = -2, actual = item, "Cache changes are available immediately")
 
         delay(50L)

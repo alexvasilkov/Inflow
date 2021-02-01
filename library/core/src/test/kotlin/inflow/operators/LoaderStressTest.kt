@@ -5,13 +5,13 @@
 package inflow.operators
 
 import inflow.State
+import inflow.base.AtomicInt
 import inflow.base.BaseTest
 import inflow.base.STRESS_TAG
 import inflow.base.STRESS_TIMEOUT
 import inflow.base.runReal
 import inflow.base.runStressTest
 import inflow.internal.Loader
-import inflow.utils.AtomicInt
 import inflow.utils.log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

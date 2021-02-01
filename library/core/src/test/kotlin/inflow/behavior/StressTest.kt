@@ -5,6 +5,7 @@
 package inflow.behavior
 
 import inflow.State.Idle
+import inflow.base.AtomicInt
 import inflow.base.BaseTest
 import inflow.base.STRESS_TAG
 import inflow.base.STRESS_TIMEOUT
@@ -16,7 +17,6 @@ import inflow.inflow
 import inflow.refresh
 import inflow.refreshForced
 import inflow.refreshState
-import inflow.utils.AtomicInt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow

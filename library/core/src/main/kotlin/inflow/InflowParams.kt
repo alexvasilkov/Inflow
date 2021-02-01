@@ -54,7 +54,7 @@ public class InflowParamsConfig<P, T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var cache: Cache<P, Inflow<T>>? = null
+    internal var cache: InflowsCache<P, Inflow<T>>? = null
 
     @JvmField
     @JvmSynthetic
@@ -99,9 +99,9 @@ public class InflowParamsConfig<P, T> internal constructor() {
     /**
      * Cache implementation to control how many [Inflow] instances can be stored in memory for
      * faster access.
-     * Default implementation keeps up to 10 Inflow instances in memory, see [Cache.build].
+     * Default implementation keeps up to 10 Inflow instances in memory, see [InflowsCache.create].
      */
-    public fun cache(cache: Cache<P, Inflow<T>>) {
+    public fun cache(cache: InflowsCache<P, Inflow<T>>) {
         this.cache = cache
     }
 

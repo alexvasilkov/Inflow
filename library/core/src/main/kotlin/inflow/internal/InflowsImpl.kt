@@ -1,8 +1,8 @@
 package inflow.internal
 
-import inflow.Cache
 import inflow.Inflow
 import inflow.Inflows
+import inflow.InflowsCache
 import inflow.InflowsConfig
 
 /**
@@ -12,7 +12,7 @@ import inflow.InflowsConfig
 internal class InflowsImpl<P, T>(config: InflowsConfig<P, T>) : Inflows<P, T> {
 
     private val factory = requireNotNull(config.factory) { "Inflows factory is required" }
-    private val cache = config.cache ?: Cache.build()
+    private val cache = config.cache ?: InflowsCache.create()
 
     override fun get(param: P): Inflow<T> = cache.get(param, factory)
 

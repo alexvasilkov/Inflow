@@ -1,15 +1,3 @@
-public abstract interface class inflow/Cache {
-	public static final field Companion Linflow/Cache$Companion;
-	public abstract fun clear ()V
-	public abstract fun doOnRemove (Lkotlin/jvm/functions/Function1;)V
-	public abstract fun get (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
-}
-
-public final class inflow/Cache$Companion {
-	public final fun build (IJ)Linflow/Cache;
-	public static synthetic fun build$default (Linflow/Cache$Companion;IJILjava/lang/Object;)Linflow/Cache;
-}
-
 public abstract interface class inflow/Connectivity {
 	public static final field Companion Linflow/Connectivity$Companion;
 	public abstract fun getConnected ()Lkotlinx/coroutines/flow/StateFlow;
@@ -52,8 +40,8 @@ public abstract interface class inflow/Inflow {
 public final class inflow/InflowConfig {
 	public final fun cacheDispatcher (Lkotlinx/coroutines/CoroutineDispatcher;)V
 	public final fun connectivity (Linflow/Connectivity;)V
-	public final fun data (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Linflow/MemoryCacheWriter;
-	public final fun data (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)Linflow/MemoryCacheWriter;
+	public final fun data (Linflow/MemoryCache;Lkotlin/jvm/functions/Function2;)V
+	public final fun data (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
 	public final fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)V
 	public final fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
 	public final fun dataFlow (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
@@ -91,7 +79,7 @@ public final class inflow/InflowKt {
 
 public final class inflow/InflowParamsConfig {
 	public final synthetic fun builder (Lkotlin/jvm/functions/Function2;)V
-	public final fun cache (Linflow/Cache;)V
+	public final fun cache (Linflow/InflowsCache;)V
 	public final fun dispatcher (Lkotlinx/coroutines/CoroutineDispatcher;)V
 	public final fun factory (Lkotlin/jvm/functions/Function1;)V
 	public final fun scope (Lkotlinx/coroutines/CoroutineScope;)V
@@ -106,9 +94,21 @@ public abstract interface class inflow/Inflows {
 	public abstract fun get (Ljava/lang/Object;)Linflow/Inflow;
 }
 
+public abstract interface class inflow/InflowsCache {
+	public static final field Companion Linflow/InflowsCache$Companion;
+	public abstract fun clear ()V
+	public abstract fun doOnRemove (Lkotlin/jvm/functions/Function1;)V
+	public abstract fun get (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+}
+
+public final class inflow/InflowsCache$Companion {
+	public final fun create (IJ)Linflow/InflowsCache;
+	public static synthetic fun create$default (Linflow/InflowsCache$Companion;IJILjava/lang/Object;)Linflow/InflowsCache;
+}
+
 public final class inflow/InflowsConfig {
 	public final synthetic fun builder (Lkotlin/jvm/functions/Function2;)V
-	public final fun cache (Linflow/Cache;)V
+	public final fun cache (Linflow/InflowsCache;)V
 	public final fun factory (Lkotlin/jvm/functions/Function1;)V
 }
 
@@ -136,8 +136,15 @@ public abstract interface class inflow/LoadTracker {
 	public abstract fun progress (DD)V
 }
 
-public abstract interface class inflow/MemoryCacheWriter {
-	public abstract fun invoke (Ljava/lang/Object;)V
+public abstract interface class inflow/MemoryCache {
+	public static final field Companion Linflow/MemoryCache$Companion;
+	public abstract fun read ()Lkotlinx/coroutines/flow/Flow;
+	public abstract fun write (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class inflow/MemoryCache$Companion {
+	public final fun create (Ljava/lang/Object;)Linflow/MemoryCache;
+	public final fun create (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)Linflow/MemoryCache;
 }
 
 public abstract class inflow/State {

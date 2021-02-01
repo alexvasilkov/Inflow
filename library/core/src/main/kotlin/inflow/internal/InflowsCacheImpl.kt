@@ -1,14 +1,14 @@
 package inflow.internal
 
-import inflow.Cache
+import inflow.InflowsCache
 import inflow.utils.now
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
 
-internal class CacheImpl<K, V>(
+internal class InflowsCacheImpl<K, V>(
     private val maxSize: Int,
     private val expireAfterAccess: Long
-) : Cache<K, V> {
+) : InflowsCache<K, V> {
 
     private val values = mutableMapOf<K, V>()
     private val access = linkedMapOf<K, Long>()

@@ -38,7 +38,7 @@ class InflowsTest : BaseTest() {
     fun `IF cached inflow is removed THEN it is not cancelled`() = runTest {
         val inflows = inflows<Int, Int> {
             initTest(this@runTest)
-            cache(Cache.build(maxSize = 1))
+            cache(InflowsCache.create(maxSize = 1))
         }
 
         val inflow0 = inflows[0]

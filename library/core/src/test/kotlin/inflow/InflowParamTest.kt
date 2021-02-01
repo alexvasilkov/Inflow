@@ -94,7 +94,7 @@ class InflowParamTest : BaseTest() {
                 count++
                 data(cache = flowOf(0), loader = {})
             }
-            cache(Cache.build(maxSize = 1))
+            cache(InflowsCache.create(maxSize = 1))
             dispatcher(testDispatcher)
         }
 

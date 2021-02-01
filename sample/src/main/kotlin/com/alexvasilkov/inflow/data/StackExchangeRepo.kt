@@ -6,10 +6,10 @@ import com.alexvasilkov.inflow.data.ext.now
 import com.alexvasilkov.inflow.model.Profile
 import com.alexvasilkov.inflow.model.Question
 import com.alexvasilkov.inflow.model.QuestionsQuery
-import inflow.Cache
 import inflow.Expires
 import inflow.Inflow
-import inflow.MemoryCacheWriter
+import inflow.InflowsCache
+import inflow.MemoryCache
 import inflow.asInflow
 import inflow.inflow
 import inflow.map
@@ -30,15 +30,15 @@ class StackExchangeRepo(
         GlobalScope.launch {
             auth.authState.collect { authorized ->
                 if (authorized) profile.refreshIfExpired() // Requesting profile update on login
-                else profileCacheWriter(null) // Clearing profile cache on logout
+                else profileCache.write(null) // Clearing profile cache on logout
             }
         }
     }
 
-    private lateinit var profileCacheWriter: MemoryCacheWriter<Profile?>
+    private val profileCache = MemoryCache.create<Profile?>(null)
 
     val profile: Inflow<Profile?> = inflow {
-        profileCacheWriter = data(initial = null) { api.profile().items.first().convert() }
+        data(profileCache) { api.profile().items.first().convert() }
 
         expiration(
             Expires.after(60_000L) {
@@ -52,7 +52,7 @@ class StackExchangeRepo(
     private val pageSize = 20
 
     // Keeping search requests cache globally
-    private val searchByTagCache = Cache.build<QuestionsQuery, QuestionsList?>()
+    private val searchByTagCache = InflowsCache.create<QuestionsQuery, QuestionsList?>()
 
     fun searchQuestions(params: Flow<QuestionsQuery>): Inflow<List<Question>?> = params
         .asInflow<QuestionsQuery, QuestionsList?> {

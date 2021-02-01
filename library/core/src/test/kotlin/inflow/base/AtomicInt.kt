@@ -1,4 +1,4 @@
-package inflow.utils
+package inflow.base
 
 import kotlinx.atomicfu.atomic
 
@@ -14,15 +14,4 @@ internal class AtomicInt {
     fun getAndIncrement(): Int = atomic.getAndIncrement()
 
     fun decrementAndGet(): Int = atomic.decrementAndGet()
-}
-
-internal class AtomicBoolean {
-    private val atomic = atomic(false)
-
-    fun set(value: Boolean) {
-        atomic.value = value
-    }
-
-    fun compareAndSet(expect: Boolean, update: Boolean): Boolean =
-        atomic.compareAndSet(expect, update)
 }
