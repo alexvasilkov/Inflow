@@ -15,7 +15,7 @@ internal class InflowsCacheImpl<K, V>(
 
     private var onRemove: ((V) -> Unit)? = null
 
-    private val lock = reentrantLock()
+    private val lock = reentrantLock() // We don't call any suspending functions under lock
 
     init {
         require(maxSize >= 1) { "Max cache size should be >= 1" }

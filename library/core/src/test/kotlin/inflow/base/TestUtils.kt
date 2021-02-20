@@ -9,7 +9,6 @@ import inflow.InflowConfig
 import inflow.State
 import inflow.inflow
 import inflow.utils.InflowLogger
-import inflow.utils.log
 import inflow.utils.now
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -17,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -25,7 +25,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import kotlin.coroutines.ContinuationInterceptor
-import kotlin.test.assertEquals
 
 
 /**
@@ -84,27 +83,15 @@ internal suspend fun runStressTest(
     val wasVerbose = InflowLogger.verbose
     InflowLogger.verbose = false // Avoiding spamming in logs
 
-    val scope = CoroutineScope(Dispatchers.Default)
-    val counter = AtomicInt()
-
     val start = now()
-    for (i in 0 until runs) {
-        scope.launch {
-            delay(i / 4L - (now() - start)) // Running at specific rate to have more races
-            block(i)
-            counter.getAndIncrement()
+    coroutineScope {
+        repeat(runs) { i ->
+            launch {
+                delay(i / 4L - (now() - start)) // Running at specific rate to have more races
+                block(i)
+            }
         }
     }
-
-    while (counter.get() != runs) {
-        log("stress") { "Counter: ${counter.get()}" }
-        delay(100L)
-    }
-
-    // Give it extra time to finish unfinished jobs
-    delay(100L)
-
-    assertEquals(expected = runs, actual = counter.get(), "All tasks finished")
 
     InflowLogger.verbose = wasVerbose
 }

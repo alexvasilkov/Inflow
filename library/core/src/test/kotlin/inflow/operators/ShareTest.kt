@@ -87,7 +87,7 @@ class ShareTest : BaseTest() {
         }
 
         // Give extra time to unsubscribe from the cache in the end
-        delay(keepSubscribedTimeout)
+        delay(keepSubscribedTimeout + 100L)
 
         assertEquals(expected = 0, actual = cacheState.get(), "Cache job is finished")
 

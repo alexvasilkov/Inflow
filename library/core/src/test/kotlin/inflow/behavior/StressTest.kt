@@ -109,6 +109,8 @@ class StressTest : BaseTest() {
             inflow.refreshState().first { it is Idle }
         }
 
+        delay(100L) // Extra time to observe cache completion
+
         assertEquals(expected = 0, actual = cacheState.get(), "Cache job is finished")
     }
 
