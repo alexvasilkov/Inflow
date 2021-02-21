@@ -149,7 +149,7 @@ public abstract class Inflow<T> {
      *
      * Also see [refreshing] and [refreshError] extensions.
      */
-    public fun refreshState(): Flow<State> = stateInternal(StateParam.Refresh)
+    public fun refreshState(): Flow<State> = stateInternal(StateParam.RefreshState)
 
 
     /**
@@ -196,7 +196,7 @@ internal sealed class StateParam {
     /**
      * Returns the state of refresh calls, triggered with [Inflow.refresh].
      */
-    object Refresh : StateParam()
+    object RefreshState : StateParam()
 }
 
 /**

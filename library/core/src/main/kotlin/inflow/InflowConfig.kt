@@ -5,10 +5,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 
 /**
  * Configuration params to create a new [Inflow], with default values.
@@ -111,11 +110,9 @@ public class InflowConfig<T> internal constructor() {
     @JvmSynthetic
     internal var loadDispatcher: CoroutineDispatcher = Dispatchers.Default
 
-    private var _scope: CoroutineScope? = null
-
-    @get:JvmSynthetic
-    internal val scope: CoroutineScope
-        get() = _scope ?: CoroutineScope(Job()).apply { _scope = this }
+    @JvmField
+    @JvmSynthetic
+    internal var scope: CoroutineScope? = null
 
     @JvmField
     @JvmSynthetic
@@ -140,7 +137,7 @@ public class InflowConfig<T> internal constructor() {
      * **Important:** The newly loaded data should not be expired according to [expiration] policy
      * to avoid endless loadings.
      */
-    public fun data(cache: Flow<T>, loader: suspend (LoadTracker) -> Unit) {
+    public fun data(cache: Flow<T>, loader: Loader<Unit>) {
         require(data == null) { "Data is already set, cannot call `data()` again" }
         data = DataProvider(cache, loader)
     }
@@ -151,38 +148,12 @@ public class InflowConfig<T> internal constructor() {
      * In this case the [loader] should just return the newly loaded data and the [writer] will be
      * responsible to actually save it into the cache (using [cacheDispatcher]).
      */
-    public fun <R> data(
-        cache: Flow<T>,
-        writer: suspend (R) -> Unit,
-        loader: suspend (LoadTracker) -> R
-    ) {
+    public fun <R> data(cache: Flow<T>, writer: Writer<R>, loader: Loader<R>) {
         data(cache) {
             val result = loader(it)
-            // Calling from scope to propagate exceptions and crash the scope.
-            // If scope is cancelled then cache writes will be skipped.
-            scope.launch(cacheDispatcher) { writer(result) }.join()
-        }
-    }
-
-    /**
-     * Variant of [data] function that allows providing the [loader][loaderFlow] (as a flow) and
-     * cache [writer] as separate parameters.
-     *
-     * In this case the [loaderFlow] can emit several loaded values and the [writer] will be
-     * responsible to actually save them into the cache (using [cacheDispatcher]).
-     */
-    @JvmName("dataFlow")
-    public fun <R> data(
-        cache: Flow<T>,
-        writer: suspend (R) -> Unit,
-        loaderFlow: suspend (LoadTracker) -> Flow<R>
-    ) {
-        data(cache) {
-            loaderFlow(it).collect { result ->
-                // Calling from scope to propagate exceptions and crash the scope.
-                // If scope is cancelled then cache writes will be skipped.
-                scope.launch(cacheDispatcher) { writer(result) }.join()
-            }
+            // Calling from parent scope to crash it instead of letting the loader handle cache
+            // write exceptions. If parent scope is cancelled then cache writes will be skipped.
+            CoroutineScope(coroutineContext + cacheDispatcher).launch { writer(result) }
         }
     }
 
@@ -192,11 +163,8 @@ public class InflowConfig<T> internal constructor() {
      * The [loader] should just return the newly loaded data and it will be automatically saved into
      * the memory cache.
      */
-    public fun data(
-        cache: MemoryCache<T>,
-        loader: suspend (LoadTracker) -> T
-    ) {
-        data(cache.read()) { cache.write(loader(it)) }
+    public fun data(cache: MemoryCache<T>, loader: Loader<T>) {
+        data(cache = cache.read()) { cache.write(loader(it)) }
         keepCacheSubscribedTimeout = 0L // No need to keep subscription to the fast in-memory cache
         cacheDispatcher = Dispatchers.Unconfined // In-memory cache doesn't need real dispatcher
     }
@@ -209,10 +177,9 @@ public class InflowConfig<T> internal constructor() {
      * The [loader] should just return the newly loaded data and it will be automatically saved into
      * the memory cache.
      */
-    public fun data(
-        initial: T,
-        loader: suspend (LoadTracker) -> T
-    ): Unit = data(MemoryCache.create(initial), loader)
+    public fun data(initial: T, loader: Loader<T>) {
+        data(MemoryCache.create(initial), loader)
+    }
 
 
     /**
@@ -334,7 +301,7 @@ public class InflowConfig<T> internal constructor() {
      * desirable anymore then the Inflow's scope can be cancelled explicitly.
      */
     public fun scope(scope: CoroutineScope) {
-        _scope = scope
+        this.scope = scope
     }
 
     /**
@@ -350,3 +317,7 @@ public class InflowConfig<T> internal constructor() {
         val loader: suspend (LoadTracker) -> Unit
     )
 }
+
+internal typealias Loader<R> = suspend (LoadTracker) -> R
+
+internal typealias Writer<R> = suspend (R) -> Unit

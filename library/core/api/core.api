@@ -38,7 +38,6 @@ public final class inflow/InflowConfig {
 	public final fun data (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
 	public final fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)V
 	public final fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
-	public final fun dataFlow (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
 	public final fun expiration (Linflow/Expires;)V
 	public final fun invalidation (Ljava/lang/Object;Linflow/Expires;)V
 	public final fun keepCacheSubscribedTimeout (J)V

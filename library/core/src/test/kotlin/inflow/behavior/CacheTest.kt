@@ -145,20 +145,6 @@ class CacheTest : BaseTest() {
         assertSame(exception, caught, "Exception is handled")
     }
 
-    @Test
-    fun `IF cache writer throws exception (with flow loader) THEN crash`() = runTest {
-        val exception = RuntimeException()
-        val caught = catchScopeException { scope ->
-            val inflow = testInflow {
-                data(cache = flowOf(0), writer = { throw exception }, loaderFlow = { flowOf(1) })
-                scope(scope)
-            }
-
-            inflow.refresh()
-        }
-        assertSame(exception, caught, "Exception is handled")
-    }
-
 
     @Test
     fun `IF in-memory cache is used THEN data is cached`() = runTest { job ->

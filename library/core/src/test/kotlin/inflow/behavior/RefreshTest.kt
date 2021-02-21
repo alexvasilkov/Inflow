@@ -6,7 +6,6 @@ package inflow.behavior
 
 import inflow.Expires
 import inflow.LoadParam
-import inflow.State.Loading
 import inflow.base.AtomicInt
 import inflow.base.BaseTest
 import inflow.base.STRESS_TAG
@@ -22,9 +21,6 @@ import inflow.utils.log
 import inflow.utils.now
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
@@ -32,7 +28,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
 class RefreshTest : BaseTest() {
@@ -67,34 +62,6 @@ class RefreshTest : BaseTest() {
 
         delay(10L) // We have to delay to ensure cache data is propagated
         assertEquals(expected = 1, actual = inflow.cached(), "New item is loaded")
-    }
-
-    @Test
-    fun `IF refresh with loader flow is called THEN data is loaded`() = runTest {
-        val inflow = testInflow {
-            val memory = MutableSharedFlow<Int?>(replay = 1).apply { tryEmit(null) }
-            data(
-                cache = memory,
-                writer = { memory.emit(it) },
-                loaderFlow = {
-                    flow {
-                        emit(0)
-                        delay(100L)
-                        emit(1)
-                    }
-                }
-            )
-            keepCacheSubscribedTimeout(0L)
-        }
-
-        assertNull(inflow.cached(), "Starts with null")
-
-        inflow.refresh()
-
-        assertEquals(expected = 0, inflow.cached(), "First value loaded")
-        assertTrue(inflow.refreshState().first() is Loading, "Still in progress")
-        delay(100L)
-        assertEquals(expected = 1, inflow.cached(), "Second value loaded")
     }
 
 

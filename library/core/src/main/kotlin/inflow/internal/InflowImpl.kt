@@ -1,21 +1,17 @@
 package inflow.internal
 
 import inflow.DataParam
-import inflow.DataParam.AutoRefresh
-import inflow.DataParam.CacheOnly
 import inflow.Inflow
 import inflow.InflowConfig
 import inflow.InflowDeferred
 import inflow.LoadParam
-import inflow.LoadParam.Refresh
-import inflow.LoadParam.RefreshForced
-import inflow.LoadParam.RefreshIfExpired
 import inflow.StateParam
 import inflow.utils.doOnCancel
 import inflow.utils.log
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +30,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
     private val fromCacheDirectly: suspend () -> T
 
     private val logId = config.logId
-    private val scope = config.scope
+    private val scope = config.scope ?: CoroutineScope(Job())
     private val cacheDispatcher = config.cacheDispatcher
     private val loadDispatcher = config.loadDispatcher
     private val cacheExpiration = config.expiration
@@ -90,47 +86,49 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
     }
 
     override fun dataInternal(param: DataParam) = when (param) {
-        AutoRefresh -> auto
-        CacheOnly -> cache
+        DataParam.AutoRefresh -> auto
+        DataParam.CacheOnly -> cache
     }
 
-    override fun stateInternal(param: StateParam) = loader.state
+    override fun stateInternal(param: StateParam) = when (param) {
+        StateParam.RefreshState -> loader.state
+    }
 
     override fun loadInternal(param: LoadParam): InflowDeferred<T> {
-        val deferred = DeferredDelegate()
+        val result = DeferredDelegate()
 
         when (param) {
-            Refresh -> deferred.delegateToLoader(loader.load(repeatIfRunning = false))
+            LoadParam.Refresh -> result.delegateToLoader(loader.load(repeatIfRunning = false))
 
-            RefreshForced -> deferred.delegateToLoader(loader.load(repeatIfRunning = true))
+            LoadParam.RefreshForced -> result.delegateToLoader(loader.load(repeatIfRunning = true))
 
-            is RefreshIfExpired -> {
+            is LoadParam.RefreshIfExpired -> {
                 // We need to request latest cached value first to check its expiration
                 val job = scope.launch(cacheDispatcher) {
-                    // Getting cached value, it won't trigger extra cache read if already subscribed.
+                    // Getting cached value, it won't trigger cache read if already subscribed.
                     // If scope is cancelled while we're waiting for the cache then shared cache
                     // should throw cancellation exception.
                     val cached = cache.first()
 
                     if (cacheExpiration.expiresIn(cached) > param.expiresIn) {
                         // Not expired, returning cached value as is
-                        deferred.onValue(cached)
+                        result.onValue(cached)
                     } else {
                         // Expired, requesting refresh
-                        deferred.delegateToLoader(loader.load(repeatIfRunning = false))
+                        result.delegateToLoader(loader.load(repeatIfRunning = false))
                     }
                 }
                 // If scope is cancelled then we need to notify our deferred object
-                job.doOnCancel(deferred::onCancelled)
+                job.doOnCancel(result::onCancelled)
             }
         }
 
-        return deferred
+        return result
     }
 
 
     // A deferred implementation that can delegate either to actual value / error or to
-// loader's deferred result (in which case the result will be requested from cache explicitly)
+    // loader's deferred result (in which case the result will be requested from cache explicitly)
     private inner class DeferredDelegate : InflowDeferred<T> {
         private val delegateLoader = atomic<CompletableDeferred<Unit>?>(null)
         private val delegateData = atomic<CompletableDeferred<T>?>(null)
