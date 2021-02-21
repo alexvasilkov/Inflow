@@ -18,10 +18,6 @@ import inflow.base.testInflow
 import inflow.cached
 import inflow.fresh
 import inflow.inflow
-import inflow.refresh
-import inflow.refreshForced
-import inflow.refreshIfExpired
-import inflow.refreshState
 import inflow.utils.log
 import inflow.utils.now
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -148,7 +144,7 @@ class RefreshTest : BaseTest() {
 
         // Forcing second refresh
         delay(50L)
-        inflow.refreshForced()
+        inflow.refresh(force = true)
 
         assertNull(inflow.cached(), "Starts with null")
 
@@ -177,7 +173,7 @@ class RefreshTest : BaseTest() {
 
         var commonResult: Int? = null
         runStressTest {
-            val result = inflow.refreshForced().await()
+            val result = inflow.refresh(force = true).await()
             synchronized(inflow) { if (commonResult == null) commonResult = result }
             // All waiters should receive the latest loaded item
             assertEquals(commonResult, result, "All waiters get same result")

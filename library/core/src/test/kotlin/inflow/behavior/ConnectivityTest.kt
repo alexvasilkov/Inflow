@@ -9,7 +9,6 @@ import inflow.base.BaseTest
 import inflow.base.runTest
 import inflow.base.testInflow
 import inflow.cached
-import inflow.data
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow

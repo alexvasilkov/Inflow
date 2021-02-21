@@ -5,7 +5,6 @@ import com.alexvasilkov.inflow.data.StackExchangeAuth
 import com.alexvasilkov.inflow.data.StackExchangeRepo
 import com.alexvasilkov.inflow.model.Profile
 import inflow.Inflow
-import inflow.data
 import inflow.refreshError
 import inflow.refreshing
 import kotlinx.coroutines.flow.Flow

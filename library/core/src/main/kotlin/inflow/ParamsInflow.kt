@@ -21,11 +21,11 @@ import kotlinx.coroutines.flow.flatMapLatest
  * be skipped and the new one will be tracked instead.*
  *
  * **Important**: parameters flow is expected to emit initial value immediately upon subscription,
- * otherwise resulting Inflow will not return any [data][Inflow.data] or [state][Inflow.state]
- * until first parameter is emitted. Use empty parameter as initial value along with [emptyInflow]
- * if there is no parameter expected in the beginning.
+ * otherwise resulting Inflow will not return anything from [cache][Inflow.cache] and
+ * [refreshState][Inflow.refreshState] flows until first parameter is emitted. Use empty parameter
+ * as initial value along with [emptyInflow] if there is no parameter expected in the beginning.
  *
- * [StateFlow] and [Inflow.data] are good candidates for parameters providers.
+ * [StateFlow] and [Inflow.cache]/[Inflow.data] are good candidates for parameters providers.
  *
  * **Important**: parameters of type `P` should provide a correct implementation of
  * [equals][Any.equals] and [hashCode][Any.hashCode] since they will be used as [Map] keys.

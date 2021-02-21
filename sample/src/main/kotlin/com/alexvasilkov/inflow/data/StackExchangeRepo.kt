@@ -11,7 +11,6 @@ import inflow.Inflow
 import inflow.InflowsCache
 import inflow.MemoryCache
 import inflow.inflow
-import inflow.refreshIfExpired
 import inflow.toInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope

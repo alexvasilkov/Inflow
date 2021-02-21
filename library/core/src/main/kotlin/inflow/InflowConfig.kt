@@ -128,8 +128,8 @@ public class InflowConfig<T> internal constructor() {
      * @param cache Flow of cached data. This flow should always emit some empty value (e.g. `null`)
      * if no data is cached yet to trigger the loading process. The cache will be subscribed and
      * un-subscribed on demand using [cacheDispatcher] to allow sharing it between several
-     * downstream subscribers. See [Inflow.data]. Any errors thrown by the cache will propagate into
-     * the [scope] and eventually crash the app if no custom error handler was provided.
+     * downstream subscribers. See [Inflow.cache]. Any errors thrown by the cache will propagate
+     * into the [scope] and eventually crash the app if no custom error handler was provided.
      *
      * @param loader Suspending function that will be called using [loadDispatcher] to load a new
      * data. **It is loader's responsibility to save the data into the cache** and it is expected
@@ -244,15 +244,15 @@ public class InflowConfig<T> internal constructor() {
     /**
      * Time to keep active cache subscription even if there are no other subscribers currently.
      * If there are still no subscribers after that time the cache will be unsubscribed.
-     * See [Inflow.data].
+     * See [Inflow.cache].
      *
      * It can be useful to avoid extra readings from slow cold cache flow while e.g. switching app's
      * screens.
      *
-     * If set to `0` then the cache will be immediately unsubscribed once last [Inflow.data]
+     * If set to `0` then the cache will be immediately unsubscribed once last [Inflow.cache]
      * subscriber is gone. If set to `Long.MAX_VALUE` then the cache will be kept subscribed
      * forever (until [scope] is cancelled), it means that any changes to the cache will be
-     * immediately observed and cached by the shared cache used for [Inflow.data] and all new
+     * immediately observed and cached by the shared cache used for [Inflow.cache] and all new
      * subscribers won't have to wait for cache reads.
      *
      * Setting a big timeout should be avoided unless a proper cancellation strategy is implemented.

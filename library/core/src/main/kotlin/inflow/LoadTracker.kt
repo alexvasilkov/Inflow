@@ -7,8 +7,8 @@ import inflow.State.Loading
  */
 public interface LoadTracker {
     /**
-     * Allows tracking intermediate loading progress that can be collected with [Inflow.state] as
-     * [Loading.Progress].
+     * Allows tracking intermediate loading progress that can be collected with
+     * [Inflow.refreshState] as [Loading.Progress].
      */
     public fun progress(current: Double, total: Double)
 }

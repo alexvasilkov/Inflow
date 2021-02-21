@@ -11,12 +11,7 @@ import inflow.base.STRESS_TAG
 import inflow.base.STRESS_TIMEOUT
 import inflow.base.runReal
 import inflow.base.runStressTest
-import inflow.cache
-import inflow.data
 import inflow.inflow
-import inflow.refresh
-import inflow.refreshForced
-import inflow.refreshState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -76,7 +71,7 @@ class StressTest : BaseTest() {
                 // Scheduling a new refresh, it will force extra refresh every second time
                 val job = launch {
                     delay(10L)
-                    (if (j % 2 == 1) inflow.refreshForced() else inflow.refresh()).join()
+                    inflow.refresh(force = j % 2 == 1).join()
                 }
 
                 inflow.refresh().await()

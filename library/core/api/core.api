@@ -8,17 +8,6 @@ public final class inflow/Connectivity$Companion {
 	public final fun setDefault (Linflow/Connectivity;)V
 }
 
-public abstract class inflow/DataParam {
-}
-
-public final class inflow/DataParam$AutoRefresh : inflow/DataParam {
-	public static final field INSTANCE Linflow/DataParam$AutoRefresh;
-}
-
-public final class inflow/DataParam$CacheOnly : inflow/DataParam {
-	public static final field INSTANCE Linflow/DataParam$CacheOnly;
-}
-
 public abstract interface class inflow/Expires {
 	public static final field Companion Linflow/Expires$Companion;
 	public abstract fun expiresIn (Ljava/lang/Object;)J
@@ -31,10 +20,15 @@ public final class inflow/Expires$Companion {
 	public final fun never ()Linflow/Expires;
 }
 
-public abstract interface class inflow/Inflow {
-	public abstract fun data (Linflow/DataParam;)Lkotlinx/coroutines/flow/Flow;
-	public abstract fun load (Linflow/LoadParam;)Linflow/InflowDeferred;
-	public abstract fun state (Linflow/StateParam;)Lkotlinx/coroutines/flow/Flow;
+public abstract class inflow/Inflow {
+	public fun <init> ()V
+	public final fun cache ()Lkotlinx/coroutines/flow/Flow;
+	public final fun data ()Lkotlinx/coroutines/flow/Flow;
+	public final fun refresh (Z)Linflow/InflowDeferred;
+	public static synthetic fun refresh$default (Linflow/Inflow;ZILjava/lang/Object;)Linflow/InflowDeferred;
+	public final fun refreshIfExpired (J)Linflow/InflowDeferred;
+	public static synthetic fun refreshIfExpired$default (Linflow/Inflow;JILjava/lang/Object;)Linflow/InflowDeferred;
+	public final fun refreshState ()Lkotlinx/coroutines/flow/Flow;
 }
 
 public final class inflow/InflowConfig {
@@ -60,20 +54,13 @@ public abstract interface class inflow/InflowDeferred {
 }
 
 public final class inflow/InflowKt {
-	public static final fun cache (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
 	public static final fun cached (Linflow/Inflow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static final fun data (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
 	public static final fun emptyInflow ()Linflow/Inflow;
 	public static final fun emptyInflow (Ljava/lang/Object;)Linflow/Inflow;
 	public static final fun fresh (Linflow/Inflow;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun fresh$default (Linflow/Inflow;JLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static final fun inflow (Lkotlin/jvm/functions/Function1;)Linflow/Inflow;
-	public static final fun refresh (Linflow/Inflow;)Linflow/InflowDeferred;
 	public static final fun refreshError (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
-	public static final fun refreshForced (Linflow/Inflow;)Linflow/InflowDeferred;
-	public static final fun refreshIfExpired (Linflow/Inflow;J)Linflow/InflowDeferred;
-	public static synthetic fun refreshIfExpired$default (Linflow/Inflow;JILjava/lang/Object;)Linflow/InflowDeferred;
-	public static final fun refreshState (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
 	public static final fun refreshing (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
 }
 
@@ -102,22 +89,6 @@ public final class inflow/InflowsConfig {
 
 public final class inflow/InflowsKt {
 	public static final fun inflows (Lkotlin/jvm/functions/Function1;)Linflow/Inflows;
-}
-
-public abstract class inflow/LoadParam {
-}
-
-public final class inflow/LoadParam$Refresh : inflow/LoadParam {
-	public static final field INSTANCE Linflow/LoadParam$Refresh;
-}
-
-public final class inflow/LoadParam$RefreshForced : inflow/LoadParam {
-	public static final field INSTANCE Linflow/LoadParam$RefreshForced;
-}
-
-public final class inflow/LoadParam$RefreshIfExpired : inflow/LoadParam {
-	public final field expiresIn J
-	public fun <init> (J)V
 }
 
 public abstract interface class inflow/LoadTracker {
@@ -176,13 +147,6 @@ public final class inflow/State$Loading$Progress : inflow/State$Loading {
 
 public final class inflow/State$Loading$Started : inflow/State$Loading {
 	public static final field INSTANCE Linflow/State$Loading$Started;
-}
-
-public abstract class inflow/StateParam {
-}
-
-public final class inflow/StateParam$Refresh : inflow/StateParam {
-	public static final field INSTANCE Linflow/StateParam$Refresh;
 }
 
 public final class inflow/TransformersKt {

@@ -9,10 +9,6 @@ import inflow.LoadParam
 import inflow.base.BaseTest
 import inflow.base.runTest
 import inflow.base.testInflow
-import inflow.cache
-import inflow.data
-import inflow.refresh
-import inflow.refreshForced
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -122,7 +118,7 @@ class CancelTest : BaseTest() {
         inflow.refresh()
         assertFalse(loaderCalled, "Loader is not called after refresh")
 
-        inflow.refreshForced()
+        inflow.refresh(force = true)
         assertFalse(loaderCalled, "Loader is not called after refreshForced")
     }
 
@@ -160,7 +156,7 @@ class CancelTest : BaseTest() {
         var awaitCancelled = false
         launch(job) {
             try {
-                inflow.load(param).await()
+                inflow.loadInternal(param).await()
             } catch (ce: CancellationException) {
                 awaitCancelled = true
             }

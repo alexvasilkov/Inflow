@@ -7,7 +7,6 @@ import com.alexvasilkov.inflow.databinding.TimeScreenBinding
 import com.alexvasilkov.inflow.ui.BaseActivity
 import com.alexvasilkov.inflow.ui.ext.whileStarted
 import inflow.Expires
-import inflow.data
 import inflow.inflow
 import inflow.refreshing
 import kotlinx.coroutines.Dispatchers

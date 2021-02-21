@@ -8,10 +8,7 @@ import inflow.State.Idle
 import inflow.base.BaseTest
 import inflow.base.runTest
 import inflow.cached
-import inflow.data
 import inflow.emptyInflow
-import inflow.refresh
-import inflow.refreshState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect

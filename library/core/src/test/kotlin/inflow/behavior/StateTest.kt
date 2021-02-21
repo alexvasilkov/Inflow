@@ -4,7 +4,6 @@
 
 package inflow.behavior
 
-import inflow.DataParam.CacheOnly
 import inflow.LoadTracker
 import inflow.State.Idle
 import inflow.State.Loading
@@ -17,12 +16,9 @@ import inflow.base.runStressTest
 import inflow.base.runTest
 import inflow.base.testInflow
 import inflow.base.track
-import inflow.data
+import inflow.cached
 import inflow.inflow
-import inflow.refresh
 import inflow.refreshError
-import inflow.refreshForced
-import inflow.refreshState
 import inflow.refreshing
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -99,7 +95,7 @@ class StateTest : BaseTest() {
 
         assertEquals(TestTracker(0, 1), tracker, "Not loading by default")
 
-        launch { inflow.data(CacheOnly).first() }
+        launch { inflow.cached() }
 
         delay(1000L)
 
@@ -203,7 +199,7 @@ class StateTest : BaseTest() {
         assertEquals(expected = 1, actual = loadingCount, "Loading is started")
 
         delay(50L)
-        inflow.refreshForced() // Forcing new refresh in the middle of another refresh
+        inflow.refresh(force = true) // Forcing new refresh in the middle of another refresh
 
         inflow.refreshState().first { it is Idle }
         delay(Long.MAX_VALUE - 1L)

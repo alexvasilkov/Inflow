@@ -4,7 +4,6 @@ import com.alexvasilkov.inflow.data.api.StackExchangeApi
 import com.alexvasilkov.inflow.data.ext.now
 import inflow.Expires
 import inflow.Inflow
-import inflow.cache
 import inflow.cached
 import inflow.inflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi

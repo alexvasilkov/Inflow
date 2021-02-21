@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @ExperimentalCoroutinesApi
-internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
+internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
 
     private val cache: Flow<T>
     private val auto: Flow<T>
@@ -89,14 +89,14 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T> {
         }
     }
 
-    override fun data(param: DataParam) = when (param) {
+    override fun dataInternal(param: DataParam) = when (param) {
         AutoRefresh -> auto
         CacheOnly -> cache
     }
 
-    override fun state(param: StateParam) = loader.state
+    override fun stateInternal(param: StateParam) = loader.state
 
-    override fun load(param: LoadParam): InflowDeferred<T> {
+    override fun loadInternal(param: LoadParam): InflowDeferred<T> {
         val deferred = DeferredDelegate()
 
         when (param) {

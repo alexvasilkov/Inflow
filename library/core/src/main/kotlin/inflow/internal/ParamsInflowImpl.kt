@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 internal class ParamsInflowImpl<P, T>(
     params: Flow<P>,
     config: ParamsInflowConfig<P, T>
-) : Inflow<T> {
+) : Inflow<T>() {
 
     private val scope = config.scope ?: CoroutineScope(Job())
     private val dispatcher = config.dispatcher
@@ -42,17 +42,17 @@ internal class ParamsInflowImpl<P, T>(
         .distinctUntilChanged { old, new -> old === new } // Filtering duplicate Inflow instances
         .share(scope, dispatcher, 0L) // Sharing the flow to reuse params subscription
 
-    override fun data(param: DataParam) = shared
-        .flatMapLatest { it.data(param) }
+    override fun dataInternal(param: DataParam) = shared
+        .flatMapLatest { it.dataInternal(param) }
 
-    override fun state(param: StateParam) = shared
-        .flatMapLatest { it.state(param) }
+    override fun stateInternal(param: StateParam) = shared
+        .flatMapLatest { it.stateInternal(param) }
         .distinctUntilChanged()
 
-    override fun load(param: LoadParam): InflowDeferred<T> {
+    override fun loadInternal(param: LoadParam): InflowDeferred<T> {
         val deferred = DeferredDelegate<T>()
         val job = scope.launch(dispatcher) {
-            deferred.delegateTo(shared.first().load(param))
+            deferred.delegateTo(shared.first().loadInternal(param))
         }
         // If scope is cancelled then we need to notify our deferred object
         job.doOnCancel(deferred::onCancelled)

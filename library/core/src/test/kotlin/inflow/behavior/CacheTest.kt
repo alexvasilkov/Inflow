@@ -11,10 +11,7 @@ import inflow.base.catchScopeException
 import inflow.base.runTest
 import inflow.base.testDispatcher
 import inflow.base.testInflow
-import inflow.cache
 import inflow.cached
-import inflow.data
-import inflow.refresh
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
