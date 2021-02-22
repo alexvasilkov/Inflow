@@ -28,6 +28,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
 class RefreshTest : BaseTest() {
@@ -101,7 +102,7 @@ class RefreshTest : BaseTest() {
 
 
     @Test
-    fun `IF refresh with RefreshForced THEN loading is repeated`() = runTest {
+    fun `IF refresh is forced THEN loading is repeated`() = runTest {
         val inflow = testInflow {
             var count = 0
             data(initial = null) { delay(100L); count++ }
@@ -131,23 +132,20 @@ class RefreshTest : BaseTest() {
     @Test
     @Tag(STRESS_TAG)
     @Timeout(STRESS_TIMEOUT)
-    fun `IF refresh with RefreshForced and await() THEN all waiters get same result`() = runReal {
+    fun `IF refresh is forced and await() THEN all callers get newer result`() = runReal {
         val loads = AtomicInt()
         val inflow = inflow<Int> {
-            data(initial = -1) { delay(100L); loads.getAndIncrement() }
+            data(initial = -1) { delay(100L); loads.incrementAndGet() }
             keepCacheSubscribedTimeout(0L)
         }
 
-        var commonResult: Int? = null
         runStressTest {
-            val result = inflow.refresh(force = true).await()
-            synchronized(inflow) { if (commonResult == null) commonResult = result }
-            // All waiters should receive the latest loaded item
-            assertEquals(commonResult, result, "All waiters get same result")
+            val before = loads.get()
+            val after = inflow.refresh(force = true).await()
+            assertTrue(before < after, "All waiters get newer result ($before < $after)")
         }
 
         log(logId) { "Loads: ${loads.get()}" }
-        assertEquals(loads.get() - 1, commonResult, "All waiters get latest result")
     }
 
 }

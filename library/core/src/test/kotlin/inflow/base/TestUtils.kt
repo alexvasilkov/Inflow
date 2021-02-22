@@ -52,7 +52,6 @@ internal fun TestCoroutineScope.testInflow(block: InflowConfig<Int?>.() -> Unit)
         cacheDispatcher(testDispatcher)
         loadDispatcher(testDispatcher)
         block()
-        coroutineContext.plus(Dispatchers.Default)
     }
 
 @ExperimentalCoroutinesApi

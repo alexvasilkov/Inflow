@@ -182,33 +182,6 @@ class StateTest : BaseTest() {
 
 
     @Test
-    fun `IF refresh is forced THEN loading state is propagated only once`() = runTest { job ->
-        val inflow = testInflow {
-            data(initial = null) { delay(100L); throw RuntimeException() }
-        }
-
-        var loadingCount = 0
-
-        launch(job) {
-            inflow.refreshState().collect { if (it is Loading.Started) loadingCount++ }
-        }
-
-        assertEquals(expected = 0, actual = loadingCount, "No loading in the beginning")
-
-        inflow.refresh()
-        assertEquals(expected = 1, actual = loadingCount, "Loading is started")
-
-        delay(50L)
-        inflow.refresh(force = true) // Forcing new refresh in the middle of another refresh
-
-        inflow.refreshState().first { it is Idle }
-        delay(Long.MAX_VALUE - 1L)
-
-        assertEquals(expected = 1, actual = loadingCount, "No extra loading is tracked")
-    }
-
-
-    @Test
     fun `IF exception THEN error is collected`() = runTest { job ->
         val inflow = testInflow {
             data(initial = null) { delay(100L); throw RuntimeException() }

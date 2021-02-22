@@ -119,7 +119,7 @@ class CancelTest : BaseTest() {
         assertFalse(loaderCalled, "Loader is not called after refresh")
 
         inflow.refresh(force = true)
-        assertFalse(loaderCalled, "Loader is not called after refreshForced")
+        assertFalse(loaderCalled, "Loader is not called after forced refresh")
     }
 
     @Test

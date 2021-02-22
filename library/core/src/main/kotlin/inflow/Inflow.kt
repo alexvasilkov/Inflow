@@ -101,8 +101,7 @@ public abstract class Inflow<T> {
      * enforced using [force] param.
      *
      * @param force If set to true and another refresh is currently in place then extra refresh will
-     * be done again right after the current one. No extra states will be emitted by [refreshState]
-     * until this extra request completes.
+     * be done again right after the current one.
      *
      * It can be useful in situations when remote data was changed (e.g. because of POST or PUT
      * request) and we need to ensure that newly loaded data reflects that changes. Otherwise

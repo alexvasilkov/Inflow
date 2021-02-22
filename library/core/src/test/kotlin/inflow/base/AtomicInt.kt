@@ -13,5 +13,7 @@ internal class AtomicInt {
 
     fun getAndIncrement(): Int = atomic.getAndIncrement()
 
+    fun incrementAndGet(): Int = atomic.incrementAndGet()
+
     fun decrementAndGet(): Int = atomic.decrementAndGet()
 }
