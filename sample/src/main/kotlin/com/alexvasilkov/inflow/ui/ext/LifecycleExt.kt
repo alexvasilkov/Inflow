@@ -1,6 +1,7 @@
 package com.alexvasilkov.inflow.ui.ext
 
-import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle.Event
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -9,11 +10,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
+
+// TODO: Move to android library
+
 /**
  * Runs the [action] if this [LifecycleOwner] is in started state. The action will be cancelled when
  * the owner is stopped and started again when the owner is started.
  */
-fun LifecycleOwner.whileStarted(action: suspend () -> Unit) =
+fun LifecycleOwner.whileStarted(action: suspend () -> Unit): Unit =
     lifecycle.addObserver(WhileStartedObserver(action))
 
 /**
@@ -23,26 +27,29 @@ fun LifecycleOwner.whileStarted(action: suspend () -> Unit) =
 inline fun <T> Flow<T>.whileStarted(
     owner: LifecycleOwner,
     crossinline collector: suspend (T) -> Unit
-) = owner.whileStarted { collect(collector) }
+): Unit = owner.whileStarted { collect(collector) }
 
 
 private class WhileStartedObserver(
     private val action: suspend () -> Unit
-) : DefaultLifecycleObserver {
+) : LifecycleEventObserver {
     private var job: Job? = null
 
-    override fun onStart(owner: LifecycleOwner) {
-        // Global scope is fine as we'll control the lifespan of the job manually.
-        // If the action crashes then crashing global scope is also fine.
-        job = GlobalScope.launch(Dispatchers.Main.immediate) { action() }
-    }
-
-    override fun onStop(owner: LifecycleOwner) {
-        job?.cancel()
-        job = null
-    }
-
-    override fun onDestroy(owner: LifecycleOwner) {
-        owner.lifecycle.removeObserver(this)
+    override fun onStateChanged(source: LifecycleOwner, event: Event) = when (event) {
+        Event.ON_START -> {
+            // Global scope is fine as we'll control the lifespan of the job manually.
+            // If the action crashes then crashing global scope is also fine.
+            job = GlobalScope.launch(Dispatchers.Main.immediate) { action() }
+        }
+        Event.ON_STOP -> {
+            job?.cancel()
+            job = null
+        }
+        Event.ON_DESTROY -> {
+            source.lifecycle.removeObserver(this)
+        }
+        else -> {
+            // No-op
+        }
     }
 }
