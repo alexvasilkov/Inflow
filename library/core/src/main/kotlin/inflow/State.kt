@@ -10,7 +10,7 @@ import kotlin.math.min
  */
 public sealed class State {
 
-    public sealed class Idle : State() {
+    public sealed class Idle : State() { // TODO: add `error` getter instead? What about initial?
         /**
          * Initial state, data loading never started yet.
          */
@@ -28,13 +28,15 @@ public sealed class State {
             @JvmField
             public val throwable: Throwable,
             @JvmField
+            @JvmSynthetic
             internal val id: Int,
             @JvmField
+            @JvmSynthetic
             internal val markHandled: (Error) -> Boolean
         ) : Idle()
     }
 
-    public sealed class Loading : State() {
+    public sealed class Loading : State() { // TODO: add nullable `progress` reference instead?
         /**
          * Loading is started.
          */

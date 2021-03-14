@@ -18,7 +18,7 @@ public fun interface Expires<T> {
      *
      * Return `Long.MAX_VALUE` if the data should never be refreshed (or invalidated) automatically.
      */
-    public fun expiresIn(data: T): Long
+    public fun expiresIn(data: T): Long // TODO: Make suspend?
 
 
     public companion object {
