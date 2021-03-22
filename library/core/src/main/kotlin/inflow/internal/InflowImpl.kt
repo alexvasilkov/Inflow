@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @ExperimentalCoroutinesApi
-internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
+internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
 
     private val cache: Flow<T>
     private val auto: Flow<T>
@@ -31,9 +31,9 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
 
     private val fromCacheDirectly: suspend () -> T
 
-    private val logId = config.logId
-    private val scope = config.scope ?: CoroutineScope(Job())
-    private val loadDispatcher = config.loadDispatcher
+    protected val logId = config.logId
+    protected val scope = config.scope ?: CoroutineScope(Job())
+    protected val loadDispatcher = config.loadDispatcher
     private val cacheDispatcher = config.cacheDispatcher
     private val cacheExpiration = config.expiration
 
@@ -94,17 +94,18 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
 
     override fun stateInternal(param: StateParam) = when (param) {
         StateParam.RefreshState -> loader.state
+        else -> throw UnsupportedOperationException("$param is not supported by InflowImpl")
     }
 
     override fun loadInternal(param: LoadParam): InflowDeferred<T> {
         return when (param) {
-            LoadParam.Refresh -> Deferred(loader.load())
+            LoadParam.Refresh -> DeferredLoad(loader.load())
 
             LoadParam.RefreshForced -> {
                 val result = DeferredSelector<T>()
                 val job = scope.launch(Dispatchers.Unconfined) {
                     refreshState().first { it is State.Idle } // Waiting for current load to finish
-                    result.delegate(Deferred(loader.load()))
+                    result.delegate(DeferredLoad(loader.load()))
                 }
                 job.doOnCancel(result::cancel)
                 result
@@ -124,13 +125,15 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
                         result.value(cached)
                     } else {
                         // Expired, requesting refresh
-                        result.delegate(Deferred(loader.load()))
+                        result.delegate(DeferredLoad(loader.load()))
                     }
                 }
                 // If scope is cancelled then we need to notify our deferred object
                 job.doOnCancel(result::cancel)
                 result
             }
+
+            else -> throw UnsupportedOperationException("$param is not supported by InflowImpl")
         }
     }
 
@@ -176,7 +179,7 @@ internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
 
     // Deferred that delegates to the loader's deferred result,
     // the actual result will be requested from the cache explicitly.
-    private inner class Deferred(
+    protected inner class DeferredLoad(
         private val delegate: CompletableDeferred<Unit>
     ) : InflowDeferred<T> {
         override suspend fun join() = delegate.join()

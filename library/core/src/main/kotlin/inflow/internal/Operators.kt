@@ -52,7 +52,7 @@ internal fun <T> Flow<T>.share(
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
-    val lock = reentrantLock() // We don't call any suspending functions under lock
+    val lock = reentrantLock() // We don't call any suspending functions under the lock
     var subscriptionsCount = 0
     var collectJob: Job? = null
     var completeJob: Job? = null
@@ -119,7 +119,7 @@ internal fun <T> Flow<T>.share(
  * Runs [action] on first subscription and cancels resulting job once no subscribers left.
  */
 internal fun <T> Flow<T>.doWhileSubscribed(action: () -> Job): Flow<T> {
-    val lock = reentrantLock() // We don't call any suspending functions under lock
+    val lock = reentrantLock() // We don't call any suspending functions under the lock
     var count = 0
     var job: Job? = null
     return this

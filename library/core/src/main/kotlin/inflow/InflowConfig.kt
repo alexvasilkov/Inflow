@@ -72,7 +72,8 @@ import kotlin.coroutines.coroutineContext
  * Automatic retries can be disabled by setting [retryTime] to [Long.MAX_VALUE] and [connectivity]
  * to `null`.
  */
-public class InflowConfig<T> internal constructor() {
+// TODO: Consider using builder style instead?
+public open class InflowConfig<T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
@@ -137,7 +138,7 @@ public class InflowConfig<T> internal constructor() {
      * **Important:** The newly loaded data should not be expired according to [expiration] policy
      * to avoid endless loadings.
      */
-    public fun data(cache: Flow<T>, loader: Loader<Unit>) {
+    public open fun data(cache: Flow<T>, loader: DataLoader<Unit>) {
         require(data == null) { "Data is already set, cannot call `data()` again" }
         data = DataProvider(cache, loader)
     }
@@ -148,12 +149,12 @@ public class InflowConfig<T> internal constructor() {
      * In this case the [loader] should just return the newly loaded data and the [writer] will be
      * responsible to actually save it into the cache (using [cacheDispatcher]).
      */
-    public fun <R> data(cache: Flow<T>, writer: Writer<R>, loader: Loader<R>) {
+    public open fun <R> data(cache: Flow<T>, writer: CacheWriter<R>, loader: DataLoader<R>) {
         data(cache) {
             val result = loader(it)
             // Calling from parent scope to crash it instead of letting the loader handle cache
             // write exceptions. If parent scope is cancelled then cache writes will be skipped.
-            CoroutineScope(coroutineContext + cacheDispatcher).launch { writer(result) }
+            CoroutineScope(coroutineContext).launch(cacheDispatcher) { writer(result) }
         }
     }
 
@@ -163,8 +164,8 @@ public class InflowConfig<T> internal constructor() {
      * The [loader] should just return the newly loaded data and it will be automatically saved into
      * the memory cache.
      */
-    public fun data(cache: MemoryCache<T>, loader: Loader<T>) {
-        data(cache = cache.read()) { cache.write(loader(it)) }
+    public open fun data(cache: MemoryCache<T>, loader: DataLoader<T>) {
+        data(cache.read()) { cache.write(loader(it)) }
         keepCacheSubscribedTimeout = 0L // No need to keep subscription to the fast in-memory cache
         cacheDispatcher = Dispatchers.Unconfined // In-memory cache doesn't need real dispatcher
     }
@@ -177,7 +178,7 @@ public class InflowConfig<T> internal constructor() {
      * The [loader] should just return the newly loaded data and it will be automatically saved into
      * the memory cache.
      */
-    public fun data(initial: T, loader: Loader<T>) {
+    public open fun data(initial: T, loader: DataLoader<T>) {
         data(MemoryCache.create(initial), loader)
     }
 
@@ -311,13 +312,13 @@ public class InflowConfig<T> internal constructor() {
         this.logId = logId
     }
 
-
-    internal class DataProvider<T>(
-        val cache: Flow<T>,
-        val loader: suspend (LoadTracker) -> Unit
-    )
 }
 
-internal typealias Loader<R> = suspend (LoadTracker) -> R
+internal class DataProvider<T>(
+    val cache: Flow<T>,
+    val loader: DataLoader<Unit>
+)
 
-internal typealias Writer<R> = suspend (R) -> Unit
+internal typealias DataLoader<R> = suspend (LoadTracker) -> R
+
+internal typealias CacheWriter<R> = suspend (R) -> Unit

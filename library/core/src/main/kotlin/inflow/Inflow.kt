@@ -196,6 +196,12 @@ internal sealed class StateParam {
      * Returns the state of refresh calls, triggered with [Inflow.refresh].
      */
     object RefreshState : StateParam()
+
+    /**
+     * Returns the state of "load next page" calls, triggered with
+     * [Inflow.loadNext][inflow.paging.loadNext].
+     */
+    object LoadNextState : StateParam()
 }
 
 /**
@@ -206,6 +212,11 @@ internal sealed class LoadParam {
      * Triggers refresh call. See [Inflow.refresh].
      */
     object Refresh : LoadParam()
+
+    /**
+     * Triggers "load next page" call. See [Inflow.loadNext][inflow.paging.loadNext].
+     */
+    object LoadNext : LoadParam()
 
     /**
      * Triggers extra refresh call even if another refresh is in progress. See [Inflow.refresh].

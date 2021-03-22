@@ -31,13 +31,13 @@ public abstract class inflow/Inflow {
 	public final fun refreshState ()Lkotlinx/coroutines/flow/Flow;
 }
 
-public final class inflow/InflowConfig {
+public class inflow/InflowConfig {
 	public final fun cacheDispatcher (Lkotlinx/coroutines/CoroutineDispatcher;)V
 	public final fun connectivity (Linflow/Connectivity;)V
-	public final fun data (Linflow/MemoryCache;Lkotlin/jvm/functions/Function2;)V
-	public final fun data (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
-	public final fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)V
-	public final fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
+	public fun data (Linflow/MemoryCache;Lkotlin/jvm/functions/Function2;)V
+	public fun data (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+	public fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)V
+	public fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
 	public final fun expiration (Linflow/Expires;)V
 	public final fun invalidation (Ljava/lang/Object;Linflow/Expires;)V
 	public final fun keepCacheSubscribedTimeout (J)V
@@ -150,6 +150,35 @@ public final class inflow/State$Loading$Started : inflow/State$Loading {
 
 public final class inflow/TransformersKt {
 	public static final fun map (Linflow/Inflow;Lkotlin/jvm/functions/Function2;)Linflow/Inflow;
+}
+
+public class inflow/paging/Paged {
+	public final field hasNext Z
+	public final field items Ljava/util/List;
+	public fun <init> (Ljava/util/List;Z)V
+}
+
+public final class inflow/paging/PagedInflowConfig : inflow/InflowConfig {
+	public synthetic fun data (Linflow/MemoryCache;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun data (Linflow/paging/Paged;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun data (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
+	public final fun pager (Linflow/paging/Pager;)V
+}
+
+public final class inflow/paging/PagedInflowKt {
+	public static final fun loadNext (Linflow/Inflow;)Linflow/InflowDeferred;
+	public static final fun loadNextState (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
+	public static final fun pagedInflow (Lkotlin/jvm/functions/Function1;)Linflow/Inflow;
+}
+
+public abstract class inflow/paging/Pager {
+	public fun <init> ()V
+	public abstract fun cache ()Lkotlinx/coroutines/flow/Flow;
+	public abstract fun loadNext (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun refresh (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected final fun skipPendingActions ()V
 }
 
 public final class inflow/utils/InflowLogger {

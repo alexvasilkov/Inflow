@@ -12,17 +12,20 @@ class QuestionJson(
     val score: Int,
     val view_count: Long,
     val answer_count: Int,
-    val is_answered: Boolean
+    val is_answered: Boolean,
+    val last_activity_date: Long
 ) {
 
     fun convert() = Question(
+        id = question_id,
         link = StackExchangeApi.questionUrl + question_id,
         title = title,
         tags = tags,
         score = score,
         views = view_count,
         answers = answer_count,
-        isAnswered = is_answered
+        isAnswered = is_answered,
+        lastActivity = last_activity_date
     )
 
 }

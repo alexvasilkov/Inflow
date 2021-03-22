@@ -17,7 +17,6 @@ import com.alexvasilkov.inflow.ui.ext.whileStarted
 import com.google.android.material.appbar.AppBarLayout
 import org.koin.android.viewmodel.ext.android.viewModel
 
-
 class QuestionsListActivity : BaseActivity() {
 
     private val viewModel: QuestionsListViewModel by viewModel()
@@ -32,21 +31,18 @@ class QuestionsListActivity : BaseActivity() {
         setSupportActionBar(views.toolbar)
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
-        val adapter = QuestionsListAdapter()
+        val adapter = QuestionsListAdapter(viewModel::loadNext)
         views.list.layoutManager = LinearLayoutManager(this)
         views.list.adapter = adapter
 
         views.refreshLayout.setOnRefreshListener { viewModel.refresh() }
-        views.errorRetry.setOnClickListener { viewModel.refresh() }
 
         views.initSearch()
 
-        viewModel.list.whileStarted(this) { adapter.setList(it) }
         viewModel.state.whileStarted(this) { state ->
             views.emptyText.isVisible = state.empty
-            views.progress.isVisible = state.loading
             views.refreshLayout.isRefreshing = state.refresh
-            views.errorLayout.isVisible = state.error
+            adapter.setState(state)
         }
         viewModel.errorMessage.whileStarted(this) { toast(R.string.se_search_error) }
     }

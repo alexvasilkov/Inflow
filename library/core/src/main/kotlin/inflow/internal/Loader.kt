@@ -1,5 +1,6 @@
 package inflow.internal
 
+import inflow.DataLoader
 import inflow.LoadTracker
 import inflow.State
 import inflow.utils.doOnCancel
@@ -15,13 +16,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Runs provided action if it is not running yet while keeping execution and error states.
+ * Runs provided action if it is not running yet and tracks its state.
  */
 internal class Loader(
     private val logId: String,
     private val scope: CoroutineScope,
     private val dispatcher: CoroutineDispatcher,
-    private val action: suspend (LoadTracker) -> Unit
+    private val action: DataLoader<Unit>
 ) {
     private val _state = MutableStateFlow<State>(State.Idle.Initial)
     val state = _state.asStateFlow()
@@ -30,13 +31,13 @@ internal class Loader(
     private val mutex = Mutex()
 
     private val errorId = atomic(0)
-    private val errorIdHandled = atomic(-1)
+    private val errorHandler = ErrorHandler()
 
     fun load(): CompletableDeferred<Unit> {
         var deferredNullable: CompletableDeferred<Unit>? = null
 
         while (true) {
-            // Another job was started, let's try to return it. Otherwise try to start again.
+            // If another job is started then let's try to return it. Otherwise try to start again.
             val current = jobRef.value
             if (current != null && !current.isCompleted) {
                 log(logId) { "Refresh is already in progress, skipping new refresh" }
@@ -75,7 +76,7 @@ internal class Loader(
         caughtError = null
 
         try {
-            val tracker = Tracker()
+            val tracker = Tracker(_state)
             action(tracker)
             tracker.disable() // Deactivating to avoid tracking outside of the loader
             log(logId) { "Refresh successful" }
@@ -95,33 +96,28 @@ internal class Loader(
 
         _state.value = when (caughtError) {
             null -> State.Idle.Success
-            else -> State.Idle.Error(caughtError, errorId.incrementAndGet(), ::markHandled)
+            else -> State.Idle.Error(caughtError, errorId.incrementAndGet(), errorHandler::handle)
         }
     }
 
-    private fun markHandled(error: State.Idle.Error): Boolean {
-        while (true) {
-            val handledId = errorIdHandled.value
-            if (error.id > handledId) {
-                val set = errorIdHandled.compareAndSet(expect = handledId, update = error.id)
-                if (!set) continue // Race condition, trying again
-                return true
-            }
-            break
-        }
-        return false
-    }
-
-
-    private inner class Tracker : LoadTracker {
-        private var isActive = true
+    private class Tracker(state: MutableStateFlow<State>) : LoadTracker {
+        private val state = atomic<MutableStateFlow<State>?>(state)
 
         fun disable() {
-            isActive = false
+            state.value = null
         }
 
         override fun progress(current: Double, total: Double) {
-            if (isActive) _state.tryEmit(State.Loading.Progress(current, total))
+            state.value?.tryEmit(State.Loading.Progress(current, total))
+        }
+    }
+
+    private class ErrorHandler {
+        private val handledId = atomic(-1)
+
+        fun handle(error: State.Idle.Error): Boolean {
+            val id = handledId.value
+            return error.id > id && handledId.compareAndSet(expect = id, update = error.id)
         }
     }
 

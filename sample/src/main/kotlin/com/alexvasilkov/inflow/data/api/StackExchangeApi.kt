@@ -12,7 +12,8 @@ interface StackExchangeApi {
     suspend fun search(
         @Query("q") query: String,
         @Query("tagged") tags: String,
-        @Query("pagesize") pageSize: Int
+        @Query("pagesize") pageSize: Int,
+        @Query("max") fromTime: Long?
     ): ResponseJson<QuestionJson>
 
     @AuthRequired

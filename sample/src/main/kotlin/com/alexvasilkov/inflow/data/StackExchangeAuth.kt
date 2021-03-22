@@ -9,6 +9,7 @@ import inflow.inflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
@@ -26,9 +27,11 @@ class StackExchangeAuth {
         invalidation(emptyValue = null, Expires.at { it?.expiresAt ?: Long.MAX_VALUE })
     }
 
-    val authState: Flow<Boolean> = auth.cache().map { it != null }
+    val authState: Flow<Boolean> = auth.cache().map { it != null }.distinctUntilChanged()
 
     val token: String?; get() = runBlocking { auth.cached()?.token } // Should never block
+
+    val isLoggedIn: Boolean; get() = token != null
 
     /** Parses access token out of callback url. */
     fun handleAuthRedirect(url: String) {
