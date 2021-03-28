@@ -184,7 +184,7 @@ class CacheTest : BaseTest() {
             val cache = MemoryCache.create<Int?>(reader = { delay(100L); count++ }, writer = {})
             data(cache) { throw RuntimeException() }
             // delay() call above will switch to Default dispatcher, but it is not an expected case
-            cacheDispatcher(testDispatcher)
+            dispatcher(testDispatcher)
         }
 
         var item1: Int? = null

@@ -4,6 +4,7 @@ import inflow.DataParam
 import inflow.Inflow
 import inflow.InflowConfig
 import inflow.InflowDeferred
+import inflow.InflowPagedData
 import inflow.LoadParam
 import inflow.State
 import inflow.StateParam
@@ -27,28 +28,30 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
 
     private val cache: Flow<T>
     private val auto: Flow<T>
-    private val loader: Loader
+    private val refresh: Loader
+    private val loadNext: Loader?
 
     private val fromCacheDirectly: suspend () -> T
 
     protected val logId = config.logId
     protected val scope = config.scope ?: CoroutineScope(Job())
-    protected val loadDispatcher = config.loadDispatcher
-    private val cacheDispatcher = config.cacheDispatcher
+    protected val dispatcher = config.dispatcher
     private val cacheExpiration = config.expiration
 
     init {
-        val dataFromConfig = requireNotNull(config.data) { "`data` (cache and loader) is required" }
-        val loaderFromConfig = dataFromConfig.loader
-        val cacheFromConfig = dataFromConfig.cache
+        val data = requireNotNull(config.data) { "`data` is required" }
         val cacheTimeout = config.keepCacheSubscribedTimeout
         val retryTime = config.retryTime
         val cacheInvalidation = config.invalidation
         val cacheInvalidationEmpty = config.invalidationEmpty
         val connectivity = config.connectivity
 
-        // Preparing the loader that will track its `progress` and `error` state
-        loader = Loader(logId, scope, loadDispatcher, loaderFromConfig)
+        // Preparing the loaders that will track their `progress` and `error` states
+        refresh = Loader(logId, scope, dispatcher, data::refresh)
+        loadNext = when (data) {
+            is InflowPagedData<*> -> Loader(logId, scope, dispatcher, data::loadNext)
+            else -> null
+        }
 
         // Checking for cached data invalidation if configured
         val cacheWithInvalidation = if (cacheInvalidation != null) {
@@ -61,16 +64,16 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
                 log(logId) { "Warning: Empty value for invalidation policy is not expired, automatic refresh may not work as expected" }
             }
 
-            cacheFromConfig.emptyIfInvalid(logId, cacheInvalidation, emptyValue)
+            data.cache.emptyIfInvalid(logId, cacheInvalidation, emptyValue)
         } else {
-            cacheFromConfig
+            data.cache
         }
 
         // Preparing an action that can load data directly from cache
         fromCacheDirectly = { cacheWithInvalidation.first() }
 
         // Sharing the cache to allow several subscribers
-        cache = cacheWithInvalidation.share(scope, cacheDispatcher, cacheTimeout)
+        cache = cacheWithInvalidation.share(scope, dispatcher, cacheTimeout)
 
         // Preparing a flow that will emit cached data each time the data is changed
         // or connectivity provider signals about active connection
@@ -79,9 +82,9 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
         // Preparing `auto` cache that will schedule data updates whenever it is subscribed and
         // cached data is expired
         auto = cache.doWhileSubscribed {
-            scope.launch(loadDispatcher) {
+            scope.launch(dispatcher) {
                 scheduleUpdates(logId, cacheRepeated, cacheExpiration, retryTime) {
-                    loader.load().join()
+                    refresh.load().join()
                 }
             }
         }
@@ -93,19 +96,20 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
     }
 
     override fun stateInternal(param: StateParam) = when (param) {
-        StateParam.RefreshState -> loader.state
-        else -> throw UnsupportedOperationException("$param is not supported by InflowImpl")
+        StateParam.RefreshState -> refresh.state
+        StateParam.LoadNextState ->
+            loadNext?.state ?: throw UnsupportedOperationException("$param is not supported")
     }
 
     override fun loadInternal(param: LoadParam): InflowDeferred<T> {
         return when (param) {
-            LoadParam.Refresh -> DeferredLoad(loader.load())
+            LoadParam.Refresh -> DeferredLoad(refresh.load())
 
             LoadParam.RefreshForced -> {
                 val result = DeferredSelector<T>()
                 val job = scope.launch(Dispatchers.Unconfined) {
                     refreshState().first { it is State.Idle } // Waiting for current load to finish
-                    result.delegate(DeferredLoad(loader.load()))
+                    result.delegate(DeferredLoad(refresh.load()))
                 }
                 job.doOnCancel(result::cancel)
                 result
@@ -114,7 +118,7 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
             is LoadParam.RefreshIfExpired -> {
                 val result = DeferredSelector<T>()
                 // We need to request latest cached value first to check its expiration
-                val job = scope.launch(cacheDispatcher) {
+                val job = scope.launch(dispatcher) {
                     // Getting cached value, it won't trigger cache read if already subscribed.
                     // If scope is cancelled while we're waiting for the cache then shared cache
                     // should throw cancellation exception.
@@ -125,7 +129,7 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
                         result.value(cached)
                     } else {
                         // Expired, requesting refresh
-                        result.delegate(DeferredLoad(loader.load()))
+                        result.delegate(DeferredLoad(refresh.load()))
                     }
                 }
                 // If scope is cancelled then we need to notify our deferred object
@@ -133,7 +137,10 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
                 result
             }
 
-            else -> throw UnsupportedOperationException("$param is not supported by InflowImpl")
+            LoadParam.LoadNext -> when {
+                loadNext != null -> DeferredLoad(loadNext.load())
+                else -> throw UnsupportedOperationException("$param is not supported")
+            }
         }
     }
 
@@ -190,12 +197,12 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
             // Reading latest value directly from the original cache as the shared cache may not
             // have the latest version yet. For example the loader completed and saved the data into
             // the cache but it was not observed by the shared cache yet.
-            return withContext(cacheDispatcher) {
+            return withContext(dispatcher) {
                 // Cache errors are not expected, they should crash the scope (and the app)
                 try {
                     fromCacheDirectly()
                 } catch (th: Throwable) {
-                    scope.launch(cacheDispatcher) { throw th }.join()
+                    scope.launch(dispatcher) { throw th }.join()
                     throw th
                 }
             }

@@ -3,13 +3,13 @@ package inflow.internal
 import inflow.DataParam
 import inflow.Inflow
 import inflow.InflowDeferred
+import inflow.Inflows
 import inflow.LoadParam
-import inflow.ParamsInflowConfig
 import inflow.StateParam
-import inflow.inflows
 import inflow.utils.doOnCancel
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -25,20 +25,15 @@ import kotlinx.coroutines.launch
  * params flow.
  */
 @ExperimentalCoroutinesApi
-internal class ParamsInflowImpl<P, T>(
+internal class MergedInflowImpl<P, T>(
+    inflows: Inflows<P, T>,
     params: Flow<P>,
-    config: ParamsInflowConfig<P, T>
+    private val dispatcher: CoroutineDispatcher,
+    private val scope: CoroutineScope
 ) : Inflow<T>() {
 
-    private val scope = config.scope ?: CoroutineScope(Job())
-    private val dispatcher = config.dispatcher
-    private val inflows = inflows<P, T> {
-        config.factory?.let(::factory)
-        config.cache?.let(::cache)
-    }
-
     private val shared = params
-        .map { inflows[it] } // Creating a new Inflow for each parameter or using cached one
+        .map { inflows[it] } // Creating a new Inflow for each parameter, or using cached one
         .distinctUntilChanged { old, new -> old === new } // Filtering duplicate Inflow instances
         .share(scope, dispatcher, 0L) // Sharing the flow to reuse params subscription
 

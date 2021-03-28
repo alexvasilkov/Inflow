@@ -1,5 +1,9 @@
 package inflow
 
+import inflow.paging.Paged
+import inflow.paging.Pager
+import inflow.paging.PagerConfig
+import inflow.paging.PagerImpl
 import inflow.utils.InflowLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -72,12 +76,12 @@ import kotlin.coroutines.coroutineContext
  * Automatic retries can be disabled by setting [retryTime] to [Long.MAX_VALUE] and [connectivity]
  * to `null`.
  */
-// TODO: Consider using builder style instead?
+
 public open class InflowConfig<T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var data: DataProvider<T>? = null
+    internal var data: InflowData<T>? = null
 
     @JvmField
     @JvmSynthetic
@@ -109,7 +113,7 @@ public open class InflowConfig<T> internal constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var loadDispatcher: CoroutineDispatcher = Dispatchers.Default
+    internal var dispatcher: CoroutineDispatcher = Dispatchers.Default
 
     @JvmField
     @JvmSynthetic
@@ -119,17 +123,21 @@ public open class InflowConfig<T> internal constructor() {
     @JvmSynthetic
     internal var logId: String = "NO_ID"
 
+    internal fun data(data: InflowData<T>) {
+        require(this.data == null) { "Data is already set, cannot call `data()` again" }
+        this.data = data
+    }
 
     /**
      * Sets local and remote data sources.
      *
      * @param cache Flow of cached data. This flow should always emit some empty value (e.g. `null`)
      * if no data is cached yet to trigger the loading process. The cache will be subscribed and
-     * un-subscribed on demand using [cacheDispatcher] to allow sharing it between several
-     * downstream subscribers. See [Inflow.cache]. Any errors thrown by the cache will propagate
-     * into the [scope] and eventually crash the app if no custom error handler was provided.
+     * un-subscribed on demand to allow sharing it between several downstream subscribers.
+     * See [Inflow.cache]. Any errors thrown by the cache will propagate into the [scope] and
+     * eventually crash the app if no custom error handler was provided.
      *
-     * @param loader Suspending function that will be called using [loadDispatcher] to load a new
+     * @param loader Suspending function that will be called using [dispatcher] to load a new
      * data. **It is loader's responsibility to save the data into the cache** and it is expected
      * that once the loader is executed the new data will be emitted by the `cache` shortly.
      * Only one loader request will run at a time, meaning there will never be parallel requests
@@ -139,22 +147,24 @@ public open class InflowConfig<T> internal constructor() {
      * to avoid endless loadings.
      */
     public open fun data(cache: Flow<T>, loader: DataLoader<Unit>) {
-        require(data == null) { "Data is already set, cannot call `data()` again" }
-        data = DataProvider(cache, loader)
+        data(object : InflowData<T> {
+            override val cache = cache
+            override suspend fun refresh(tracker: LoadTracker) = loader(tracker)
+        })
     }
 
     /**
      * Variant of [data] function that allows providing a cache [writer] as a separate parameter.
      *
-     * In this case the [loader] should just return the newly loaded data and the [writer] will be
-     * responsible to actually save it into the cache (using [cacheDispatcher]).
+     * The [loader] should return the newly loaded data and the [writer] will be responsible to
+     * actually save it into the cache.
      */
     public open fun <R> data(cache: Flow<T>, writer: CacheWriter<R>, loader: DataLoader<R>) {
         data(cache) {
             val result = loader(it)
             // Calling from parent scope to crash it instead of letting the loader handle cache
             // write exceptions. If parent scope is cancelled then cache writes will be skipped.
-            CoroutineScope(coroutineContext).launch(cacheDispatcher) { writer(result) }
+            CoroutineScope(coroutineContext).launch(dispatcher) { writer(result) }
         }
     }
 
@@ -167,7 +177,6 @@ public open class InflowConfig<T> internal constructor() {
     public open fun data(cache: MemoryCache<T>, loader: DataLoader<T>) {
         data(cache.read()) { cache.write(loader(it)) }
         keepCacheSubscribedTimeout = 0L // No need to keep subscription to the fast in-memory cache
-        cacheDispatcher = Dispatchers.Unconfined // In-memory cache doesn't need real dispatcher
     }
 
     /**
@@ -261,40 +270,27 @@ public open class InflowConfig<T> internal constructor() {
     }
 
     /**
-     * Coroutine dispatcher that will be used to subscribe to the cache and to save new data using
-     * cache writers which can be found in some of the [data] method variants.
+     * Coroutine dispatcher that will be used to call the loader and subscribe to the cache.
      *
      * Well written suspend functions should be safe to call from any thread ("main-safety"
-     * principle). Thus you should rarely care about the dispatcher used to access the cache.
+     * principle), thus you should rarely care about the dispatcher.
      *
      * Uses [Dispatchers.Default] by default.
      */
-    public fun cacheDispatcher(dispatcher: CoroutineDispatcher) {
-        cacheDispatcher = dispatcher
+    public fun dispatcher(dispatcher: CoroutineDispatcher) {
+        this.dispatcher = dispatcher
     }
-
-    /**
-     * Coroutine dispatcher that will be used when calling the loader.
-     *
-     * Well written suspend functions should be safe to call from any thread ("main-safety"
-     * principle). Thus you should rarely care about the dispatcher used for the loader.
-     *
-     * Uses [Dispatchers.Default] by default.
-     */
-    public fun loadDispatcher(dispatcher: CoroutineDispatcher) {
-        loadDispatcher = dispatcher
-    }
-
 
     /**
      * Coroutine scope used for shared cache subscription and for the loader.
      * Can be used to cancel cache subscription and loader execution, or handle uncaught errors.
+     * The dispatcher should be set separately with [dispatcher] method.
      *
      * When the scope is cancelled the [Inflow] will unsubscribe from the cache (all current and
-     * future subscribers will get [CancellationException]) and will cancel the loader and automatic
-     * refresh.
+     * future subscribers will get [CancellationException]) and will cancel the loader and the
+     * automatic refresh.
      * Note that the loader needs to manually check if its current coroutine context is active with
-     * `coroutineContext.isActive` and stop loading / saving into cache otherwise.
+     * `coroutineContext.isActive` and stop loading / saving into the cache otherwise.
      *
      * It is generally unnecessary to manually cancel the Inflow as it will not have any hanging
      * jobs once it has no active subscribers and the cache is unsubscribed after
@@ -314,11 +310,52 @@ public open class InflowConfig<T> internal constructor() {
 
 }
 
-internal class DataProvider<T>(
-    val cache: Flow<T>,
-    val loader: DataLoader<Unit>
-)
+
+private const val dataUnsupportedError = "Use pager() instead"
+
+public class PagedInflowConfig<T> internal constructor() : InflowConfig<Paged<T>>() {
+
+    public fun pager(pager: Pager<T>) {
+        data(pager)
+    }
+
+    public fun <K : Any> pager(config: (PagerConfig<T, K>.() -> Unit)) {
+        data(PagerImpl(PagerConfig<T, K>().apply(config)))
+    }
+
+
+    @Deprecated(message = dataUnsupportedError, level = DeprecationLevel.HIDDEN)
+    override fun data(cache: Flow<Paged<T>>, loader: DataLoader<Unit>) {
+        throw UnsupportedOperationException(dataUnsupportedError)
+    }
+
+    @Deprecated(message = dataUnsupportedError, level = DeprecationLevel.HIDDEN)
+    override fun <R> data(cache: Flow<Paged<T>>, writer: CacheWriter<R>, loader: DataLoader<R>) {
+        throw UnsupportedOperationException(dataUnsupportedError)
+    }
+
+    @Deprecated(message = dataUnsupportedError, level = DeprecationLevel.HIDDEN)
+    override fun data(cache: MemoryCache<Paged<T>>, loader: DataLoader<Paged<T>>) {
+        throw UnsupportedOperationException(dataUnsupportedError)
+    }
+
+    @Deprecated(message = dataUnsupportedError, level = DeprecationLevel.HIDDEN)
+    override fun data(initial: Paged<T>, loader: DataLoader<Paged<T>>) {
+        throw UnsupportedOperationException(dataUnsupportedError)
+    }
+
+}
+
 
 internal typealias DataLoader<R> = suspend (LoadTracker) -> R
 
 internal typealias CacheWriter<R> = suspend (R) -> Unit
+
+internal interface InflowData<T> {
+    val cache: Flow<T>
+    suspend fun refresh(tracker: LoadTracker)
+}
+
+internal interface InflowPagedData<T> : InflowData<Paged<T>> {
+    suspend fun loadNext(tracker: LoadTracker)
+}

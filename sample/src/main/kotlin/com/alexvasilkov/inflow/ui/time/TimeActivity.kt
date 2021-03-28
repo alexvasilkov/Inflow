@@ -9,7 +9,6 @@ import com.alexvasilkov.inflow.ui.ext.whileStarted
 import inflow.Expires
 import inflow.inflow
 import inflow.refreshing
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -31,7 +30,6 @@ class TimeActivity : BaseActivity() {
         val time = inflow<Long> {
             data(initial = now()) { delay(250L); now() }
             expiration(Expires.after(1_000L - 250L) { it })
-            loadDispatcher(Dispatchers.Main.immediate)
         }
 
         val formatter = SimpleDateFormat("HH:mm:ss", Locale.ENGLISH)

@@ -30,18 +30,10 @@ import org.junit.jupiter.api.Timeout
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
-class ParamsInflowTest : BaseTest() {
-
-    @Test
-    fun `IF parametrized inflow with no factory THEN error`() = runTest {
-        assertFailsWith<IllegalArgumentException> {
-            flowOf(0).toInflow<Int, Int> {}
-        }
-    }
+class MergedInflowsTest : BaseTest() {
 
     @Test
     fun `IF parametrized inflow THEN data outputs are combined`() = runTest { job ->
@@ -89,14 +81,14 @@ class ParamsInflowTest : BaseTest() {
     @Test
     fun `IF parametrized inflow AND small cache THEN new inflow created again`() = runTest { job ->
         var count = 0
-        val inflow = flowOf(0, 1, 0).toInflow<Int, Int> {
-            builder {
+        val factory = { _: Int ->
+            inflow<Int> {
                 count++
                 data(cache = flowOf(0), loader = {})
             }
-            cache(InflowsCache.create(maxSize = 1))
-            dispatcher(testDispatcher)
         }
+        val inflow = inflows(factory, cache = InflowsCache.create(maxSize = 1))
+            .merge(params = flowOf(0, 1, 0), testDispatcher)
 
         launch(job) { inflow.data().collect() }
 
@@ -106,13 +98,12 @@ class ParamsInflowTest : BaseTest() {
     @Test
     fun `IF parametrized inflow AND custom scope THEN can cancel the scope`() = runTest { job ->
         val scope = CoroutineScope(EmptyCoroutineContext)
-        val inflow = flowOf(0, 1, 0).toInflow<Int, Int> {
-            builder {
+        val factory = { _: Int ->
+            inflow<Int> {
                 data(cache = flowOf(0), loader = {})
             }
-            dispatcher(testDispatcher)
-            scope(scope)
         }
+        val inflow = inflows(factory).merge(params = flowOf(0, 1, 0), testDispatcher, scope)
         scope.cancel()
 
         var awaitCancelled = false
@@ -132,11 +123,11 @@ class ParamsInflowTest : BaseTest() {
     @Timeout(STRESS_TIMEOUT)
     fun `IF parametrized inflow observed from several threads THEN no deadlocks`() = runReal {
         val params = MutableStateFlow(0)
-        val inflow = params.toInflow<Int, Int?> {
-            builder { param ->
-                data(initial = null) { param }
+        val inflow = inflows(
+            factory = { param: Int ->
+                inflow<Int?> { data(initial = null, loader = { param }) }
             }
-        }
+        ).merge(params)
 
         runStressTest { i ->
             if (i % 100 == 0) params.value++
@@ -165,16 +156,15 @@ class ParamsInflowTest : BaseTest() {
                 delay(100L)
             }
         }
-        return params.toInflow {
-            builder { param ->
+
+        val factory = { param: Int ->
+            inflow<Int> {
                 var count = param
                 data(initial = param, loader = { loader(++count) })
-
-                cacheDispatcher(testDispatcher)
-                loadDispatcher(testDispatcher)
+                dispatcher(testDispatcher)
             }
-            dispatcher(testDispatcher)
         }
+        return inflows(factory).merge(params, testDispatcher)
     }
 
 }

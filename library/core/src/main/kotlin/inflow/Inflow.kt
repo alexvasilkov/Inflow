@@ -5,12 +5,10 @@ import inflow.DataParam.CacheOnly
 import inflow.LoadParam.Refresh
 import inflow.LoadParam.RefreshForced
 import inflow.LoadParam.RefreshIfExpired
-import inflow.internal.InflowImpl
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import inflow.paging.Paged
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 
@@ -198,8 +196,7 @@ internal sealed class StateParam {
     object RefreshState : StateParam()
 
     /**
-     * Returns the state of "load next page" calls, triggered with
-     * [Inflow.loadNext][inflow.paging.loadNext].
+     * Returns the state of "load next page" calls, triggered with [Inflow.loadNext][loadNext].
      */
     object LoadNextState : StateParam()
 }
@@ -214,7 +211,7 @@ internal sealed class LoadParam {
     object Refresh : LoadParam()
 
     /**
-     * Triggers "load next page" call. See [Inflow.loadNext][inflow.paging.loadNext].
+     * Triggers "load next page" call. See [Inflow.loadNext][loadNext].
      */
     object LoadNext : LoadParam()
 
@@ -231,40 +228,6 @@ internal sealed class LoadParam {
         init {
             require(expiresIn >= 0L) { "Value of 'expiresIn' must be >= 0" }
         }
-    }
-}
-
-
-/* ---------------------------------------------------------------------------------------------- */
-/* Builders                                                                                       */
-/* ---------------------------------------------------------------------------------------------- */
-
-/**
- * Creates a new [Inflow] using provided [InflowConfig] configuration.
- */
-@ExperimentalCoroutinesApi
-public fun <T> inflow(block: InflowConfig<T>.() -> Unit): Inflow<T> =
-    InflowImpl(InflowConfig<T>().apply(block))
-
-
-private val emptyInflow: Inflow<Any?> by lazy { emptyInflow(null) }
-
-/**
- * Creates an [Inflow] that emits `null` and does not load any extra data.
- */
-@Suppress("UNCHECKED_CAST")
-public fun <T> emptyInflow(): Inflow<T?> = emptyInflow as Inflow<T?>
-
-/**
- * Creates an [Inflow] that emits [initial] value (by contract an Inflow should always emit) and
- * does not load any extra data.
- */
-public fun <T> emptyInflow(initial: T): Inflow<T> = object : Inflow<T>() {
-    override fun dataInternal(param: DataParam) = flowOf(initial)
-    override fun stateInternal(param: StateParam) = flowOf(State.Idle.Initial)
-    override fun loadInternal(param: LoadParam) = object : InflowDeferred<T> {
-        override suspend fun await() = initial
-        override suspend fun join() = Unit
     }
 }
 
@@ -310,3 +273,25 @@ public fun <T> Inflow<T>.refreshError(): Flow<Throwable> = refreshState()
         val error = it as? State.Idle.Error
         if (error != null && error.markHandled(error)) error.throwable else null
     }
+
+
+/**
+ * Requests next page load from a remote source.
+ * The request will start immediately and can be observed using [loadNextState] flow.
+ *
+ * Only one refresh or "load next" call can run at a time. If another refresh request is already
+ * running then this "load next" call will wait until it finishes. If another "load next" request
+ * is already running the no extra "load next" calls will be made until it finishes.
+ *
+ * @return Deferred object to **optionally** observe the result of the call in a suspending manner.
+ */
+// TODO: Move all public paging API into `paging` package?
+public fun <T, P : Paged<T>> Inflow<P>.loadNext(): InflowDeferred<P> =
+    loadInternal(LoadParam.LoadNext)
+
+/**
+ * State of the "load next page" process, similar to [Inflow.refreshState] but it's tracked
+ * separately from refresh process.
+ */
+public fun <T, P : Paged<T>> Inflow<P>.loadNextState(): Flow<State> =
+    stateInternal(StateParam.LoadNextState)

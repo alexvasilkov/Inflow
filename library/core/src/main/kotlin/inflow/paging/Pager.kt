@@ -1,99 +1,9 @@
 package inflow.paging
 
-import inflow.CacheWriter
-import inflow.DataLoader
 import inflow.Inflow
 import inflow.InflowConfig
-import inflow.InflowDeferred
-import inflow.LoadParam
-import inflow.MemoryCache
-import inflow.State
-import inflow.StateParam
-import inflow.internal.InflowImpl
-import inflow.internal.Loader
-import kotlinx.atomicfu.atomic
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-
-public class PagedInflowConfig<T, P : Paged<T>> internal constructor() : InflowConfig<P>() {
-
-    @JvmField
-    @JvmSynthetic
-    internal var loadNext: DataLoader<Unit>? = null
-
-    /**
-     * Paging logic implementation, see [Pager] for more details.
-     */
-    public fun pager(pager: Pager<T, P>) {
-        super.data(pager.cache()) { pager.callSafe(pager::refresh) }
-        loadNext = { pager.callSafe(pager::loadNext) }
-    }
-
-    @Deprecated(message = "Use pager() instead", level = DeprecationLevel.HIDDEN)
-    override fun data(cache: Flow<P>, loader: DataLoader<Unit>) {
-        throw UnsupportedOperationException("Use pager() instead")
-    }
-
-    @Deprecated(message = "Use pager() instead", level = DeprecationLevel.HIDDEN)
-    override fun <R> data(cache: Flow<P>, writer: CacheWriter<R>, loader: DataLoader<R>) {
-        throw UnsupportedOperationException("Use pager() instead")
-    }
-
-    @Deprecated(message = "Use pager() instead", level = DeprecationLevel.HIDDEN)
-    override fun data(cache: MemoryCache<P>, loader: DataLoader<P>) {
-        throw UnsupportedOperationException("Use pager() instead")
-    }
-
-    @Deprecated(message = "Use pager() instead", level = DeprecationLevel.HIDDEN)
-    override fun data(initial: P, loader: DataLoader<P>) {
-        throw UnsupportedOperationException("Use pager() instead")
-    }
-}
-
-@ExperimentalCoroutinesApi
-public fun <T, P : Paged<T>> pagedInflow(block: PagedInflowConfig<T, P>.() -> Unit): Inflow<P> =
-    PagedInflowImpl(PagedInflowConfig<T, P>().apply(block))
-
-
-/**
- * Requests next page load from a remote source using the loader configured with
- * [PagedInflowConfig.pager]. The request will start immediately and can be observed using
- * [loadNextState] flow.
- *
- * Only one refresh or "load next" call can run at a time. If another refresh request is already
- * running then this "load next" call will wait until it finishes. If another "load next" request
- * is already running the no extra "load next" calls will be made until it finishes.
- *
- * @return Deferred object to **optionally** observe the result of the call in a suspending manner.
- */
-public fun <T, P : Paged<T>> Inflow<P>.loadNext(): InflowDeferred<P> =
-    loadInternal(LoadParam.LoadNext)
-
-/**
- * State of the "load next page" process, similar to [Inflow.refreshState] but it's tracked
- * separately from refresh calls.
- */
-public fun <T, P : Paged<T>> Inflow<P>.loadNextState(): Flow<State> =
-    stateInternal(StateParam.LoadNextState)
-
-
-@ExperimentalCoroutinesApi
-internal class PagedInflowImpl<T, P : Paged<T>>(config: PagedInflowConfig<T, P>) :
-    InflowImpl<P>(config) {
-    private val loaderNext = Loader(logId, scope, loadDispatcher, config.loadNext!!)
-
-    override fun stateInternal(param: StateParam) = when (param) {
-        StateParam.LoadNextState -> loaderNext.state
-        else -> super.stateInternal(param)
-    }
-
-    override fun loadInternal(param: LoadParam) = when (param) {
-        LoadParam.LoadNext -> DeferredLoad(loaderNext.load())
-        else -> super.loadInternal(param)
-    }
-}
+import inflow.InflowPagedData
+import inflow.loadNextState
 
 /**
  * Paged data controller.
@@ -111,13 +21,14 @@ internal class PagedInflowImpl<T, P : Paged<T>>(config: PagedInflowConfig<T, P>)
  * refresh if the paged data was identified as expired (see [InflowConfig.expiration]).
  * The state of the `refresh` call can be observed with [Inflow.refreshState].
  *
- * The [loadNext] function is used whenever [Inflow.loadNext][loadNext] extension is called.
+ * The [loadNext] function is used whenever [Inflow.loadNext][inflow.loadNext] extension is called.
  * The state of the `loadNext` call can be observed with [Inflow.loadNextState][loadNextState].
  *
  * The states of `refresh` and `loadNext` actions are tracked separately.
  *
  * **Execution**
  *
+ * // TODO: Remove?
  * The actions will not be executed concurrently. For example, if `refresh` was called first and
  * then `loadNext` was called while the refresh is still in progress then the `loadNext` action will
  * wait for the `refresh` action to finish before it can start.
@@ -253,7 +164,7 @@ internal class PagedInflowImpl<T, P : Paged<T>>(config: PagedInflowConfig<T, P>)
  * described in **By ordered field value** section, the only difference is that we'll send the next
  * page token instead of the last known item's value.
  *
- * If the sorting order is unknown then the pagination logic becomes similar to "By page number"
+ * If the sorting order is unknown then the pagination logic becomes similar to **By page number**
  * approach, and we have to rely on the remote source to ensure no items are lost. We can still
  * apply the items de-duplication locally, just in case.
  *
@@ -306,22 +217,4 @@ internal class PagedInflowImpl<T, P : Paged<T>>(config: PagedInflowConfig<T, P>)
  * A more complicated solution is to use data synchronization but it's outside of the scope of this
  * documentation.
  */
-public abstract class Pager<T, P : Paged<T>> {
-    private val mutex = Mutex()
-    private val generation = atomic(0)
-
-    internal suspend fun callSafe(action: suspend () -> Unit) {
-        val current = generation.value
-        mutex.withLock { if (current == generation.value) action() }
-    }
-
-    protected fun skipPendingActions() {
-        generation.incrementAndGet()
-    }
-
-    public abstract fun cache(): Flow<P>
-
-    public abstract suspend fun refresh()
-
-    public abstract suspend fun loadNext()
-}
+public abstract class Pager<T> : InflowPagedData<T>

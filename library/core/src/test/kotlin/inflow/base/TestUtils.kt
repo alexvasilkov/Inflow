@@ -49,8 +49,7 @@ internal fun <T> runReal(block: suspend CoroutineScope.() -> T) =
 @ExperimentalCoroutinesApi
 internal fun TestCoroutineScope.testInflow(block: InflowConfig<Int?>.() -> Unit): Inflow<Int?> =
     inflow {
-        cacheDispatcher(testDispatcher)
-        loadDispatcher(testDispatcher)
+        dispatcher(testDispatcher)
         block()
     }
 

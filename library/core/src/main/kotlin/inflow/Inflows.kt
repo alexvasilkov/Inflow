@@ -1,8 +1,5 @@
 package inflow
 
-import inflow.internal.InflowsImpl
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-
 /**
  * Collection of on-demand [Inflow]s where each Inflow is created for a specific parameter.
  *
@@ -12,17 +9,17 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
  *
  * **Usage**
  *
- * An `Inflows` instance is created using [inflows] method and configured using [InflowsConfig].
+ * An `Inflows` instance is created using [inflows] method.
  *
  * A simple usage can look like this:
  *
  * ```
- * val companies = inflows<String, Company?> {
- *     builder { id ->
+ * val companies = inflows(factory: { id: String ->
+ *     inflow<Company?> {
  *         // Loading a company by ID and caching it in memory
  *         data(initial = null) { api.loadCompany(id) }
  *     }
- * }
+ * })
  *
  * // Requesting a company with ID "42" and observing the result
  * companies["42"].data()
@@ -47,71 +44,17 @@ public interface Inflows<P, T> {
     public fun clear()
 }
 
-
 /**
- * Creates a new [Inflows] instance using provided [InflowsConfig] configuration.
+ * Simple [Inflows] implementation that creates new [Inflow]s using provided [factory] and caches
+ * them using the [cache].
  */
-public fun <P, T> inflows(block: InflowsConfig<P, T>.() -> Unit): Inflows<P, T> =
-    InflowsImpl(InflowsConfig<P, T>().apply(block))
+internal class InflowsImpl<P, T>(
+    private val factory: (P) -> Inflow<T>,
+    private val cache: InflowsCache<P, Inflow<T>>
+) : Inflows<P, T> {
 
+    override fun get(param: P): Inflow<T> = cache.get(param, factory)
 
-/**
- * Configuration params to create a new [Inflows] instance.
- *
- * It is required to provide a factory to build new [Inflow] instances either using [factory] or
- * [builder] function.
- *
- * Optional [cache] implementation can be provided to control memory usage.
- */
-public class InflowsConfig<P, T> internal constructor() {
-
-    @JvmField
-    @JvmSynthetic
-    internal var factory: ((P) -> Inflow<T>)? = null
-
-    @JvmField
-    @JvmSynthetic
-    internal var cache: InflowsCache<P, Inflow<T>>? = null
-
-    /**
-     * A factory to build a new [Inflow] for particular parameter on demand.
-     */
-    public fun factory(factory: (P) -> Inflow<T>) {
-        this.factory = factory
-    }
-
-    /**
-     * [Inflow] builder which configures new instance for a specific parameter on demand.
-     * Has similar signature to [inflow] method except that it will also accept a parameter.
-     *
-     * It's a syntactic sugar for [factory], the next configurations are equivalent:
-     *
-     * ```
-     * builder { param ->
-     *     ...
-     * }
-     * ```
-     * ```
-     * factory { param ->
-     *     inflow {
-     *         ...
-     *     }
-     * }
-     * ```
-     */
-    @JvmSynthetic // Avoiding coverage report issues
-    @ExperimentalCoroutinesApi
-    public inline fun builder(crossinline block: InflowConfig<T>.(P) -> Unit) {
-        factory { params -> inflow { block(params) } }
-    }
-
-    /**
-     * Cache implementation to control how many [Inflow] instances can be stored in memory for
-     * faster access.
-     * Default implementation keeps up to 10 Inflow instances in memory, see [InflowsCache.create].
-     */
-    public fun cache(cache: InflowsCache<P, Inflow<T>>) {
-        this.cache = cache
-    }
+    override fun clear() = cache.clear()
 
 }

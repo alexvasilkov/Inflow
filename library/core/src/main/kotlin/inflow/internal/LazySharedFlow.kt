@@ -16,6 +16,7 @@ internal class LazySharedFlow<T>(initializer: suspend () -> T) {
     private val initialized = atomic(false)
     private val mutex = Mutex()
 
+    @JvmField
     val flow = internal.onSubscription {
         if (!initialized.value) {
             mutex.withLock {

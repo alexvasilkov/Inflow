@@ -21,7 +21,6 @@ data class QuestionsQuery(
 
 class QuestionsData(
     val query: QuestionsQuery,
-    val refreshedAt: Long,
     items: List<Question>,
     hasNext: Boolean
 ) : Paged<Question>(items, hasNext)
