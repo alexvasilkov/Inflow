@@ -33,32 +33,6 @@ import kotlinx.coroutines.flow.mapNotNull
  * The [refreshState] flow will emit each time the loading is started or finished and can optionally
  * emit an intermediate progress state. It will also emit the most recent error happened during the
  * last loading request (see [State.Idle.Error]).
- *
- * **Usage**
- *
- * An `Inflow` is created using [inflow][inflow.inflow] method and configured using [InflowConfig].
- *
- * A simple usage can look like this:
- *
- * ```
- * val companies = inflow<List<Companies>?> {
- *     data(
- *         cache = dao.getCompaniesList()
- *         writer = dao::saveCompaniesList
- *         loader = { api.loadCompaniesList() }
- *     )
- * }
- *
- * companies.data()
- *     .onEach(::showCompanies)
- *     .launchIn(lifecycleScope)
- *
- * companies.refreshing()
- *     .onEach(::showLoadingState)
- *     .launchIn(lifecycleScope)
- * ```
- *
- * **See [InflowConfig] for all the available configuration options.**
  */
 public abstract class Inflow<T> {
 

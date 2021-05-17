@@ -7,25 +7,7 @@ package inflow
  * (for example load a list of items, or load an item for a specific ID). `Inflows` is designed
  * to support dynamic parametrization by creating a new [Inflow] for each parameter.
  *
- * **Usage**
- *
- * An `Inflows` instance is created using [inflows] method.
- *
- * A simple usage can look like this:
- *
- * ```
- * val companies = inflows(factory: { id: String ->
- *     inflow<Company?> {
- *         // Loading a company by ID and caching it in memory
- *         data(initial = null) { api.loadCompany(id) }
- *     }
- * })
- *
- * // Requesting a company with ID "42" and observing the result
- * companies["42"].data()
- *     .onEach { company -> show(company) }
- *     .launchIn(lifecycleScope)
- * ```
+ * An instance of `Inflows` is created using [inflows] method.
  *
  * **Important**: parameters of type `P` should provide a correct implementation of
  * [equals][Any.equals] and [hashCode][Any.hashCode] since they will be used as [Map] keys.
