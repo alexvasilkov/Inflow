@@ -40,7 +40,17 @@ class InflowsTest : BaseTest() {
     }
 
     @Test
-    fun `IF inflows is cleared THEN new inflows can be created`() = runTest {
+    fun `IF inflows are cached THEN cached inflows can accessed as snapshot`() = runTest {
+        val inflows = inflows(factory = { param: Int -> createInflow(param) })
+
+        val in0 = inflows[0]
+        val in1 = inflows[1]
+
+        assertEquals(expected = listOf(in0, in1), actual = inflows.snapshot(), "Snapshot is ok")
+    }
+
+    @Test
+    fun `IF inflows is cleared THEN new inflows can be created again`() = runTest {
         val inflows = inflows(factory = { param: Int -> createInflow(param) })
 
         val inflow0 = inflows[0]

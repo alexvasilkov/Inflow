@@ -21,6 +21,11 @@ public interface Inflows<P, T> {
     public operator fun get(param: P): Inflow<T>
 
     /**
+     * Returns all currently cached [Inflow] instances.
+     */
+    public fun snapshot(): List<Inflow<T>>
+
+    /**
      * Clears all the cached [Inflow] instances.
      */
     public fun clear()
@@ -35,7 +40,9 @@ internal class InflowsImpl<P, T>(
     private val cache: InflowsCache<P, Inflow<T>>
 ) : Inflows<P, T> {
 
-    override fun get(param: P): Inflow<T> = cache.get(param, factory)
+    override fun get(param: P) = cache.get(param, factory)
+
+    override fun snapshot() = cache.snapshot()
 
     override fun clear() = cache.clear()
 

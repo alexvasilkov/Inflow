@@ -71,6 +71,16 @@ class InflowsCacheTest : BaseTest() {
     }
 
     @Test
+    fun `IF items are cached THEN cached items can be accessed as snapshot`() {
+        val cache = newCache<Int, Int>()
+
+        cache.get(0) { it }
+        cache.get(1) { it }
+
+        assertEquals(expected = listOf(0, 1), actual = cache.snapshot(), "Snapshot is correct")
+    }
+
+    @Test
     fun `IF clear is called THEN cached items are removed`() {
         val cache = newCache<Int, Int>()
 

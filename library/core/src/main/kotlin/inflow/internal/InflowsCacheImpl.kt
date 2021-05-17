@@ -10,7 +10,7 @@ internal class InflowsCacheImpl<K, V>(
     private val expireAfterAccess: Long
 ) : InflowsCache<K, V> {
 
-    private val values = mutableMapOf<K, V>()
+    private val values = linkedMapOf<K, V>()
     private val access = linkedMapOf<K, Long>()
 
     private var onRemove: ((V) -> Unit)? = null
@@ -36,6 +36,8 @@ internal class InflowsCacheImpl<K, V>(
         return value
     }
 
+    override fun snapshot(): List<V> = lock.withLock { values.values.toList() }
+
     override fun doOnRemove(action: (V) -> Unit) {
         onRemove = action
     }
@@ -46,8 +48,7 @@ internal class InflowsCacheImpl<K, V>(
         while (access.size >= maxSize) {
             val key = iterator.next().key
             iterator.remove()
-            @Suppress("UNCHECKED_CAST") // The value must exist
-            val old = values.remove(key) as V
+            val old = values.remove(key)!! as V
             onRemove?.invoke(old)
         }
     }
@@ -62,8 +63,7 @@ internal class InflowsCacheImpl<K, V>(
             val (key, accessedAt) = iterator.next()
             if (now - accessedAt > expireAfterAccess) {
                 iterator.remove()
-                @Suppress("UNCHECKED_CAST") // The value must exist
-                val old = values.remove(key) as V
+                val old = values.remove(key)!! as V
                 onRemove?.invoke(old)
             } else {
                 break // `access` map is ordered by access time

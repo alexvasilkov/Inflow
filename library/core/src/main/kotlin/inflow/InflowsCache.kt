@@ -16,6 +16,11 @@ public interface InflowsCache<K, V> {
     public fun get(key: K, provider: (K) -> V): V
 
     /**
+     * Returns a snapshot of all cached values.
+     */
+    public fun snapshot(): List<V>
+
+    /**
      * Sets optional removal listener to perform final clean up.
      */
     public fun doOnRemove(action: (V) -> Unit)
