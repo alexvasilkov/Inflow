@@ -105,11 +105,11 @@ public fun <P, T> inflows(
  * // query.value = "Google"
  *
  * // Combining different requests into a single Inflow and observing the result
- * searchRequests.merge(query).data().collect { list -> showSearchResults(list) }
+ * searchRequests.mergeBy(query).data().collect { list -> showSearchResults(list) }
  * ```
  */
 @ExperimentalCoroutinesApi
-public fun <P, T> Inflows<P, T>.merge(
+public fun <P, T> Inflows<P, T>.mergeBy(
     params: Flow<P>,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
     scope: CoroutineScope = CoroutineScope(Job())
@@ -137,5 +137,10 @@ public fun <T> emptyInflow(initial: T): Inflow<T> = object : Inflow<T>() {
     override fun loadInternal(param: LoadParam) = object : InflowDeferred<T> {
         override suspend fun await() = initial
         override suspend fun join() = Unit
+    }
+
+    override fun combineInternal(param: DataParam) = flow {
+        emit(InflowCombined(initial, State.Idle.Initial, State.Idle.Initial))
+        awaitCancellation()
     }
 }

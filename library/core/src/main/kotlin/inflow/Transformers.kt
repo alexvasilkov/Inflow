@@ -19,5 +19,9 @@ public fun <T, R> Inflow<T>.map(mapper: suspend (T) -> R): Inflow<R> {
                 override suspend fun join() = resultOrig.join()
             }
         }
+
+        override fun combineInternal(param: DataParam): Flow<InflowCombined<R>> =
+            orig.combineInternal(param)
+                .map { InflowCombined(mapper.invoke(it.data), it.refresh, it.loadNext) }
     }
 }

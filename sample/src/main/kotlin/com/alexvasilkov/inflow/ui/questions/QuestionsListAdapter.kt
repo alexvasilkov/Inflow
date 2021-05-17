@@ -26,7 +26,7 @@ class QuestionsListAdapter(
 
     private val loadingOffset = 10
 
-    private var state: UiState = UiState(emptyList(), QuestionsQuery("", ""))
+    private var state: UiState = UiState(QuestionsQuery("", ""), emptyList())
     private var list: List<Question> = emptyList()
 
     fun setState(newState: UiState) {

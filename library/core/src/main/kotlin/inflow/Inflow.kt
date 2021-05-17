@@ -7,6 +7,7 @@ import inflow.LoadParam.RefreshForced
 import inflow.LoadParam.RefreshIfExpired
 import inflow.paging.Paged
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -122,6 +123,25 @@ public abstract class Inflow<T> {
      */
     public fun refreshState(): Flow<State> = stateInternal(StateParam.RefreshState)
 
+    /**
+     * Combined [cache] and [refreshState].
+     *
+     * Regular inflow will just apply the [combine] operator to the mentioned flows internally.
+     * But when an inflow is created using [mergeBy] operator it will ensure that
+     * [combined][InflowCombined] object will contain the data and the state for the same original
+     * parameter. If using [combine] operator directly on [cache] and [refreshState] flows from the
+     * inflow produced by [mergeBy] then there will be intermediate combinations where the data
+     * belongs to previous parameter and the state belongs to the newly emitted parameter (or vise
+     * versa), which is not desirable in most cases.
+     */
+    public fun cacheAndState(): Flow<InflowCombined<T>> = combineInternal(CacheOnly)
+
+    /**
+     * Similar to [cacheAndState] but combines [data] and [refreshState], so that the cache will be
+     * automatically updated while this flow has at least one subscriber, see [data].
+     */
+    public fun dataAndState(): Flow<InflowCombined<T>> = combineInternal(AutoRefresh)
+
 
     /**
      * Internal method to get cached data flow, see [DataParam].
@@ -138,7 +158,20 @@ public abstract class Inflow<T> {
      */
     internal abstract fun loadInternal(param: LoadParam): InflowDeferred<T>
 
+    /**
+     * Internal method to combine inflow's [data][dataInternal] and [state][stateInternal].
+     */
+    internal abstract fun combineInternal(param: DataParam): Flow<InflowCombined<T>>
 }
+
+/** Combines the data and it's refresh state. */
+public class InflowCombined<T> internal constructor(
+    /** The data as emitted by [Inflow.data] or [Inflow.cache] flows. */
+    public val data: T,
+    /** Refresh state as emitted by [Inflow.refreshState] flow. */
+    public val refresh: State,
+    internal val loadNext: State? // Only used by paged inflows
+)
 
 
 /* ---------------------------------------------------------------------------------------------- */
@@ -269,3 +302,7 @@ public fun <T, P : Paged<T>> Inflow<P>.loadNext(): InflowDeferred<P> =
  */
 public fun <T, P : Paged<T>> Inflow<P>.loadNextState(): Flow<State> =
     stateInternal(StateParam.LoadNextState)
+
+/** LoadNext state as emitted by [loadNextState] flow. */
+public val <T, P : Paged<T>> InflowCombined<P>.loadNext: State
+    get() = loadNext!! // Just making it public and non-null

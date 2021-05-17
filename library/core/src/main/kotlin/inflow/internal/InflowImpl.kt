@@ -2,6 +2,7 @@ package inflow.internal
 
 import inflow.DataParam
 import inflow.Inflow
+import inflow.InflowCombined
 import inflow.InflowConfig
 import inflow.InflowDeferred
 import inflow.InflowPagedData
@@ -18,8 +19,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -142,6 +145,11 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
                 else -> throw UnsupportedOperationException("$param is not supported")
             }
         }
+    }
+
+    override fun combineInternal(param: DataParam): Flow<InflowCombined<T>> {
+        val loadNextState = loadNext?.state ?: flowOf(null as State?)
+        return combine(dataInternal(param), refresh.state, loadNextState, ::InflowCombined)
     }
 
 

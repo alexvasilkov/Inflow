@@ -88,7 +88,7 @@ class MergedInflowsTest : BaseTest() {
             }
         }
         val inflow = inflows(factory, cache = InflowsCache.create(maxSize = 1))
-            .merge(params = flowOf(0, 1, 0), testDispatcher)
+            .mergeBy(params = flowOf(0, 1, 0), testDispatcher)
 
         launch(job) { inflow.data().collect() }
 
@@ -103,7 +103,7 @@ class MergedInflowsTest : BaseTest() {
                 data(cache = flowOf(0), loader = {})
             }
         }
-        val inflow = inflows(factory).merge(params = flowOf(0, 1, 0), testDispatcher, scope)
+        val inflow = inflows(factory).mergeBy(params = flowOf(0, 1, 0), testDispatcher, scope)
         scope.cancel()
 
         var awaitCancelled = false
@@ -127,7 +127,7 @@ class MergedInflowsTest : BaseTest() {
             factory = { param: Int ->
                 inflow<Int?> { data(initial = null, loader = { param }) }
             }
-        ).merge(params)
+        ).mergeBy(params)
 
         runStressTest { i ->
             if (i % 100 == 0) params.value++
@@ -164,7 +164,7 @@ class MergedInflowsTest : BaseTest() {
                 dispatcher(testDispatcher)
             }
         }
-        return inflows(factory).merge(params, testDispatcher)
+        return inflows(factory).mergeBy(params, testDispatcher)
     }
 
 }

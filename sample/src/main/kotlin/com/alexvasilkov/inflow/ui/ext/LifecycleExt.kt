@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 
-// TODO: Move to android library
-
 /**
  * Runs the [action] if this [LifecycleOwner] is in started state. The action will be cancelled when
  * the owner is stopped and started again when the owner is started.

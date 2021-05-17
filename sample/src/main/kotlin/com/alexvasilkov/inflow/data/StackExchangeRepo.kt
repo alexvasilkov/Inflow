@@ -5,8 +5,8 @@ import com.alexvasilkov.inflow.data.api.response.QuestionJson
 import com.alexvasilkov.inflow.data.ext.now
 import com.alexvasilkov.inflow.model.Profile
 import com.alexvasilkov.inflow.model.Question
-import com.alexvasilkov.inflow.model.QuestionsData
 import com.alexvasilkov.inflow.model.QuestionsQuery
+import com.alexvasilkov.inflow.model.QuestionsResult
 import inflow.Expires
 import inflow.Inflow
 import inflow.MemoryCache
@@ -14,7 +14,7 @@ import inflow.inflow
 import inflow.inflowPaged
 import inflow.inflows
 import inflow.map
-import inflow.merge
+import inflow.mergeBy
 import inflow.paging.PageResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +41,11 @@ class StackExchangeRepo(
         }
     }
 
+
+    /* ------------- */
+    /* Profile       */
+    /* ------------- */
+
     private val profileCache = MemoryCache.create<Profile?>(null)
 
     val profile: Inflow<Profile?> = inflow {
@@ -54,11 +59,15 @@ class StackExchangeRepo(
     }
 
 
+    /* ------------- */
+    /* Questions     */
+    /* ------------- */
+
     // Keeping search requests cache globally
     private val searchRequests = inflows(factory = ::searchByQuery)
 
-    fun searchQuestions(params: Flow<QuestionsQuery>): Inflow<QuestionsData> =
-        searchRequests.merge(params)
+    fun searchQuestions(query: Flow<QuestionsQuery>): Inflow<QuestionsResult> =
+        searchRequests.mergeBy(query)
 
     private fun searchByQuery(query: QuestionsQuery) = inflowPaged<Question> {
         var refreshedAt = Long.MAX_VALUE
@@ -82,8 +91,8 @@ class StackExchangeRepo(
             identifyBy(Question::id)
             mergeBy(Question::lastActivity, Long::compareTo, inverse = true)
         }
-    }.map {
-        QuestionsData(query, it.items, it.hasNext)
+    }.map { paged ->
+        QuestionsResult(query, paged.items, paged.hasNext)
     }
 
 

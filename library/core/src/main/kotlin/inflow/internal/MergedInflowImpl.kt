@@ -32,7 +32,7 @@ internal class MergedInflowImpl<P, T>(
     private val scope: CoroutineScope
 ) : Inflow<T>() {
 
-    private val shared = params
+    private val shared: Flow<Inflow<T>> = params
         .map { inflows[it] } // Creating a new Inflow for each parameter, or using cached one
         .distinctUntilChanged { old, new -> old === new } // Filtering duplicate Inflow instances
         .share(scope, dispatcher, 0L) // Sharing the flow to reuse params subscription
@@ -53,6 +53,11 @@ internal class MergedInflowImpl<P, T>(
         job.doOnCancel(deferred::onCancelled)
         return deferred
     }
+
+    // We need to apply the combiner to the original inflows _before_ flatMapLatest
+    override fun combineInternal(param: DataParam) = shared
+        .map { it.combineInternal(param) }
+        .flatMapLatest { it }
 
 }
 
