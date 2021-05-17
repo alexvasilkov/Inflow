@@ -7,6 +7,7 @@ package inflow.operators
 import inflow.Expires
 import inflow.base.BaseTest
 import inflow.base.TestTracker
+import inflow.base.maxDelay
 import inflow.base.runReal
 import inflow.base.runTest
 import inflow.internal.scheduleUpdates
@@ -49,7 +50,7 @@ class ScheduleUpdatesTest : BaseTest() {
             )
         }
 
-        delay(Long.MAX_VALUE - 1L)
+        maxDelay()
         assertEquals(expected = 1, counter, "1 update and no retries")
     }
 
@@ -63,7 +64,7 @@ class ScheduleUpdatesTest : BaseTest() {
             )
         }
 
-        delay(Long.MAX_VALUE - 1L)
+        maxDelay()
         assertEquals(expected = 0, counter, "No update and no retries")
     }
 
@@ -103,8 +104,8 @@ class ScheduleUpdatesTest : BaseTest() {
             scheduleWithDefaults(retryTime = Long.MAX_VALUE, loader = { counter++ })
         }
 
-        delay(Long.MAX_VALUE - 1L)
-        delay(Long.MAX_VALUE - 1L)
+        maxDelay()
+        maxDelay()
 
         assertEquals(expected = 1, actual = counter, "No retries are called")
     }

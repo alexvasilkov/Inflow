@@ -6,6 +6,7 @@ package inflow.operators
 
 import inflow.Connectivity
 import inflow.base.BaseTest
+import inflow.base.maxDelay
 import inflow.base.runTest
 import inflow.internal.asSignalingFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,7 +39,7 @@ class AsSignalFlowTest : BaseTest() {
         var count = 0
         launch(job) { connectivity.asSignalingFlow().collect { count++ } }
 
-        delay(Long.MAX_VALUE - 1L)
+        maxDelay()
         assertEquals(expected = 3, actual = count, "First run + 2 activations")
     }
 
@@ -59,7 +60,7 @@ class AsSignalFlowTest : BaseTest() {
         var count = 0
         launch(job) { connectivity.asSignalingFlow().collect { count++ } }
 
-        delay(Long.MAX_VALUE - 1L)
+        maxDelay()
         assertEquals(expected = 2, count, "First run + 1 activation")
     }
 
@@ -68,7 +69,7 @@ class AsSignalFlowTest : BaseTest() {
         var count = 0
         launch(job) { null.asSignalingFlow().collect { count++ } }
 
-        delay(Long.MAX_VALUE - 1L)
+        maxDelay()
         assertEquals(expected = 1, actual = count, "Only emit once")
     }
 

@@ -6,11 +6,11 @@ package inflow.behavior
 
 import inflow.State.Idle
 import inflow.base.BaseTest
+import inflow.base.maxDelay
 import inflow.base.runTest
 import inflow.cached
 import inflow.emptyInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlin.test.Test
@@ -42,7 +42,7 @@ class EmptyTest : BaseTest() {
         launch(job) { inflow.refreshState().collect { if (it != Idle.Initial) nonInitial = true } }
         launch(job) { inflow.data().collect() }
 
-        delay(Long.MAX_VALUE - 1L)
+        maxDelay()
         assertFalse(nonInitial, "Never active after auto refresh")
 
         inflow.refresh().join()

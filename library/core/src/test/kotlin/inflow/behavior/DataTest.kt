@@ -6,6 +6,7 @@ package inflow.behavior
 
 import inflow.MemoryCache
 import inflow.base.BaseTest
+import inflow.base.maxDelay
 import inflow.base.runTest
 import inflow.base.testInflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,7 +57,7 @@ class DataTest : BaseTest() {
         delay(50L)
         assertEquals(expected = 0, actual = item, "Fresh item is loaded automatically")
 
-        delay(Long.MAX_VALUE - 1L)
+        maxDelay()
         assertEquals(expected = 0, actual = item, "No extra item is loaded")
     }
 

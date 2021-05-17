@@ -6,6 +6,7 @@ package inflow.behavior
 
 import inflow.Expires
 import inflow.base.BaseTest
+import inflow.base.maxDelay
 import inflow.base.runReal
 import inflow.base.runTest
 import inflow.base.testInflow
@@ -66,7 +67,7 @@ class ExpirationTest : BaseTest() {
 
             launch(job) { inflow.data().collect() }
 
-            delay(Long.MAX_VALUE - 1L)
+            maxDelay()
             assertEquals(expected = 0, inflow.cached(), "1 update and no retries")
         }
 
@@ -81,7 +82,7 @@ class ExpirationTest : BaseTest() {
 
             launch(job) { inflow.data().collect() }
 
-            delay(Long.MAX_VALUE - 1L)
+            maxDelay()
             assertEquals(expected = 0, counter, "No update and no retries")
         }
 

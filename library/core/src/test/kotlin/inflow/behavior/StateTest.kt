@@ -11,6 +11,7 @@ import inflow.base.BaseTest
 import inflow.base.STRESS_TAG
 import inflow.base.STRESS_TIMEOUT
 import inflow.base.TestTracker
+import inflow.base.maxDelay
 import inflow.base.runReal
 import inflow.base.runStressTest
 import inflow.base.runTest
@@ -161,8 +162,7 @@ class StateTest : BaseTest() {
         launch(job) { inflow.refreshing().collect { states += it } }
 
         inflow.refresh()
-
-        delay(Long.MAX_VALUE - 1L)
+        maxDelay()
 
         val expected = listOf(false, true, false)
         assertEquals(expected, states, "All states are correct")

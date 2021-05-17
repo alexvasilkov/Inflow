@@ -33,7 +33,7 @@ import kotlin.coroutines.ContinuationInterceptor
  * Useful to run long-running tasks that should be canceled in the end of the test.
  */
 @ExperimentalCoroutinesApi
-internal fun runTest(testBody: suspend TestCoroutineScope.(Job) -> Unit) = runBlockingTest {
+fun runTest(testBody: suspend TestCoroutineScope.(Job) -> Unit) = runBlockingTest {
     val job = Job()
     try {
         testBody(job)
@@ -42,39 +42,36 @@ internal fun runTest(testBody: suspend TestCoroutineScope.(Job) -> Unit) = runBl
     }
 }
 
-internal fun <T> runReal(block: suspend CoroutineScope.() -> T) =
+fun <T> runReal(block: suspend CoroutineScope.() -> T) =
     runBlocking(Dispatchers.Default, block)
 
 
 @ExperimentalCoroutinesApi
-internal fun TestCoroutineScope.testInflow(block: InflowConfig<Int?>.() -> Unit): Inflow<Int?> =
-    inflow {
-        dispatcher(testDispatcher)
-        block()
-    }
+fun TestCoroutineScope.testInflow(
+    block: InflowConfig<Int?>.() -> Unit
+): Inflow<Int?> = inflow {
+    dispatcher(testDispatcher)
+    block()
+}
 
 @ExperimentalCoroutinesApi
 val TestCoroutineScope.testDispatcher: CoroutineDispatcher
     get() = coroutineContext[ContinuationInterceptor] as CoroutineDispatcher
 
+suspend fun maxDelay() = delay(Long.MAX_VALUE - 1L)
 
-internal suspend fun Flow<State>.track(tracker: TestTracker) {
-    collect {
-        if (it is State.Loading) tracker.active++
-        if (it is State.Idle) tracker.idle++
-    }
+suspend fun Flow<State>.track(tracker: TestTracker) = collect {
+    if (it is State.Loading) tracker.active++
+    if (it is State.Idle) tracker.idle++
 }
 
-internal data class TestTracker(
-    var active: Int = 0,
-    var idle: Int = 0
-)
+data class TestTracker(var active: Int = 0, var idle: Int = 0)
 
 
 /**
  * Runs several iterations of same action at a constant rate of 4 actions per second.
  */
-internal suspend fun runStressTest(
+suspend fun runStressTest(
     runs: Int = STRESS_RUNS,
     block: suspend CoroutineScope.(Int) -> Unit
 ) {
@@ -95,7 +92,7 @@ internal suspend fun runStressTest(
 }
 
 @ExperimentalCoroutinesApi
-internal suspend fun TestCoroutineScope.catchScopeException(
+suspend fun TestCoroutineScope.catchScopeException(
     block: suspend TestCoroutineScope.(CoroutineScope) -> Unit
 ): Throwable? {
     var caught: Throwable? = null
@@ -105,7 +102,7 @@ internal suspend fun TestCoroutineScope.catchScopeException(
 }
 
 
-internal fun getLogMessage(block: () -> Unit): String? = with(InflowLogger) {
+fun getLogMessage(block: () -> Unit): String? = with(InflowLogger) {
     val wasVerbose = verbose
     verbose = true
     val origLogger = logger
