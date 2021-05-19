@@ -4,6 +4,7 @@
 
 package inflow.behavior
 
+import inflow.State
 import inflow.State.Idle
 import inflow.base.BaseTest
 import inflow.base.maxDelay
@@ -33,6 +34,18 @@ class EmptyTest : BaseTest() {
         val inflow = emptyInflow<Unit?>()
         assertNull(actual = inflow.cached(), "Value is null")
         assertNull(actual = inflow.refresh().await(), "Refreshed value is still null")
+    }
+
+    @Test
+    fun `IF empty inflow THEN combined state is empty`() = runTest { job ->
+        val inflow = emptyInflow<Unit?>()
+        val result = mutableListOf<Pair<Unit?, State>>()
+        launch(job) { inflow.dataAndState().collect { result += it.data to it.refresh } }
+
+        maxDelay()
+
+        val expected = listOf(Pair(null as Unit?, Idle.Initial as State))
+        assertEquals(expected, result, "No invalid combinations")
     }
 
     @Test

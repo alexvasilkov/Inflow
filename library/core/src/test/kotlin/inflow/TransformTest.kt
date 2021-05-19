@@ -10,6 +10,7 @@ import inflow.base.runTest
 import inflow.base.testInflow
 import inflow.base.track
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.test.Test
@@ -48,6 +49,20 @@ class TransformTest : BaseTest() {
 
         val item2 = mapped.cache().first { it != null }
         assertEquals(inflow.cached()?.toString(), item2, "Mapped item is loaded from cache")
+    }
+
+    @Test
+    fun `IF mapped THEN can be combined`() = runTest { job ->
+        val inflow: Inflow<Int?> = testInflow {
+            data(initial = null) { 0 }
+        }
+        val mapped: Inflow<String?> = inflow.map { it?.toString() }
+
+        var result: Pair<String?, State>? = null
+        launch(job) { mapped.dataAndState().collect { result = it.data to it.refresh } }
+
+        val expected = Pair("0", State.Idle.Success)
+        assertEquals(expected, result, "Final combination")
     }
 
     @Test
