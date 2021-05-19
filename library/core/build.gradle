@@ -27,9 +27,9 @@ test {
 }
 
 dependencies {
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
-    testImplementation "org.jetbrains.kotlin:kotlin-test-junit5:$kotlin_version"
-    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.4.2"
+    testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5:1.5.0'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.5.0'
 }

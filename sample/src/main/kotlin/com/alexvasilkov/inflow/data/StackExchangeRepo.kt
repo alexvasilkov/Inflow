@@ -89,7 +89,7 @@ class StackExchangeRepo(
                 PageResult(items, nextKey = items.lastOrNull()?.let { it.lastActivity + 1L })
             }
             identifyBy(Question::id)
-            mergeBy(Question::lastActivity, Long::compareTo, inverse = true)
+            mergeBy(Question::lastActivity, { o1, o2 -> o1.compareTo(o2) }, inverse = true)
         }
     }.map { paged ->
         QuestionsResult(query, paged.items, paged.hasNext)
