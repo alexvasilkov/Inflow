@@ -2,8 +2,8 @@ package inflow.paging
 
 import inflow.Inflow
 import inflow.InflowConfig
-import inflow.InflowPagedData
-import inflow.loadNextState
+import inflow.LoadTracker
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Paged data controller.
@@ -13,7 +13,7 @@ import inflow.loadNextState
  *
  * **Overview**
  *
- * The [cache] flow represents the part of the data that is meant to be shown.
+ * The [display] flow represents the part of the data that is meant to be shown.
  * It either starts by emitting the first page from a cache (if any) or with empty/unfinished state
  * ([`Paged(items = emptyList(), hasNext = true)`][Paged]).
  *
@@ -21,41 +21,24 @@ import inflow.loadNextState
  * refresh if the paged data was identified as expired (see [InflowConfig.expiration]).
  * The state of the `refresh` call can be observed with [Inflow.refreshState].
  *
- * The [loadNext] function is used whenever [Inflow.loadNext][inflow.loadNext] extension is called.
+ * The [loadNext] function is used whenever [Inflow.loadNext][loadNextState] extension is called.
  * The state of the `loadNext` call can be observed with [Inflow.loadNextState][loadNextState].
  *
  * The states of `refresh` and `loadNext` actions are tracked separately.
  *
- * **Execution**
- *
- * // TODO: Remove?
- * The actions will not be executed concurrently. For example, if `refresh` was called first and
- * then `loadNext` was called while the refresh is still in progress then the `loadNext` action will
- * wait for the `refresh` action to finish before it can start.
- *
- * If it's not desirable to run pending actions once current action is finished then they can be
- * skipped with [skipPendingActions]. This can be useful if `loadNext` is called while `refresh`
- * is still in progress and we know that `refresh` process will completely replace current data and
- * the `loadNext` action will not make sense anymore as it was requested for the old data.
- *
  * **Paged data**
  *
- * The paged data from the [cache] flow represents entire list of items loaded to that moment, from
- * the very beginning and up to some intermediate or end point. It can consist of several pages and
- * should correctly define [Paged.hasNext] which is the only way for the UI to trigger the next page
- * loading (regardless whether it will be loaded from a local cache or from a remote source).
+ * The paged data from the [display] flow represents entire list of items loaded to that moment,
+ * from the very beginning and up to some intermediate or end point. It can consist of several pages
+ * and should correctly define [Paged.hasNext] which is the only way for the UI to trigger the next
+ * page loading (regardless whether it will be loaded from a local cache or from a remote source).
  *
  * Caching and loading logic should be implemented by subclasses of the [Pager].
  *
  * **Caching strategies**
  *
- * // TODO: It should be clear from this section that memory cache is always needed.
- *
  * The simplest cache option is an in-memory cache. The data from a remote source is merged into a
- * local list and then the entire list can be displayed. Usually there is no need to split cached
- * items into separate pages to feed the UI, unless we want to try loading fresh data from the
- * remote source before falling back to the cached items (see *Loading strategies*).
- * // TODO: Review the last sentence
+ * local list and then the entire list can be displayed.
  *
  * The things become more complicated when we want to use a persistent cache, like DB. Such caches
  * are usually quite slow and we should prefer to avoid excessive reads.
@@ -74,13 +57,13 @@ import inflow.loadNextState
  * have to reload entire list from the cache just to catch up this small change. It is not a unique
  * problem for the paging but a potentially big amount of data makes it much more noticeable.
  *
- * A possible solution can be to only read enough data to fill the UI and then load more data from
- * the cache on demand (e.g. when the list is scrolled).
+ * A possible solution can be to only read enough data to fill the visible part of the UI and then
+ * load more data from the cache on demand (e.g. when the list is scrolled).
  * But it implies a rather complex interaction and coupling between the UI, the cache and the remote
- * source and cannot be universally applied to arbitrary UI systems. `Android Paging 3` library is
- * an example of such approach.
+ * source and cannot be universally applied to arbitrary UI platforms.
+ * We will avoid this complexity, `Android Paging 3` library can be used instead.
  *
- * So, if the cache performance becomes important then intermediate in-memory cache has to be
+ * If the cache performance becomes important then intermediate in-memory cache has to be
  * introduced. It will require extra effort to keep it synchronized with the persistent cache and
  * the persistent cache can't be considered as a single source of truth anymore. Basically all the
  * operations with the persistent cache have to be carefully re-applied to the in-memory cache.
@@ -172,7 +155,7 @@ import inflow.loadNextState
  *
  * The locally cached data may need to be refreshed and we can use different approaches to do that.
  *
- * The easiest option is just to load the first page again and then completely replace cached data
+ * The easiest option is to load the first page again and then completely replace cached data
  * with this first page. But doing so can disrupt the user especially if they were reading the
  * following pages and the refresh was triggered automatically. Instead we can try to merge the
  * first page into the cached list. This can be done if the sorting order is know to us or if we
@@ -184,21 +167,22 @@ import inflow.loadNextState
  * guarantee that there are no extra items between the first page and whatever we have in the cache
  * thus the local cache have to be completely cleared and the first page will replace it.
  *
- * If the sorting order is know to be stable then we can check for the intersection between the new
+ * If the sorting order is known to be stable then we can check for the intersection between the new
  * first page and the cached data as well, but we can use a simple id equality check for that.
  *
- * It is important to note that in both case when the new first page is prepended to the local cache
- * we need to ensure that there are no duplicates are left in the cache. E.g. if item's order
- * changed and it used to be the second page but it's now in the first page then we have to
+ * It is important to note that in both cases when the new first page is prepended to the local
+ * cache we need to ensure that there are no duplicates are left in the cache. E.g. if item's order
+ * changed and it used to be on the second page but it's now on the first page then we have to
  * explicitly delete it from the cache before appending the first page.
  *
  * If the remote source allows loading the items in upward direction then we can ask it to only
- * provide newer items that can be simply appended to the locally cached list, we may still need to
+ * provide newer items that can be simply appended to the locally cached list. We may still need to
  * apply de-duplication logic though. If the remote source indicates that there are too many newer
  * items and not all of them are returned then we have to reload the first page explicitly and clear
- * the local cache before saving the first page. If we want to refresh the few first items already
- * stored in the cache then we can ask the remote source to load items newer than the Nth item from
- * the cache. The requested page size should be increased respectively.
+ * the local cache before saving the first page.
+ * We can even ask the remote source to load items newer than the Nth item from the local cache,
+ * this will help us to keep first page updated in our local cache. The requested page size should
+ * be increased respectively.
  *
  * The above "prepend" approach will help to catch up the newly added items and probably even
  * refresh the few cached items along the way. In the end we'll have a fresh first page in the local
@@ -217,4 +201,21 @@ import inflow.loadNextState
  * A more complicated solution is to use data synchronization but it's outside of the scope of this
  * documentation.
  */
-public abstract class Pager<T> : InflowPagedData<T>
+public interface Pager<T> {
+    /**
+     * A flow of partial data that should be displayed.
+     * From the beginning to some intermediate point.
+     */
+    public val display: Flow<Paged<T>>
+
+    /**
+     * Called when Inflow is automatically refreshed (see [Inflow.data]) or when [Inflow.refresh] is
+     * requested explicitly.
+     */
+    public suspend fun refresh(tracker: LoadTracker)
+
+    /**
+     * Called when [Inflow.loadNext][inflow.paging.loadNext] is requested.
+     */
+    public suspend fun loadNext(tracker: LoadTracker)
+}

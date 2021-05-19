@@ -30,4 +30,5 @@ allprojects {
 
 apiValidation {
     ignoredProjects += 'sample'
+    nonPublicMarkers += ['inflow.internal.InternalInflowApi']
 }

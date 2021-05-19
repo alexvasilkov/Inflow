@@ -1,5 +1,6 @@
-include ':core', ':android', ':sample'
+include ':core', ':paging', ':android', ':sample'
 
 rootProject.name = 'inflow'
 project(':core').projectDir = file("$rootDir/library/core")
+project(':paging').projectDir = file("$rootDir/library/paging")
 project(':android').projectDir = file("$rootDir/library/android")

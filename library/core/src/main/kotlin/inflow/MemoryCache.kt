@@ -4,26 +4,18 @@ import inflow.internal.MemoryCacheImpl
 import inflow.internal.MemoryCacheWrapper
 import kotlinx.coroutines.flow.Flow
 
-/**
- * In-memory data cache.
- */
+/** In-memory data cache. */
 public interface MemoryCache<T> {
 
-    /**
-     * Returns cached data changes.
-     */
+    /** Returns cached data changes. */
     public fun read(): Flow<T>
 
-    /**
-     * Writes new data into the cache.
-     */
+    /** Writes new data into the cache. */
     public suspend fun write(data: T)
 
 
     public companion object {
-        /**
-         * Memory cache which will start by emitting [initial] value.
-         */
+        /** Memory cache which will start by emitting [initial] value. */
         public fun <T> create(initial: T): MemoryCache<T> = MemoryCacheImpl(initial)
 
         /**

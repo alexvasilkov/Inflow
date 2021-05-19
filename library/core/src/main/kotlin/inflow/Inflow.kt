@@ -5,7 +5,6 @@ import inflow.DataParam.CacheOnly
 import inflow.LoadParam.Refresh
 import inflow.LoadParam.RefreshForced
 import inflow.LoadParam.RefreshIfExpired
-import inflow.paging.Paged
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -35,7 +34,7 @@ import kotlinx.coroutines.flow.mapNotNull
  * emit an intermediate progress state. It will also emit the most recent error happened during the
  * last loading request (see [State.Idle.Error]).
  */
-public abstract class Inflow<T> {
+public abstract class Inflow<T> internal constructor() {
 
     /**
      * Cached data collected from the original cache flow configured with [InflowConfig.data].
@@ -167,9 +166,14 @@ public abstract class Inflow<T> {
 /** Combines the data and it's refresh state. */
 public class InflowCombined<T> internal constructor(
     /** The data as emitted by [Inflow.data] or [Inflow.cache] flows. */
+    @JvmField
     public val data: T,
+
     /** Refresh state as emitted by [Inflow.refreshState] flow. */
+    @JvmField
     public val refresh: State,
+
+    @JvmField
     internal val loadNext: State? // Only used by paged inflows
 )
 
@@ -203,7 +207,7 @@ internal sealed class StateParam {
     object RefreshState : StateParam()
 
     /**
-     * Returns the state of "load next page" calls, triggered with [Inflow.loadNext][loadNext].
+     * Returns the state of "load next page" calls, triggered with [LoadParam.LoadNext].
      */
     object LoadNextState : StateParam()
 }
@@ -218,7 +222,7 @@ internal sealed class LoadParam {
     object Refresh : LoadParam()
 
     /**
-     * Triggers "load next page" call. See [Inflow.loadNext][loadNext].
+     * Triggers "load next page" call.
      */
     object LoadNext : LoadParam()
 
@@ -280,29 +284,3 @@ public fun <T> Inflow<T>.refreshError(): Flow<Throwable> = refreshState()
         val error = it as? State.Idle.Error
         if (error != null && error.markHandled(error)) error.throwable else null
     }
-
-
-/**
- * Requests next page load from a remote source.
- * The request will start immediately and can be observed using [loadNextState] flow.
- *
- * Only one refresh or "load next" call can run at a time. If another refresh request is already
- * running then this "load next" call will wait until it finishes. If another "load next" request
- * is already running the no extra "load next" calls will be made until it finishes.
- *
- * @return Deferred object to **optionally** observe the result of the call in a suspending manner.
- */
-// TODO: Move all public paging API into `paging` package?
-public fun <T, P : Paged<T>> Inflow<P>.loadNext(): InflowDeferred<P> =
-    loadInternal(LoadParam.LoadNext)
-
-/**
- * State of the "load next page" process, similar to [Inflow.refreshState] but it's tracked
- * separately from refresh process.
- */
-public fun <T, P : Paged<T>> Inflow<P>.loadNextState(): Flow<State> =
-    stateInternal(StateParam.LoadNextState)
-
-/** LoadNext state as emitted by [loadNextState] flow. */
-public val <T, P : Paged<T>> InflowCombined<P>.loadNext: State
-    get() = loadNext!! // Just making it public and non-null

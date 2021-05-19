@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.withLock
  */
 internal class Loader(
     private val logId: String,
+    private val logType: String,
     private val scope: CoroutineScope,
     private val dispatcher: CoroutineDispatcher,
     private val action: DataLoader<Unit>
@@ -40,7 +41,7 @@ internal class Loader(
             // If another job is started then let's try to return it. Otherwise try to start again.
             val current = jobRef.value
             if (current != null && !current.isCompleted) {
-                log(logId) { "Refresh is already in progress, skipping new refresh" }
+                log(logId) { "$logType is already in progress, skipping" }
                 return current
             }
 
@@ -71,20 +72,20 @@ internal class Loader(
 
         _state.value = State.Loading.Started
 
-        log(logId) { "Refreshing..." }
+        log(logId) { "$logType loading..." }
 
         caughtError = null
 
         try {
             val tracker = Tracker(_state)
-            action(tracker)
+            action.load(tracker)
             tracker.disable() // Deactivating to avoid tracking outside of the loader
-            log(logId) { "Refresh successful" }
+            log(logId) { "$logType success" }
         } catch (th: Throwable) {
             // Including CancellationException as it can only happen if the scope is cancelled
             // in which case we don't really care of the future progress or error states
             caughtError = th
-            log(logId) { "Refresh error: ${th::class.simpleName} - ${th.message}" }
+            log(logId) { "$logType error: ${th::class.simpleName} - ${th.message}" }
         }
 
         // Completing before setting idle state to ensure that new loading can be started

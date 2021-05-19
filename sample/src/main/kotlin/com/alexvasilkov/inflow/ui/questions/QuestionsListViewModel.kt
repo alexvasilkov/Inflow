@@ -8,7 +8,7 @@ import com.alexvasilkov.inflow.model.QuestionsResult
 import com.alexvasilkov.inflow.ui.ext.stateField
 import inflow.InflowCombined
 import inflow.State
-import inflow.loadNext
+import inflow.paging.loadNext
 import inflow.refreshError
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow

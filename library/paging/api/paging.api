@@ -1,0 +1,88 @@
+public abstract interface class inflow/paging/PageLoader {
+	public abstract fun load (Linflow/LoadTracker;Linflow/paging/PageParams;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract class inflow/paging/PageParams {
+	public final field count I
+	public final field key Ljava/lang/Object;
+	public synthetic fun <init> (Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class inflow/paging/PageParams$Next : inflow/paging/PageParams {
+}
+
+public final class inflow/paging/PageParams$Refresh : inflow/paging/PageParams {
+}
+
+public final class inflow/paging/PageResult {
+	public final field forceClearCacheOnRefresh Z
+	public final field items Ljava/util/List;
+	public final field nextKey Ljava/lang/Object;
+	public final field refreshKey Ljava/lang/Object;
+	public fun <init> (Ljava/util/List;Ljava/lang/Object;Ljava/lang/Object;Z)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/lang/Object;Ljava/lang/Object;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public abstract interface class inflow/paging/Paged {
+	public abstract fun getHasNext ()Z
+	public abstract fun getItems ()Ljava/util/List;
+}
+
+public final class inflow/paging/PagedInflowConfig : inflow/InflowConfig {
+	public synthetic fun data (Linflow/MemoryCache;Linflow/DataLoader;)V
+	public synthetic fun data (Linflow/paging/Paged;Linflow/DataLoader;)V
+	public synthetic fun data (Ljava/lang/Object;Linflow/DataLoader;)V
+	public synthetic fun data (Lkotlinx/coroutines/flow/Flow;Linflow/CacheWriter;Linflow/DataLoader;)V
+	public synthetic fun data (Lkotlinx/coroutines/flow/Flow;Linflow/DataLoader;)V
+	public final fun pager (Linflow/paging/Pager;)V
+	public final fun pager (Lkotlin/jvm/functions/Function1;)V
+}
+
+public abstract interface class inflow/paging/Pager {
+	public abstract fun getDisplay ()Lkotlinx/coroutines/flow/Flow;
+	public abstract fun loadNext (Linflow/LoadTracker;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun refresh (Linflow/LoadTracker;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class inflow/paging/PagerConfig {
+	public final fun cache (Linflow/paging/PagingCache;)V
+	public final fun identifyBy (Lkotlin/jvm/functions/Function1;)V
+	public final fun identifyWith (Lkotlin/jvm/functions/Function2;)V
+	public final fun loader (Linflow/paging/PageLoader;)V
+	public final fun mergeBy (Lkotlin/jvm/functions/Function1;Ljava/util/Comparator;ZZ)V
+	public static synthetic fun mergeBy$default (Linflow/paging/PagerConfig;Lkotlin/jvm/functions/Function1;Ljava/util/Comparator;ZZILjava/lang/Object;)V
+	public final fun mergeWith (Ljava/util/Comparator;ZZ)V
+	public static synthetic fun mergeWith$default (Linflow/paging/PagerConfig;Ljava/util/Comparator;ZZILjava/lang/Object;)V
+	public final fun pageSize (I)V
+}
+
+public abstract interface class inflow/paging/PagingCache {
+	public abstract fun exclusive (ZLkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun onInvalidate (Lkotlin/jvm/functions/Function2;)V
+}
+
+public abstract interface class inflow/paging/PagingCache$Cache {
+	public abstract fun append (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun delete (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun deleteAll (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun prepend (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun read (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun readState (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun writeState (Linflow/paging/PagingState;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class inflow/paging/PagingKt {
+	public static final fun getLoadNext (Linflow/InflowCombined;)Linflow/State;
+	public static final fun inflowPaged (Lkotlin/jvm/functions/Function1;)Linflow/Inflow;
+	public static final fun loadNext (Linflow/Inflow;)Linflow/InflowDeferred;
+	public static final fun loadNextState (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class inflow/paging/PagingState {
+	public final field hasNext Z
+	public final field nextKey Ljava/lang/Object;
+	public final field refreshKey Ljava/lang/Object;
+	public fun <init> (ZLjava/lang/Object;Ljava/lang/Object;)V
+	public synthetic fun <init> (ZLjava/lang/Object;Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+

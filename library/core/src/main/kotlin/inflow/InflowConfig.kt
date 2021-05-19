@@ -1,9 +1,6 @@
 package inflow
 
-import inflow.paging.Paged
-import inflow.paging.Pager
-import inflow.paging.PagerConfig
-import inflow.paging.PagerImpl
+import inflow.internal.InternalInflowApi
 import inflow.utils.InflowLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -59,8 +56,8 @@ import kotlin.coroutines.coroutineContext
  * The cache can also be completely invalidated using the [invalidation] policy. If the cache is
  * considered invalid then an empty value will be returned instead.
  *
- * The common usage of [expiration] and [invalidation] policies assumes tracking of the time when
- * the data was loaded and then define minimal time when the data is still considered "fresh" using
+ * The usage of [expiration] and [invalidation] policies assumes tracking of the time when the data
+ * was loaded and then define minimal time when the data is still considered "fresh" using
  * [expiration] and maximal time after which the data should not be used in any circumstances using
  * [invalidation].
  *
@@ -77,11 +74,11 @@ import kotlin.coroutines.coroutineContext
  * to `null`.
  */
 
-public open class InflowConfig<T> internal constructor() {
+public open class InflowConfig<T> @InternalInflowApi constructor() {
 
     @JvmField
     @JvmSynthetic
-    internal var data: InflowData<T>? = null
+    internal var data: DataProvider<T>? = null
 
     @JvmField
     @JvmSynthetic
@@ -123,11 +120,6 @@ public open class InflowConfig<T> internal constructor() {
     @JvmSynthetic
     internal var logId: String = "NO_ID"
 
-    internal fun data(data: InflowData<T>) {
-        require(this.data == null) { "Data is already set, cannot call `data()` again" }
-        this.data = data
-    }
-
     /**
      * Sets local and remote data sources.
      *
@@ -147,10 +139,7 @@ public open class InflowConfig<T> internal constructor() {
      * to avoid endless loadings.
      */
     public open fun data(cache: Flow<T>, loader: DataLoader<Unit>) {
-        data(object : InflowData<T> {
-            override val cache = cache
-            override suspend fun refresh(tracker: LoadTracker) = loader(tracker)
-        })
+        data = DataProvider(cache, refresh = loader, loadNext = null)
     }
 
     /**
@@ -161,10 +150,11 @@ public open class InflowConfig<T> internal constructor() {
      */
     public open fun <R> data(cache: Flow<T>, writer: CacheWriter<R>, loader: DataLoader<R>) {
         data(cache) {
-            val result = loader(it)
+            val result = loader.load(it)
             // Calling from parent scope to crash it instead of letting the loader handle cache
             // write exceptions. If parent scope is cancelled then cache writes will be skipped.
-            CoroutineScope(coroutineContext).launch(dispatcher) { writer(result) }
+            // TODO: Do not create scope each time?
+            CoroutineScope(coroutineContext).launch(dispatcher) { writer.write(result) }
         }
     }
 
@@ -175,12 +165,12 @@ public open class InflowConfig<T> internal constructor() {
      * the memory cache.
      */
     public open fun data(cache: MemoryCache<T>, loader: DataLoader<T>) {
-        data(cache.read()) { cache.write(loader(it)) }
+        data(cache.read()) { cache.write(loader.load(it)) }
         keepCacheSubscribedTimeout = 0L // No need to keep subscription to the fast in-memory cache
     }
 
     /**
-     * Variant of [data] function that will create and use in-memory cache for all loaded values.
+     * Variant of [data] function that will use in-memory cache for all loaded values.
      * By contract the cache should always emit an empty value in the beginning thus an extra
      * [initial] value is required as well.
      *
@@ -311,51 +301,16 @@ public open class InflowConfig<T> internal constructor() {
 }
 
 
-private const val dataUnsupportedError = "Use pager() instead"
-
-public class PagedInflowConfig<T> internal constructor() : InflowConfig<Paged<T>>() {
-
-    public fun pager(pager: Pager<T>) {
-        data(pager)
-    }
-
-    public fun <K : Any> pager(config: (PagerConfig<T, K>.() -> Unit)) {
-        data(PagerImpl(PagerConfig<T, K>().apply(config)))
-    }
-
-
-    @Deprecated(message = dataUnsupportedError, level = DeprecationLevel.HIDDEN)
-    override fun data(cache: Flow<Paged<T>>, loader: DataLoader<Unit>) {
-        throw UnsupportedOperationException(dataUnsupportedError)
-    }
-
-    @Deprecated(message = dataUnsupportedError, level = DeprecationLevel.HIDDEN)
-    override fun <R> data(cache: Flow<Paged<T>>, writer: CacheWriter<R>, loader: DataLoader<R>) {
-        throw UnsupportedOperationException(dataUnsupportedError)
-    }
-
-    @Deprecated(message = dataUnsupportedError, level = DeprecationLevel.HIDDEN)
-    override fun data(cache: MemoryCache<Paged<T>>, loader: DataLoader<Paged<T>>) {
-        throw UnsupportedOperationException(dataUnsupportedError)
-    }
-
-    @Deprecated(message = dataUnsupportedError, level = DeprecationLevel.HIDDEN)
-    override fun data(initial: Paged<T>, loader: DataLoader<Paged<T>>) {
-        throw UnsupportedOperationException(dataUnsupportedError)
-    }
-
+public fun interface DataLoader<R> {
+    public suspend fun load(tracker: LoadTracker): R
 }
 
-
-internal typealias DataLoader<R> = suspend (LoadTracker) -> R
-
-internal typealias CacheWriter<R> = suspend (R) -> Unit
-
-internal interface InflowData<T> {
-    val cache: Flow<T>
-    suspend fun refresh(tracker: LoadTracker)
+public fun interface CacheWriter<R> {
+    public suspend fun write(result: R)
 }
 
-internal interface InflowPagedData<T> : InflowData<Paged<T>> {
-    suspend fun loadNext(tracker: LoadTracker)
-}
+internal class DataProvider<T>(
+    val cache: Flow<T>,
+    val refresh: DataLoader<Unit>,
+    val loadNext: DataLoader<Unit>?
+)

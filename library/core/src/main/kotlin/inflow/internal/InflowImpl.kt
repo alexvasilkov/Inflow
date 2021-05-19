@@ -5,7 +5,6 @@ import inflow.Inflow
 import inflow.InflowCombined
 import inflow.InflowConfig
 import inflow.InflowDeferred
-import inflow.InflowPagedData
 import inflow.LoadParam
 import inflow.State
 import inflow.StateParam
@@ -27,7 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @ExperimentalCoroutinesApi
-internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
+internal class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
 
     private val cache: Flow<T>
     private val auto: Flow<T>
@@ -36,9 +35,9 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
 
     private val fromCacheDirectly: suspend () -> T
 
-    protected val logId = config.logId
-    protected val scope = config.scope ?: CoroutineScope(Job())
-    protected val dispatcher = config.dispatcher
+    private val logId = config.logId
+    private val scope = config.scope ?: CoroutineScope(Job())
+    private val dispatcher = config.dispatcher
     private val cacheExpiration = config.expiration
 
     init {
@@ -50,11 +49,8 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
         val connectivity = config.connectivity
 
         // Preparing the loaders that will track their `progress` and `error` states
-        refresh = Loader(logId, scope, dispatcher, data::refresh)
-        loadNext = when (data) {
-            is InflowPagedData<*> -> Loader(logId, scope, dispatcher, data::loadNext)
-            else -> null
-        }
+        refresh = Loader(logId, "Refresh", scope, dispatcher, data.refresh)
+        loadNext = data.loadNext?.let { Loader(logId, "Next page", scope, dispatcher, it) }
 
         // Checking for cached data invalidation if configured
         val cacheWithInvalidation = if (cacheInvalidation != null) {
@@ -194,7 +190,7 @@ internal open class InflowImpl<T>(config: InflowConfig<T>) : Inflow<T>() {
 
     // Deferred that delegates to the loader's deferred result,
     // the actual result will be requested from the cache explicitly.
-    protected inner class DeferredLoad(
+    private inner class DeferredLoad(
         private val delegate: CompletableDeferred<Unit>
     ) : InflowDeferred<T> {
         override suspend fun join() = delegate.join()

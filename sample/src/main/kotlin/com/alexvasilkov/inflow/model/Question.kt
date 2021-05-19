@@ -19,8 +19,8 @@ data class QuestionsQuery(
     val tag: String
 )
 
-class QuestionsData(
+class QuestionsResult(
     val query: QuestionsQuery,
-    items: List<Question>,
-    hasNext: Boolean
-) : Paged<Question>(items, hasNext)
+    override val items: List<Question>,
+    override val hasNext: Boolean
+) : Paged<Question>

@@ -11,11 +11,11 @@ import inflow.Expires
 import inflow.Inflow
 import inflow.MemoryCache
 import inflow.inflow
-import inflow.inflowPaged
 import inflow.inflows
 import inflow.map
 import inflow.mergeBy
 import inflow.paging.PageResult
+import inflow.paging.inflowPaged
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -89,7 +89,7 @@ class StackExchangeRepo(
                 PageResult(items, nextKey = items.lastOrNull()?.let { it.lastActivity + 1L })
             }
             identifyBy(Question::id)
-            mergeBy(Question::lastActivity, { o1, o2 -> o1.compareTo(o2) }, inverse = true)
+            mergeBy(Question::lastActivity, { o1, o2 -> o2.compareTo(o1) }, unique = false)
         }
     }.map { paged ->
         QuestionsResult(query, paged.items, paged.hasNext)

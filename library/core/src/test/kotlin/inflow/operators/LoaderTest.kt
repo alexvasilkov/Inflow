@@ -4,7 +4,7 @@
 
 package inflow.operators
 
-import inflow.LoadTracker
+import inflow.DataLoader
 import inflow.State
 import inflow.base.AtomicInt
 import inflow.base.BaseTest
@@ -69,8 +69,8 @@ class LoaderTest : BaseTest() {
         assertNotSame(job1, job3, "New job if loading finished")
     }
 
-    private fun TestCoroutineScope.createLoader(action: suspend (LoadTracker) -> Unit) =
-        Loader(logId, this, testDispatcher, action)
+    private fun TestCoroutineScope.createLoader(action: DataLoader<Unit>) =
+        Loader(logId, "Test", this, testDispatcher, action)
 
 
     @Test
@@ -78,7 +78,7 @@ class LoaderTest : BaseTest() {
     @Timeout(STRESS_TIMEOUT)
     fun `IF join() THEN only one action runs at a time`() = runReal {
         val loads = AtomicInt()
-        val loader = Loader(logId, this, Dispatchers.Default) {
+        val loader = Loader(logId, "Test", this, Dispatchers.Default) {
             delay(100L)
             loads.getAndIncrement()
         }

@@ -1,6 +1,7 @@
 package inflow
 
 import inflow.internal.InflowImpl
+import inflow.internal.InternalInflowApi
 import inflow.internal.MergedInflowImpl
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -19,7 +20,7 @@ import kotlinx.coroutines.flow.flow
  * **Usage**
  *
  * ```
- * val companies = inflow<List<Companies>?> {
+ * val companies = inflow<List<Company>?> {
  *     data(
  *         cache = dao.getCompaniesList()
  *         writer = dao::saveCompaniesList
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.flow
  *
  * **See [InflowConfig] for available configuration options.**
  */
+@OptIn(InternalInflowApi::class)
 @ExperimentalCoroutinesApi
 public fun <T> inflow(
     config: InflowConfig<T>.() -> Unit

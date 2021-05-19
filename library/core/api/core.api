@@ -2,11 +2,14 @@ public final class inflow/BuildersKt {
 	public static final fun emptyInflow ()Linflow/Inflow;
 	public static final fun emptyInflow (Ljava/lang/Object;)Linflow/Inflow;
 	public static final fun inflow (Lkotlin/jvm/functions/Function1;)Linflow/Inflow;
-	public static final fun inflowPaged (Lkotlin/jvm/functions/Function1;)Linflow/Inflow;
 	public static final fun inflows (Lkotlin/jvm/functions/Function1;Linflow/InflowsCache;)Linflow/Inflows;
 	public static synthetic fun inflows$default (Lkotlin/jvm/functions/Function1;Linflow/InflowsCache;ILjava/lang/Object;)Linflow/Inflows;
-	public static final fun merge (Linflow/Inflows;Lkotlinx/coroutines/flow/Flow;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineScope;)Linflow/Inflow;
-	public static synthetic fun merge$default (Linflow/Inflows;Lkotlinx/coroutines/flow/Flow;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineScope;ILjava/lang/Object;)Linflow/Inflow;
+	public static final fun mergeBy (Linflow/Inflows;Lkotlinx/coroutines/flow/Flow;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineScope;)Linflow/Inflow;
+	public static synthetic fun mergeBy$default (Linflow/Inflows;Lkotlinx/coroutines/flow/Flow;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineScope;ILjava/lang/Object;)Linflow/Inflow;
+}
+
+public abstract interface class inflow/CacheWriter {
+	public abstract fun write (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class inflow/Connectivity {
@@ -17,6 +20,10 @@ public abstract interface class inflow/Connectivity {
 public final class inflow/Connectivity$Companion {
 	public final fun getDefault ()Linflow/Connectivity;
 	public final fun setDefault (Linflow/Connectivity;)V
+}
+
+public abstract interface class inflow/DataLoader {
+	public abstract fun load (Linflow/LoadTracker;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class inflow/Expires {
@@ -32,9 +39,10 @@ public final class inflow/Expires$Companion {
 }
 
 public abstract class inflow/Inflow {
-	public fun <init> ()V
 	public final fun cache ()Lkotlinx/coroutines/flow/Flow;
+	public final fun cacheAndState ()Lkotlinx/coroutines/flow/Flow;
 	public final fun data ()Lkotlinx/coroutines/flow/Flow;
+	public final fun dataAndState ()Lkotlinx/coroutines/flow/Flow;
 	public final fun refresh (Z)Linflow/InflowDeferred;
 	public static synthetic fun refresh$default (Linflow/Inflow;ZILjava/lang/Object;)Linflow/InflowDeferred;
 	public final fun refreshIfExpired (J)Linflow/InflowDeferred;
@@ -42,12 +50,17 @@ public abstract class inflow/Inflow {
 	public final fun refreshState ()Lkotlinx/coroutines/flow/Flow;
 }
 
+public final class inflow/InflowCombined {
+	public final field data Ljava/lang/Object;
+	public final field refresh Linflow/State;
+}
+
 public class inflow/InflowConfig {
 	public final fun connectivity (Linflow/Connectivity;)V
-	public fun data (Linflow/MemoryCache;Lkotlin/jvm/functions/Function2;)V
-	public fun data (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
-	public fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)V
-	public fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
+	public fun data (Linflow/MemoryCache;Linflow/DataLoader;)V
+	public fun data (Ljava/lang/Object;Linflow/DataLoader;)V
+	public fun data (Lkotlinx/coroutines/flow/Flow;Linflow/CacheWriter;Linflow/DataLoader;)V
+	public fun data (Lkotlinx/coroutines/flow/Flow;Linflow/DataLoader;)V
 	public final fun dispatcher (Lkotlinx/coroutines/CoroutineDispatcher;)V
 	public final fun expiration (Linflow/Expires;)V
 	public final fun invalidation (Ljava/lang/Object;Linflow/Expires;)V
@@ -66,8 +79,6 @@ public final class inflow/InflowKt {
 	public static final fun cached (Linflow/Inflow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun fresh (Linflow/Inflow;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun fresh$default (Linflow/Inflow;JLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun loadNext (Linflow/Inflow;)Linflow/InflowDeferred;
-	public static final fun loadNextState (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
 	public static final fun refreshError (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
 	public static final fun refreshing (Linflow/Inflow;)Lkotlinx/coroutines/flow/Flow;
 }
@@ -75,6 +86,7 @@ public final class inflow/InflowKt {
 public abstract interface class inflow/Inflows {
 	public abstract fun clear ()V
 	public abstract fun get (Ljava/lang/Object;)Linflow/Inflow;
+	public abstract fun snapshot ()Ljava/util/List;
 }
 
 public abstract interface class inflow/InflowsCache {
@@ -82,6 +94,7 @@ public abstract interface class inflow/InflowsCache {
 	public abstract fun clear ()V
 	public abstract fun doOnRemove (Lkotlin/jvm/functions/Function1;)V
 	public abstract fun get (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public abstract fun snapshot ()Ljava/util/List;
 }
 
 public final class inflow/InflowsCache$Companion {
@@ -102,16 +115,6 @@ public abstract interface class inflow/MemoryCache {
 public final class inflow/MemoryCache$Companion {
 	public final fun create (Ljava/lang/Object;)Linflow/MemoryCache;
 	public final fun create (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)Linflow/MemoryCache;
-}
-
-public final class inflow/PagedInflowConfig : inflow/InflowConfig {
-	public synthetic fun data (Linflow/MemoryCache;Lkotlin/jvm/functions/Function2;)V
-	public synthetic fun data (Linflow/paging/Paged;Lkotlin/jvm/functions/Function2;)V
-	public synthetic fun data (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
-	public synthetic fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)V
-	public synthetic fun data (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
-	public final fun pager (Linflow/paging/Pager;)V
-	public final fun pager (Lkotlin/jvm/functions/Function1;)V
 }
 
 public abstract class inflow/State {
@@ -149,69 +152,7 @@ public final class inflow/TransformersKt {
 	public static final fun map (Linflow/Inflow;Lkotlin/jvm/functions/Function2;)Linflow/Inflow;
 }
 
-public abstract class inflow/paging/PageParams {
-	public final field count I
-	public final field key Ljava/lang/Object;
-	public synthetic fun <init> (Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class inflow/paging/PageParams$Next : inflow/paging/PageParams {
-}
-
-public final class inflow/paging/PageParams$Refresh : inflow/paging/PageParams {
-}
-
-public final class inflow/paging/PageResult {
-	public final field forceClearCacheOnRefresh Z
-	public final field items Ljava/util/List;
-	public final field nextKey Ljava/lang/Object;
-	public final field refreshKey Ljava/lang/Object;
-	public fun <init> (Ljava/util/List;Ljava/lang/Object;Ljava/lang/Object;Z)V
-	public synthetic fun <init> (Ljava/util/List;Ljava/lang/Object;Ljava/lang/Object;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public class inflow/paging/Paged {
-	public final field hasNext Z
-	public final field items Ljava/util/List;
-	public fun <init> (Ljava/util/List;Z)V
-}
-
-public abstract class inflow/paging/Pager : inflow/InflowPagedData {
-	public fun <init> ()V
-}
-
-public final class inflow/paging/PagerConfig {
-	public final fun cache (Linflow/paging/PagingCache;)V
-	public final fun identifyBy (Lkotlin/jvm/functions/Function1;)V
-	public final fun identifyWith (Lkotlin/jvm/functions/Function2;)V
-	public final fun loader (Lkotlin/jvm/functions/Function3;)V
-	public final fun mergeBy (Lkotlin/jvm/functions/Function1;Ljava/util/Comparator;ZZ)V
-	public static synthetic fun mergeBy$default (Linflow/paging/PagerConfig;Lkotlin/jvm/functions/Function1;Ljava/util/Comparator;ZZILjava/lang/Object;)V
-	public final fun mergeWith (Ljava/util/Comparator;ZZ)V
-	public static synthetic fun mergeWith$default (Linflow/paging/PagerConfig;Ljava/util/Comparator;ZZILjava/lang/Object;)V
-	public final fun pageSize (I)V
-}
-
-public abstract interface class inflow/paging/PagingCache {
-	public abstract fun delete (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun deleteAll (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun insert (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun read (IILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun readState (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun saveState (Linflow/paging/PagingState;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun update (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class inflow/paging/PagingCache$DefaultImpls {
-	public static fun update (Linflow/paging/PagingCache;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class inflow/paging/PagingState {
-	public final field hasMore Z
-	public final field nextKey Ljava/lang/Object;
-	public final field refreshKey Ljava/lang/Object;
-	public fun <init> (ZLjava/lang/Object;Ljava/lang/Object;)V
-	public synthetic fun <init> (ZLjava/lang/Object;Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+public abstract interface annotation class inflow/internal/InternalInflowApi : java/lang/annotation/Annotation {
 }
 
 public final class inflow/utils/InflowLogger {

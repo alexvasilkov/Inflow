@@ -4,9 +4,13 @@
 
 package inflow.behavior
 
+import inflow.DataProvider
+import inflow.LoadParam
 import inflow.LoadTracker
+import inflow.State
 import inflow.State.Idle
 import inflow.State.Loading
+import inflow.StateParam
 import inflow.base.BaseTest
 import inflow.base.STRESS_TAG
 import inflow.base.STRESS_TIMEOUT
@@ -26,6 +30,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import org.junit.jupiter.api.Tag
@@ -60,6 +65,30 @@ class StateTest : BaseTest() {
         delay(100L)
 
         assertEquals(TestTracker(1, 2), tracker, "Refresh is finished")
+    }
+
+    @Test
+    fun `IF load next is called THEN loading state is updated`() = runTest { job ->
+        var loadNextCalled = false
+        val inflow = testInflow {
+            data = DataProvider(
+                cache = flowOf(0),
+                refresh = {},
+                loadNext = { loadNextCalled = true }
+            )
+        }
+
+        val states = mutableListOf<State>()
+        launch(job) {
+            inflow.stateInternal(StateParam.LoadNextState).collect { states += it }
+        }
+
+        inflow.loadInternal(LoadParam.LoadNext)
+
+        assertTrue(loadNextCalled, "LoadNext is called")
+
+        val expectedStates = listOf(Idle.Initial, Loading.Started, Idle.Success)
+        assertEquals(expectedStates, states, "LoadNext states are correct")
     }
 
     @Test

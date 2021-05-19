@@ -1,4 +1,4 @@
-package inflow.internal
+package inflow.paging.internal
 
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST

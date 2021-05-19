@@ -5,11 +5,8 @@
 package inflow.behavior
 
 import inflow.base.BaseTest
-import inflow.base.runTest
-import inflow.base.testInflow
 import inflow.inflow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
@@ -17,35 +14,25 @@ import kotlin.test.assertFailsWith
 class ConfigTest : BaseTest() {
 
     @Test
-    fun `IF no data THEN error`() = runTest {
+    fun `IF no data THEN error`() {
         assertFailsWith<IllegalArgumentException> {
             inflow<Unit> {}
         }
     }
 
     @Test
-    fun `IF data set twice THEN error`() = runTest {
+    fun `IF cache timeout is negative THEN error`() {
         assertFailsWith<IllegalArgumentException> {
             inflow<Unit> {
-                data(flowOf(Unit)) {}
-                data(flowOf(Unit)) {}
-            }
-        }
-    }
-
-    @Test
-    fun `IF cache timeout is negative THEN error`() = runTest {
-        assertFailsWith<IllegalArgumentException> {
-            testInflow {
                 keepCacheSubscribedTimeout(-1L)
             }
         }
     }
 
     @Test
-    fun `IF retry time is 0 THEN error`() = runTest {
+    fun `IF retry time is 0 THEN error`() {
         assertFailsWith<IllegalArgumentException> {
-            testInflow {
+            inflow<Unit> {
                 retryTime(0L)
             }
         }
