@@ -8,12 +8,12 @@ import com.alexvasilkov.inflow.databinding.SeProfileScreenBinding
 import com.alexvasilkov.inflow.ui.BaseActivity
 import com.alexvasilkov.inflow.ui.ext.openUrl
 import com.alexvasilkov.inflow.ui.ext.toast
+import com.alexvasilkov.inflow.ui.ext.viewModel
 import com.alexvasilkov.inflow.ui.ext.whileStarted
-import org.koin.android.viewmodel.ext.android.viewModel
 
 class ProfileActivity : BaseActivity() {
 
-    private val viewModel: ProfileViewModel by viewModel()
+    private val viewModel by viewModel { ProfileViewModel(auth, repo) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

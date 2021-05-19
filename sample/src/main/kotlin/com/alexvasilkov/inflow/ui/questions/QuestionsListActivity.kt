@@ -13,13 +13,13 @@ import com.alexvasilkov.inflow.ui.BaseActivity
 import com.alexvasilkov.inflow.ui.ext.dp
 import com.alexvasilkov.inflow.ui.ext.hideKeyboard
 import com.alexvasilkov.inflow.ui.ext.toast
+import com.alexvasilkov.inflow.ui.ext.viewModel
 import com.alexvasilkov.inflow.ui.ext.whileStarted
 import com.google.android.material.appbar.AppBarLayout
-import org.koin.android.viewmodel.ext.android.viewModel
 
 class QuestionsListActivity : BaseActivity() {
 
-    private val viewModel: QuestionsListViewModel by viewModel()
+    private val viewModel by viewModel { QuestionsListViewModel(repo) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

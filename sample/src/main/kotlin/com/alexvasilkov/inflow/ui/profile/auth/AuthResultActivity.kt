@@ -3,12 +3,12 @@ package com.alexvasilkov.inflow.ui.profile.auth
 import android.content.Intent
 import android.os.Bundle
 import com.alexvasilkov.inflow.ui.BaseActivity
+import com.alexvasilkov.inflow.ui.ext.viewModel
 import com.alexvasilkov.inflow.ui.profile.ProfileActivity
-import org.koin.android.viewmodel.ext.android.viewModel
 
 class AuthResultActivity : BaseActivity() {
 
-    private val viewModel: AuthResultViewModel by viewModel()
+    private val viewModel by viewModel { AuthResultViewModel(auth) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
