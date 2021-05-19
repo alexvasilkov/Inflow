@@ -3,8 +3,8 @@ package com.alexvasilkov.inflow.ui.ext
 import androidx.lifecycle.Lifecycle.Event
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -27,6 +27,7 @@ inline fun <T> Flow<T>.whileStarted(
     crossinline collector: suspend (T) -> Unit
 ): Unit = owner.whileStarted { collect(collector) }
 
+private val globalUiScope = CoroutineScope(Dispatchers.Main.immediate)
 
 private class WhileStartedObserver(
     private val action: suspend () -> Unit
@@ -35,9 +36,7 @@ private class WhileStartedObserver(
 
     override fun onStateChanged(source: LifecycleOwner, event: Event) = when (event) {
         Event.ON_START -> {
-            // Global scope is fine as we'll control the lifespan of the job manually.
-            // If the action crashes then crashing global scope is also fine.
-            job = GlobalScope.launch(Dispatchers.Main.immediate) { action() }
+            job = globalUiScope.launch(Dispatchers.Main.immediate) { action() }
         }
         Event.ON_STOP -> {
             job?.cancel()
